@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🤖 Modular Trading Bot
 
 A transparent, ethical, and modular trading bot built in Python. Designed with safety-first principles, comprehensive audit logging, and clean separation of concerns.
@@ -292,3 +293,6 @@ This software is for educational purposes only. Cryptocurrency trading involves 
 - Use funds you can afford to lose
 - Consult with financial advisors
 - Understand the risks before trading
+=======
+# trading-bot
+>>>>>>> 5a4686a4b3257e97eb38c07019d6804cf80733cb
