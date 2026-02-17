@@ -1,0 +1,71 @@
+{
+  "trading_pairs": [
+    {
+      "symbol": "BTC/USDT",
+      "enabled": true,
+      "min_spread": 0.15,
+      "max_position": 100,
+      "exchanges": ["binance", "kraken", "coinbase"]
+    },
+    {
+      "symbol": "ETH/USDT",
+      "enabled": true,
+      "min_spread": 0.12,
+      "max_position": 50,
+      "exchanges": ["binance", "kraken", "coinbase"]
+    },
+    {
+      "symbol": "SOL/USDT",
+      "enabled": true,
+      "min_spread": 0.18,
+      "max_position": 25,
+      "exchanges": ["binance", "kraken"]
+    },
+    {
+      "symbol": "XRP/USDT",
+      "enabled": true,
+      "min_spread": 0.20,
+      "max_position": 20,
+      "exchanges": ["binance", "kraken"]
+    },
+    {
+      "symbol": "ADA/USDT",
+      "enabled": true,
+      "min_spread": 0.22,
+      "max_position": 15,
+      "exchanges": ["binance", "kraken"]
+    },
+    {
+      "symbol": "DOGE/USDT",
+      "enabled": false,
+      "min_spread": 0.25,
+      "max_position": 10,
+      "exchanges": ["binance", "kraken"]
+    }
+  ],
+  "solana_pairs": [
+    {
+      "symbol": "SOL/USDC",
+      "enabled": true,
+      "min_profit": 0.5,
+      "jupiter_route": true
+    },
+    {
+      "symbol": "BONK/SOL",
+      "enabled": false,
+      "min_profit": 1.0,
+      "jupiter_route": true
+    },
+    {
+      "symbol": "JUP/USDC",
+      "enabled": true,
+      "min_profit": 0.8,
+      "jupiter_route": true
+    }
+  ],
+  "scanning": {
+    "interval_seconds": 30,
+    "concurrent_pairs": 3,
+    "priority": "highest_spread"
+  }
+}

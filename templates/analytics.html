@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid px-0 px-lg-3">
+    <h2 class="h4 mb-3">📊 Performance Analytics</h2>
+    
+    <!-- Time Period Tabs -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link active" href="#daily">Today</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#weekly">Last 7 Days</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#monthly">Last 30 Days</a>
+        </li>
+    </ul>
+    
+    <!-- Daily Stats -->
+    <div class="row g-2 mb-3" id="daily">
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="small text-muted">TRADES TODAY</div>
+                <div class="h4 mb-0">{{ data.daily.total_trades }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="small text-muted">WIN RATE</div>
+                <div class="h4 mb-0 {{ 'text-success' if data.daily.win_rate >= 50 else 'text-danger' }}">
+                    {{ "%.1f"|format(data.daily.win_rate) }}%
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="small text-muted">P&L TODAY</div>
+                <div class="h4 mb-0 {{ 'text-success' if data.daily.total_pnl >= 0 else 'text-danger' }}">
+                    ${{ "%.2f"|format(data.daily.total_pnl) }}
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="small text-muted">PROFIT FACTOR</div>
+                <div class="h4 mb-0">{{ "%.2f"|format(data.daily.profit_factor) }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Weekly Summary -->
+    <div class="card mb-3">
+        <div class="card-header">Last 7 Days Summary</div>
+        <div class="card-body">
+            <div class="table-wrapper">
+                <table class="table table-dark table-sm">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th class="text-end">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Total Trades</td>
+                            <td class="text-end">{{ data.weekly.total_trades }}</td>
+                        </tr>
+                        <tr>
+                            <td>Win Rate</td>
+                            <td class="text-end {{ 'text-success' if data.weekly.win_rate >= 50 else 'text-danger' }}">
+                                {{ "%.1f"|format(data.weekly.win_rate) }}%
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Total P&L</td>
+                            <td class="text-end {{ 'text-success' if data.weekly.total_pnl >= 0 else 'text-danger' }}">
+                                ${{ "%.2f"|format(data.weekly.total_pnl) }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Average Win</td>
+                            <td class="text-end text-success">${{ "%.2f"|format(data.weekly.avg_win) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Average Loss</td>
+                            <td class="text-end text-danger">${{ "%.2f"|format(data.weekly.avg_loss) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Sharpe Ratio</td>
+                            <td class="text-end">{{ "%.2f"|format(data.weekly.sharpe_ratio) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Max Drawdown</td>
+                            <td class="text-end text-warning">${{ "%.2f"|format(data.weekly.max_drawdown) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Monthly Performance -->
+    <div class="card">
+        <div class="card-header">Monthly Performance (30 Days)</div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Total Trades:</strong> {{ data.monthly.total_trades }}</p>
+                    <p><strong>Winning Trades:</strong> {{ data.monthly.winning_trades }}</p>
+                    <p><strong>Losing Trades:</strong> {{ data.monthly.losing_trades }}</p>
+                    <p><strong>Best Trade:</strong> <span class="text-success">${{ "%.2f"|format(data.monthly.best_trade) }}</span></p>
+                    <p><strong>Worst Trade:</strong> <span class="text-danger">${{ "%.2f"|format(data.monthly.worst_trade) }}</span></p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Total P&L:</strong> <span class="{{ 'text-success' if data.monthly.total_pnl >= 0 else 'text-danger' }}">${{ "%.2f"|format(data.monthly.total_pnl) }}</span></p>
+                    <p><strong>Profit Factor:</strong> {{ "%.2f"|format(data.monthly.profit_factor) }}</p>
+                    <p><strong>Sharpe Ratio:</strong> {{ "%.2f"|format(data.monthly.sharpe_ratio) }}</p>
+                    <p><strong>Max Drawdown:</strong> <span class="text-warning">${{ "%.2f"|format(data.monthly.max_drawdown) }}</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

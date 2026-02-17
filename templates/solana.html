@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid px-0 px-lg-3">
+    <h2 class="h4 mb-3">💰 Solana DEX</h2>
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-currency-bitcoin text-warning" style="font-size: 3rem;"></i>
+            <p class="mt-3">Solana Wallet Integration</p>
+            <small class="text-muted">Balance: {{ data.sol_balance|default(0) }} SOL</small>
+        </div>
+    </div>
+</div>
+{% endblock %}

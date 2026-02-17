@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid px-0 px-lg-3">
+    <h2 class="h4 mb-3">⚙️ Configuration</h2>
+    <div class="card">
+        <div class="card-body">
+            <p><strong>Mode:</strong> {{ data.mode }}</p>
+            <p><strong>Min Spread:</strong> {{ data.config.strategy.min_spread|default(0.5) }}%</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
