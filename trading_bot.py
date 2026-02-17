@@ -60,6 +60,25 @@ except ImportError as e:
     print(f"Error importing Execution Layer: {e}")
     EXECUTION_LAYER_AVAILABLE = False
 
+# Optional modules
+try:
+    from exchange_connectors import MultiExchangeConnector
+    MULTI_EXCHANGE_AVAILABLE = True
+except ImportError:
+    MULTI_EXCHANGE_AVAILABLE = False
+
+try:
+    from alerts import AlertManager
+    ALERTS_AVAILABLE = True
+except ImportError:
+    ALERTS_AVAILABLE = False
+
+try:
+    import dashboard
+    DASHBOARD_AVAILABLE = True
+except ImportError:
+    DASHBOARD_AVAILABLE = False
+
 
 class TradingBot:
     """
@@ -118,6 +137,16 @@ class TradingBot:
             self.binance = BinanceConnector()
             self.coinbase = CoinbaseConnector()
             print("✅ Data Layer initialized")
+            
+            # Additional exchanges
+            if MULTI_EXCHANGE_AVAILABLE:
+                exchange_config = self.config.get('exchanges', {})
+                self.multi_exchange = MultiExchangeConnector({
+                    "exchanges": exchange_config
+                })
+                print("✅ Multi-Exchange connectors initialized")
+            else:
+                self.multi_exchange = None
         else:
             raise RuntimeError("Data Layer not available")
         
@@ -153,6 +182,7 @@ class TradingBot:
         # Execution Layer
         if EXECUTION_LAYER_AVAILABLE:
             execution_mode = ExecutionMode.PAPER if self.mode == "paper" else ExecutionMode.LIVE
+            exec_config = self.config.get('execution', {})
             
             # Load API keys from environment for live mode
             binance_key = os.getenv('BINANCE_API_KEY')
@@ -162,8 +192,8 @@ class TradingBot:
             
             self.executor = ExecutionLayer(
                 mode=execution_mode,
-                max_retries=3,
-                retry_delay=1.0,
+                max_retries=exec_config.get('max_retries', 3),
+                retry_delay=exec_config.get('retry_delay', 1.0),
                 binance_api_key=binance_key,
                 binance_secret=binance_secret,
                 coinbase_api_key=coinbase_key,
@@ -172,6 +202,14 @@ class TradingBot:
             print("✅ Execution Layer initialized")
         else:
             raise RuntimeError("Execution Layer not available")
+        
+        # Alert Manager (optional)
+        if ALERTS_AVAILABLE:
+            alert_config = self.config.get('alerts', {})
+            self.alerts = AlertManager(alert_config)
+            print("✅ Alert Manager initialized")
+        else:
+            self.alerts = None
         
         print()
     
@@ -217,10 +255,22 @@ class TradingBot:
         else:
             print(f"   ✗ Coinbase: Failed")
         
+        # Fetch from additional exchanges if available
+        if self.multi_exchange:
+            additional_prices = self.multi_exchange.fetch_all_prices()
+            for price_data in additional_prices:
+                print(f"   ✓ {price_data['exchange']}: ${price_data['price']:,.2f}")
+                prices.append(price_data)
+        
         if len(prices) < 2:
             result["status"] = "FAILED"
-            result["error"] = "Could not fetch prices from both exchanges"
+            result["error"] = "Could not fetch prices from enough exchanges"
             print(f"\n❌ ERROR: {result['error']}")
+            
+            # Send error alert
+            if self.alerts:
+                self.alerts.send_error_alert(f"Price fetch failed: {result['error']}")
+            
             return result
         
         result["prices"] = prices
@@ -296,7 +346,50 @@ class TradingBot:
             result["status"] = "NO_TRADE"
         
         # =====================================================================
-        # STEP 5: LOGGING - Audit Trail
+        # STEP 5: ALERTS - Send notifications
+        # =====================================================================
+        if self.alerts:
+            alert_config = self.config.get('alerts', {})
+            
+            # Trade alert
+            if alert_config.get('on_trade', True) and result.get('execution'):
+                self.alerts.send_trade_alert(result['execution'])
+            
+            # Stop-loss alert
+            if alert_config.get('on_stop_loss', True) and closed_positions:
+                for pos in closed_positions:
+                    self.alerts.send_stop_loss_alert(pos.__dict__ if hasattr(pos, '__dict__') else pos)
+            
+            # Daily limit alert
+            risk_summary = self.risk_manager.get_portfolio_summary()
+            if alert_config.get('on_daily_limit', True) and risk_summary.get('trading_halted'):
+                self.alerts.send_daily_limit_alert(
+                    risk_summary['daily_pnl'],
+                    self.config.get('risk', {}).get('daily_loss_limit_pct', 0.05)
+                )
+        
+        # =====================================================================
+        # STEP 6: DASHBOARD - Update real-time view
+        # =====================================================================
+        if DASHBOARD_AVAILABLE:
+            try:
+                dashboard.update_dashboard(
+                    prices=result.get('prices', []),
+                    trades=[e.__dict__ if hasattr(e, '__dict__') else e for e in self.executor.executions[-10:]],
+                    positions=[p.__dict__ if hasattr(p, '__dict__') else p for p in self.risk_manager.positions if p.status == "OPEN"],
+                    stats={
+                        "total_cycles": self.run_count,
+                        "successful_trades": self.executor.successful_executions,
+                        "total_pnl": sum(e.net_pnl or 0 for e in self.executor.executions),
+                        "daily_pnl": risk_summary.get('daily_pnl', 0),
+                        "avg_latency": self.executor.avg_latency_ms
+                    }
+                )
+            except Exception as e:
+                print(f"   Dashboard update error: {e}")
+        
+        # =====================================================================
+        # STEP 7: LOGGING - Audit Trail
         # =====================================================================
         cycle_end = time.time()
         result["cycle_time_ms"] = round((cycle_end - cycle_start) * 1000, 2)
@@ -446,6 +539,19 @@ Environment Variables for Live Trading:
         help='JSON config file for custom settings'
     )
     
+    parser.add_argument(
+        '--dashboard',
+        action='store_true',
+        help='Start web dashboard'
+    )
+    
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=8080,
+        help='Dashboard port (default: 8080)'
+    )
+    
     args = parser.parse_args()
     
     # Run tests if requested
@@ -453,11 +559,36 @@ Environment Variables for Live Trading:
         run_tests()
         return
     
+    # Start dashboard only mode
+    if args.dashboard:
+        if DASHBOARD_AVAILABLE:
+            print("🌐 Starting Dashboard Server...")
+            print(f"   URL: http://localhost:{args.port}")
+            print(f"   Use --port to change port\n")
+            dashboard.run_dashboard(port=args.port)
+        else:
+            print("❌ Dashboard not available. Install flask: pip install flask")
+            sys.exit(1)
+        return
+    
     # Load config if provided
     config = {}
     if args.config and os.path.exists(args.config):
         with open(args.config, 'r') as f:
             config = json.load(f)
+    elif os.path.exists('config.json'):
+        # Use default config.json if it exists
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+            print("📄 Loaded config.json")
+    
+    # Start dashboard in background if enabled in config
+    dashboard_thread = None
+    if DASHBOARD_AVAILABLE and config.get('dashboard', {}).get('enabled', False):
+        dashboard_port = config.get('dashboard', {}).get('port', 8080)
+        print(f"🌐 Starting Dashboard on port {dashboard_port}...")
+        dashboard_thread = Thread(target=dashboard.run_dashboard, kwargs={'port': dashboard_port}, daemon=True)
+        dashboard_thread.start()
     
     # Initialize and run bot
     try:
