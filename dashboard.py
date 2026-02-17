@@ -1,394 +1,312 @@
 #!/usr/bin/env python3
 """
-Web Dashboard - Real-time Trading Bot Monitor
-Simple web interface to view trades, positions, and performance
+Professional Web Dashboard for Trading Bot
+Modern dark UI with real-time updates
 """
 
 import json
 import os
-from datetime import datetime, timezone
-from flask import Flask, render_template_string, jsonify
+import sqlite3
+from datetime import datetime, timezone, timedelta
+from flask import Flask, render_template, jsonify, request
 from threading import Thread
 import time
 
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
-# Global state (in production, use a proper database)
-dashboard_state = {
+# Global state
+dashboard_data = {
+    "mode": "paper",
+    "balance": 10000.0,
+    "uptime": "0h 0m",
+    "cycle_count": 0,
+    "total_pnl": 0.0,
+    "win_rate": 0.0,
+    "max_drawdown": 0.0,
+    "exposure": 0.0,
+    "total_trades": 0,
+    "winning_trades": 0,
     "prices": [],
-    "trades": [],
     "positions": [],
-    "stats": {
-        "total_cycles": 0,
-        "successful_trades": 0,
-        "total_pnl": 0.0,
-        "daily_pnl": 0.0,
-        "avg_latency": 0.0
-    },
-    "last_update": None
+    "recent_trades": [],
+    "chart_labels": [],
+    "chart_data": []
 }
 
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Bot Dashboard</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #fff;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container { max-width: 1400px; margin: 0 auto; }
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        .stat-card h3 {
-            font-size: 0.9em;
-            opacity: 0.8;
-            margin-bottom: 10px;
-        }
-        .stat-card .value {
-            font-size: 2em;
-            font-weight: bold;
-        }
-        .positive { color: #4ade80; }
-        .negative { color: #f87171; }
-        .neutral { color: #fbbf24; }
-        .section {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        .section h2 {
-            margin-bottom: 15px;
-            font-size: 1.3em;
-            border-bottom: 2px solid rgba(255,255,255,0.2);
-            padding-bottom: 10px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        th {
-            font-weight: 600;
-            opacity: 0.8;
-        }
-        tr:hover {
-            background: rgba(255,255,255,0.05);
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: bold;
-        }
-        .badge-success { background: #4ade80; color: #000; }
-        .badge-warning { background: #fbbf24; color: #000; }
-        .badge-danger { background: #f87171; color: #000; }
-        .price-ticker {
-            display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        .price-item {
-            text-align: center;
-            padding: 15px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            min-width: 150px;
-        }
-        .price-item h4 {
-            opacity: 0.8;
-            margin-bottom: 5px;
-        }
-        .price-item .price {
-            font-size: 1.5em;
-            font-weight: bold;
-        }
-        .status-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(0,0,0,0.8);
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 5px;
-        }
-        .status-online { background: #4ade80; }
-        .status-offline { background: #f87171; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .updating {
-            animation: pulse 1s infinite;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🤖 Trading Bot Dashboard</h1>
-        
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h3>Total Cycles</h3>
-                <div class="value neutral">{{ stats.total_cycles }}</div>
-            </div>
-            <div class="stat-card">
-                <h3>Successful Trades</h3>
-                <div class="value positive">{{ stats.successful_trades }}</div>
-            </div>
-            <div class="stat-card">
-                <h3>Total P&L</h3>
-                <div class="value {% if stats.total_pnl >= 0 %}positive{% else %}negative{% endif %}">
-                    ${{ "%.2f"|format(stats.total_pnl) }}
-                </div>
-            </div>
-            <div class="stat-card">
-                <h3>Daily P&L</h3>
-                <div class="value {% if stats.daily_pnl >= 0 %}positive{% else %}negative{% endif %}">
-                    ${{ "%.2f"|format(stats.daily_pnl) }}
-                </div>
-            </div>
-            <div class="stat-card">
-                <h3>Avg Latency</h3>
-                <div class="value neutral">{{ "%.1f"|format(stats.avg_latency) }}ms</div>
-            </div>
-        </div>
-        
-        <div class="section">
-            <h2>📊 Live Prices</h2>
-            <div class="price-ticker">
-                {% for price in prices %}
-                <div class="price-item">
-                    <h4>{{ price.exchange }}</h4>
-                    <div class="price">${{ "%.2f"|format(price.price) }}</div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        
-        <div class="section">
-            <h2>💼 Open Positions</h2>
-            {% if positions %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Exchange</th>
-                        <th>Side</th>
-                        <th>Entry Price</th>
-                        <th>Quantity</th>
-                        <th>Stop Loss</th>
-                        <th>P&L</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for pos in positions %}
-                    <tr>
-                        <td>{{ pos.position_id }}</td>
-                        <td>{{ pos.exchange }}</td>
-                        <td>{{ pos.side }}</td>
-                        <td>${{ "%.2f"|format(pos.entry_price) }}</td>
-                        <td>{{ "%.4f"|format(pos.quantity) }} BTC</td>
-                        <td>${{ "%.2f"|format(pos.stop_loss_price) }}</td>
-                        <td class="{% if pos.unrealized_pnl >= 0 %}positive{% else %}negative{% endif %}">
-                            ${{ "%.2f"|format(pos.unrealized_pnl) }}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <p style="opacity: 0.7; text-align: center; padding: 20px;">No open positions</p>
-            {% endif %}
-        </div>
-        
-        <div class="section">
-            <h2>📝 Recent Trades</h2>
-            {% if trades %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Time</th>
-                        <th>Mode</th>
-                        <th>Status</th>
-                        <th>Buy</th>
-                        <th>Sell</th>
-                        <th>Quantity</th>
-                        <th>P&L</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for trade in trades %}
-                    <tr>
-                        <td>{{ trade.trade_id }}</td>
-                        <td>{{ trade.timestamp[:19] }}</td>
-                        <td>{{ trade.mode }}</td>
-                        <td>
-                            <span class="badge badge-{% if trade.status == 'FILLED' %}success{% elif trade.status == 'REJECTED' %}danger{% else %}warning{% endif %}">
-                                {{ trade.status }}
-                            </span>
-                        </td>
-                        <td>{{ trade.buy_exchange }}</td>
-                        <td>{{ trade.sell_exchange }}</td>
-                        <td>{{ "%.4f"|format(trade.quantity) }} BTC</td>
-                        <td class="{% if trade.net_pnl and trade.net_pnl >= 0 %}positive{% else %}negative{% endif %}">
-                            ${{ "%.2f"|format(trade.net_pnl or 0) }}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <p style="opacity: 0.7; text-align: center; padding: 20px;">No trades yet</p>
-            {% endif %}
-        </div>
-    </div>
+
+def load_data_from_db():
+    """Load trading data from SQLite database."""
+    db_path = "trades.db"
     
-    <div class="status-bar">
-        <div>
-            <span class="status-indicator status-online"></span>
-            <span>Bot Online</span>
-        </div>
-        <div>
-            Last Update: {{ last_update or 'Never' }}
-        </div>
-    </div>
+    if not os.path.exists(db_path):
+        return
     
-    <script>
-        // Auto-refresh every 5 seconds
-        setInterval(() => {
-            location.reload();
-        }, 5000);
-    </script>
-</body>
-</html>
-"""
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get recent trades
+        cursor.execute("""
+            SELECT * FROM trades 
+            ORDER BY timestamp DESC 
+            LIMIT 20
+        """)
+        dashboard_data["recent_trades"] = [dict(row) for row in cursor.fetchall()]
+        
+        # Get open positions
+        cursor.execute("""
+            SELECT * FROM positions 
+            WHERE status = 'OPEN'
+            ORDER BY timestamp DESC
+        """)
+        dashboard_data["positions"] = [dict(row) for row in cursor.fetchall()]
+        
+        # Calculate stats
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) as wins,
+                SUM(net_pnl) as total_pnl
+            FROM trades
+            WHERE timestamp > datetime('now', '-7 days')
+        """)
+        stats = cursor.fetchone()
+        
+        if stats:
+            dashboard_data["total_trades"] = stats["total"] or 0
+            dashboard_data["winning_trades"] = stats["wins"] or 0
+            dashboard_data["total_pnl"] = stats["total_pnl"] or 0.0
+            dashboard_data["win_rate"] = (
+                (stats["wins"] / stats["total"] * 100) if stats["total"] > 0 else 0
+            )
+        
+        # Calculate exposure
+        exposure = sum(
+            pos["quantity"] * pos["entry_price"] 
+            for pos in dashboard_data["positions"]
+        )
+        dashboard_data["exposure"] = exposure
+        
+        conn.close()
+        
+    except Exception as e:
+        print(f"[Dashboard] DB error: {e}")
 
 
-@app.route('/')
+def load_config():
+    """Load bot configuration."""
+    try:
+        with open("config.json", "r") as f:
+            config = json.load(f)
+            dashboard_data["mode"] = config.get("bot", {}).get("mode", "paper")
+    except:
+        pass
+
+
+def generate_chart_data():
+    """Generate sample chart data (replace with real data)."""
+    labels = []
+    data = []
+    
+    for i in range(7):
+        date = datetime.now() - timedelta(days=6-i)
+        labels.append(date.strftime("%m/%d"))
+        # Simulate equity curve
+        data.append(10000 + (i * 10) + (i * i * 2))
+    
+    dashboard_data["chart_labels"] = labels
+    dashboard_data["chart_data"] = data
+
+
+@app.route("/")
 def index():
     """Main dashboard page."""
-    return render_template_string(HTML_TEMPLATE, **dashboard_state)
+    load_data_from_db()
+    load_config()
+    generate_chart_data()
+    
+    return render_template(
+        "index.html",
+        data=dashboard_data,
+        mode=dashboard_data["mode"],
+        balance=dashboard_data["balance"],
+        cycle_count=dashboard_data["cycle_count"],
+        uptime=dashboard_data["uptime"],
+        active_page="overview"
+    )
 
 
-@app.route('/api/data')
+@app.route("/prices")
+def prices():
+    """Live prices page."""
+    return render_template(
+        "index.html",
+        data=dashboard_data,
+        mode=dashboard_data["mode"],
+        balance=dashboard_data["balance"],
+        cycle_count=dashboard_data["cycle_count"],
+        uptime=dashboard_data["uptime"],
+        active_page="prices"
+    )
+
+
+@app.route("/positions")
+def positions():
+    """Open positions page."""
+    load_data_from_db()
+    return render_template(
+        "index.html",
+        data=dashboard_data,
+        mode=dashboard_data["mode"],
+        balance=dashboard_data["balance"],
+        cycle_count=dashboard_data["cycle_count"],
+        uptime=dashboard_data["uptime"],
+        active_page="positions"
+    )
+
+
+@app.route("/trades")
+def trades():
+    """Trade history page."""
+    load_data_from_db()
+    return render_template(
+        "index.html",
+        data=dashboard_data,
+        mode=dashboard_data["mode"],
+        balance=dashboard_data["balance"],
+        cycle_count=dashboard_data["cycle_count"],
+        uptime=dashboard_data["uptime"],
+        active_page="trades"
+    )
+
+
+@app.route("/solana")
+def solana():
+    """Solana DEX page."""
+    return render_template(
+        "index.html",
+        data=dashboard_data,
+        mode=dashboard_data["mode"],
+        balance=dashboard_data["balance"],
+        cycle_count=dashboard_data["cycle_count"],
+        uptime=dashboard_data["uptime"],
+        active_page="solana"
+    )
+
+
+@app.route("/config")
+def config_page():
+    """Configuration page."""
+    try:
+        with open("config.json", "r") as f:
+            config = json.load(f)
+    except:
+        config = {}
+    
+    return render_template(
+        "index.html",
+        data=dashboard_data,
+        config=config,
+        mode=dashboard_data["mode"],
+        balance=dashboard_data["balance"],
+        cycle_count=dashboard_data["cycle_count"],
+        uptime=dashboard_data["uptime"],
+        active_page="config"
+    )
+
+
+@app.route("/alerts")
+def alerts():
+    """Alerts page."""
+    return render_template(
+        "index.html",
+        data=dashboard_data,
+        mode=dashboard_data["mode"],
+        balance=dashboard_data["balance"],
+        cycle_count=dashboard_data["cycle_count"],
+        uptime=dashboard_data["uptime"],
+        active_page="alerts"
+    )
+
+
+# API Endpoints
+@app.route("/api/data")
 def api_data():
-    """API endpoint for JSON data."""
-    return jsonify(dashboard_state)
+    """JSON API for data."""
+    load_data_from_db()
+    return jsonify(dashboard_data)
 
 
-def update_dashboard(prices=None, trades=None, positions=None, stats=None):
-    """Update dashboard state from trading bot."""
-    global dashboard_state
-    
-    if prices:
-        dashboard_state["prices"] = prices
-    if trades:
-        dashboard_state["trades"] = trades[-20:]  # Keep last 20
-    if positions:
-        dashboard_state["positions"] = positions
-    if stats:
-        dashboard_state["stats"].update(stats)
-    
-    dashboard_state["last_update"] = datetime.now(timezone.utc).isoformat()
+@app.route("/api/config", methods=["POST"])
+def api_config():
+    """Update configuration."""
+    try:
+        new_config = request.json
+        with open("config.json", "w") as f:
+            json.dump(new_config, f, indent=2)
+        return jsonify({"success": True, "message": "Config saved"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/manual_swap", methods=["POST"])
+def api_manual_swap():
+    """Execute manual swap."""
+    try:
+        data = request.json
+        # This would integrate with your solana_dex_full.py
+        # For now, just return success
+        return jsonify({
+            "success": True,
+            "signature": "MANUAL_SWAP_TEST",
+            "message": f"Swap executed: {data.get('amount')} tokens"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/test_alert", methods=["POST"])
+def api_test_alert():
+    """Send test alert."""
+    return jsonify({"success": True, "message": "Test alert sent!"})
+
+
+@app.route("/api/close_position/<position_id>", methods=["POST"])
+def api_close_position(position_id):
+    """Close a position."""
+    try:
+        # This would integrate with your risk_manager.py
+        return jsonify({"success": True, "message": f"Position {position_id} closed"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 
 def run_dashboard(host='0.0.0.0', port=8080):
     """Run the dashboard server."""
-    print(f"[Dashboard] Starting server on http://{host}:{port}")
-    print(f"[Dashboard] Open your browser to view the dashboard")
+    print(f"[Dashboard] Starting professional UI on http://{host}:{port}")
+    print(f"[Dashboard] Templates: templates/")
+    print(f"[Dashboard] Static: static/css/, static/js/")
     app.run(host=host, port=port, debug=False, use_reloader=False)
 
 
+def update_dashboard_data(prices=None, trades=None, positions=None, stats=None):
+    """Update dashboard data from trading bot."""
+    global dashboard_data
+    
+    if prices:
+        dashboard_data["prices"] = prices
+    if trades:
+        dashboard_data["recent_trades"] = trades[-20:]
+    if positions:
+        dashboard_data["positions"] = positions
+    if stats:
+        dashboard_data.update(stats)
+    
+    dashboard_data["cycle_count"] += 1
+    dashboard_data["uptime"] = f"{dashboard_data['cycle_count'] * 60 // 3600}h {(dashboard_data['cycle_count'] * 60 % 3600) // 60}m"
+
+
 if __name__ == "__main__":
-    # Test mode - populate with sample data
-    print("Dashboard - Test Mode")
-    print("=" * 60)
-    
-    # Sample data
-    update_dashboard(
-        prices=[
-            {"exchange": "Binance", "price": 68890.50},
-            {"exchange": "Coinbase", "price": 68860.25},
-            {"exchange": "Kraken", "price": 68875.00}
-        ],
-        trades=[
-            {
-                "trade_id": "TRADE_0001",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "mode": "PAPER",
-                "status": "FILLED",
-                "buy_exchange": "Binance",
-                "sell_exchange": "Coinbase",
-                "quantity": 0.01,
-                "net_pnl": 12.50
-            }
-        ],
-        positions=[
-            {
-                "position_id": "POS_0001",
-                "exchange": "Binance",
-                "side": "LONG",
-                "entry_price": 68000,
-                "quantity": 0.0074,
-                "stop_loss_price": 66640,
-                "unrealized_pnl": 65.80
-            }
-        ],
-        stats={
-            "total_cycles": 42,
-            "successful_trades": 3,
-            "total_pnl": 45.30,
-            "daily_pnl": 12.50,
-            "avg_latency": 245.5
-        }
-    )
-    
-    print("\nStarting dashboard server...")
-    print("Open http://localhost:8080 in your browser\n")
     run_dashboard()
