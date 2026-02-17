@@ -1,0 +1,44 @@
+# Sensitive files
+.env
+.env.solana
+solana_wallet_live.json
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+botenv/
+venv/
+ENV/
+
+# Database
+trades.db
+*.db
+*.sqlite
+
+# Logs
+*.log
+bot.log.*
+trading_bot.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*~
+*.bak
+config_backup_*.json
+
+# Temporary files
+dashboard_patch.py
