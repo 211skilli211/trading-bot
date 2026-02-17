@@ -1,0 +1,25 @@
+# Ignore system and Termux files
+.bashrc
+.bash_history
+.cache/
+.config/
+.local/
+.ssh/
+.termux/
+.vscode-oss/
+Desktop/
+storage/
+
+# Ignore Python artifacts
+__pycache__/
+*.pyc
+
+# Ignore logs and audit files
+*.log
+price_log.jsonl
+
+# Ignore hacktools and scripts not part of bot
+hacktools.sh
+start-hacklab.sh
+stop-hacklab.sh
+thc-hydra/
