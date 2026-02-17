@@ -1,25 +1,52 @@
-# Ignore system and Termux files
-.bashrc
-.bash_history
-.cache/
-.config/
-.local/
-.ssh/
-.termux/
-.vscode-oss/
-Desktop/
-storage/
+# Environment variables (contains secrets)
+.env
 
-# Ignore Python artifacts
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Ignore logs and audit files
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
 *.log
 price_log.jsonl
+trading_bot.log
 
-# Ignore hacktools and scripts not part of bot
-hacktools.sh
-start-hacklab.sh
-stop-hacklab.sh
-thc-hydra/
+# OS
+.DS_Store
+Thumbs.db
+
+# Bot specific
+*.key
+*.pem
+wallet.json
+positions.json
