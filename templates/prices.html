@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% set active = 'prices' %}
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Live Market Prices</h5>
+        <div class="d-flex gap-2">
+            <span class="badge bg-success">Live</span>
+            <button onclick="refreshData()" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-4">
+            {% for price in prices %}
+            <div class="col-md-4">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ price.exchange }}</h5>
+                        <h3 class="mb-2">${{ "%.2f"|format(price.price) }}</h3>
+                        <div class="d-flex justify-content-between text-muted small">
+                            <span>Bid: ${{ "%.2f"|format(price.bid|default(price.price)) }}</span>
+                            <span>Ask: ${{ "%.2f"|format(price.ask|default(price.price)) }}</span>
+                        </div>
+                        <div class="mt-2">
+                            {% set spread_pct = ((price.ask|default(price.price) - price.bid|default(price.price)) / price.price * 100) %}
+                            <span class="badge {% if spread_pct > 0.5 %}bg-success{% elif spread_pct > 0.3 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                Spread: {{ "%.4f"|format(spread_pct) }}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <h6 class="mb-3">Detailed Comparison</h6>
+        <div class="table-responsive">
+            <table class="table table-dark table-hover">
+                <thead>
+                    <tr>
+                        <th>Exchange</th>
+                        <th>Symbol</th>
+                        <th>Price</th>
+                        <th>Bid</th>
+                        <th>Ask</th>
+                        <th>Spread %</th>
+                        <th>24h Volume</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for price in prices %}
+                    <tr>
+                        <td><strong>{{ price.exchange }}</strong></td>
+                        <td>{{ price.symbol }}</td>
+                        <td class="fw-bold">${{ "%.2f"|format(price.price) }}</td>
+                        <td>${{ "%.2f"|format(price.bid|default(price.price)) }}</td>
+                        <td>${{ "%.2f"|format(price.ask|default(price.price)) }}</td>
+                        <td>
+                            {% set spread_pct = ((price.ask|default(price.price) - price.bid|default(price.price)) / price.price * 100) %}
+                            <span class="{% if spread_pct > 0.5 %}text-success fw-bold{% elif spread_pct > 0.3 %}text-warning{% else %}text-muted{% endif %}">
+                                {{ "%.4f"|format(spread_pct) }}%
+                            </span>
+                        </td>
+                        <td>{{ "%.2f"|format(price.volume_24h|default(0)) }}</td>
+                        <td class="small text-muted">{{ price.timestamp[11:19] if price.timestamp else 'Now' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="alert alert-info mt-3">
+            <i class="bi bi-info-circle"></i> 
+            <strong>Arbitrage Threshold:</strong> {{ min_spread|default(0.5) }}%
+            <br><small>Trades only execute when spread exceeds this threshold after fees.</small>
+        </div>
+    </div>
+</div>
+{% endblock %}

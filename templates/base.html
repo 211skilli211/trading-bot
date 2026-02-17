@@ -1,65 +1,293 @@
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>211Skilli Trading Bot</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="/static/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>211Skilli Trading Bot | Pro Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #111820;
+            --bg-card: #1a2332;
+            --border: #2d3a4a;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --success: #39d353;
+            --danger: #f85149;
+            --warning: #f0883e;
+            --info: #58a6ff;
+        }
+        body {
+            background: var(--bg-primary);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .sidebar {
+            width: 260px;
+            min-height: 100vh;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 1000;
+        }
+        .sidebar .nav-link {
+            color: var(--text-muted);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 4px 12px;
+            transition: all 0.2s;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background: var(--bg-card);
+            color: var(--text);
+        }
+        .sidebar .nav-link i {
+            width: 24px;
+            margin-right: 8px;
+        }
+        .main-content {
+            margin-left: 260px;
+            padding: 20px;
+        }
+        .topbar {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+        }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 8px 0;
+        }
+        .btn-mode-live {
+            background: var(--danger);
+            border: none;
+            animation: pulse 2s infinite;
+        }
+        .btn-mode-paper {
+            background: var(--success);
+            border: none;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .table-dark {
+            --bs-table-bg: var(--bg-card);
+            --bs-table-border-color: var(--border);
+        }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+        .text-success { color: var(--success) !important; }
+        .text-danger { color: var(--danger) !important; }
+        .text-warning { color: var(--warning) !important; }
+        .text-info { color: var(--info) !important; }
+    </style>
 </head>
 <body>
-  <div class="d-flex">
     <!-- Sidebar -->
-    <nav class="sidebar bg-dark text-white p-3">
-      <h4 class="mb-4"><i class="bi bi-robot"></i> 211Skilli Bot</h4>
-      <ul class="nav flex-column">
-        <li class="nav-item"><a href="/" class="nav-link {% if active_page == 'overview' %}active{% endif %}"><i class="bi bi-speedometer2"></i> Overview</a></li>
-        <li class="nav-item"><a href="/prices" class="nav-link {% if active_page == 'prices' %}active{% endif %}"><i class="bi bi-graph-up"></i> Live Prices</a></li>
-        <li class="nav-item"><a href="/positions" class="nav-link {% if active_page == 'positions' %}active{% endif %}"><i class="bi bi-wallet2"></i> Positions</a></li>
-        <li class="nav-item"><a href="/trades" class="nav-link {% if active_page == 'trades' %}active{% endif %}"><i class="bi bi-list-ul"></i> Trades</a></li>
-        <li class="nav-item"><a href="/solana" class="nav-link {% if active_page == 'solana' %}active{% endif %}"><i class="bi bi-link-45deg"></i> Solana DEX</a></li>
-        <li class="nav-item"><a href="/config" class="nav-link {% if active_page == 'config' %}active{% endif %}"><i class="bi bi-gear"></i> Config</a></li>
-        <li class="nav-item"><a href="/alerts" class="nav-link {% if active_page == 'alerts' %}active{% endif %}"><i class="bi bi-bell"></i> Alerts</a></li>
-      </ul>
-      <div class="mt-auto pt-4 border-top border-secondary">
-        <small class="text-muted">v2.0.0 | 211Skilli</small>
-      </div>
+    <nav class="sidebar">
+        <div class="p-3">
+            <h4 class="mb-4"><i class="bi bi-robot text-success"></i> <span class="text-light">211Skilli</span></h4>
+            <ul class="nav flex-column">
+                <li><a href="/" class="nav-link {% if active == 'overview' %}active{% endif %}"><i class="bi bi-speedometer2"></i>Overview</a></li>
+                <li><a href="/prices" class="nav-link {% if active == 'prices' %}active{% endif %}"><i class="bi bi-graph-up-arrow"></i>Live Prices</a></li>
+                <li><a href="/positions" class="nav-link {% if active == 'positions' %}active{% endif %}"><i class="bi bi-wallet2"></i>Positions</a></li>
+                <li><a href="/trades" class="nav-link {% if active == 'trades' %}active{% endif %}"><i class="bi bi-list-columns"></i>Trade History</a></li>
+                <li><a href="/solana" class="nav-link {% if active == 'solana' %}active{% endif %}"><i class="bi bi-currency-bitcoin"></i>Solana DEX</a></li>
+                <li><a href="/config" class="nav-link {% if active == 'config' %}active{% endif %}"><i class="bi bi-sliders2"></i>Strategy & Risk</a></li>
+                <li><a href="/alerts" class="nav-link {% if active == 'alerts' %}active{% endif %}"><i class="bi bi-bell-fill"></i>Alerts</a></li>
+            </ul>
+        </div>
+        <div class="mt-auto p-3 border-top border-secondary">
+            <small class="text-muted">v2.1.0 Pro</small>
+        </div>
     </nav>
 
     <!-- Main Content -->
-    <div class="main-content flex-grow-1">
-      <!-- Top Navbar -->
-      <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-secondary">
-        <div class="container-fluid">
-          <span class="navbar-brand">
-            <span class="badge {% if mode == 'live' %}bg-danger{% else %}bg-warning{% endif %} me-2">
-              {% if mode == 'live' %}● LIVE{% else %}● PAPER{% endif %}
-            </span>
-            <span class="text-light">{{ uptime }}</span>
-          </span>
-          <div class="navbar-nav flex-row">
-            <span class="nav-item me-3">
-              <i class="bi bi-wallet2"></i> 
-              <span class="{% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "%.2f"|format(balance) }} USDT</span>
-            </span>
-            <span class="nav-item">
-              <i class="bi bi-activity"></i> Cycle #{{ cycle_count }}
-            </span>
-          </div>
+    <div class="main-content">
+        <!-- Top Bar -->
+        <div class="topbar d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-4">
+                <button id="modeBtn" onclick="toggleMode()" class="btn {% if mode == 'LIVE' %}btn-mode-live{% else %}btn-mode-paper{% endif %} text-white fw-bold">
+                    {% if mode == 'LIVE' %}● LIVE{% else %}● PAPER{% endif %}
+                </button>
+                <span><i class="bi bi-wallet2 text-muted"></i> <strong class="{% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "%.2f"|format(balance|default(0)) }} USDT</strong></span>
+                <span class="text-muted"><i class="bi bi-clock"></i> {{ uptime }}</span>
+            </div>
+            <div class="d-flex gap-2">
+                <button onclick="refreshData()" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                <button onclick="stopBot()" class="btn btn-danger btn-sm"><i class="bi bi-stop-fill"></i> Stop</button>
+            </div>
         </div>
-      </nav>
 
-      <!-- Content Area -->
-      <div class="p-4">
+        <!-- Content -->
         {% block content %}{% endblock %}
-      </div>
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="/static/js/app.js"></script>
-  {% block scripts %}{% endblock %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            if (!document.querySelector('input:focus, select:focus, textarea:focus')) {
+                location.reload();
+            }
+        }, 5000);
+
+        // Toggle Mode
+        async function toggleMode() {
+            const currentMode = document.getElementById('modeBtn').textContent.includes('LIVE') ? 'LIVE' : 'PAPER';
+            const newMode = currentMode === 'PAPER' ? 'LIVE' : 'PAPER';
+            
+            if (newMode === 'LIVE' && !confirm('⚠️ SWITCH TO LIVE MODE?\n\nReal money will be used!\n\nMake sure you have:\n✓ Tested thoroughly\n✓ Funds in wallet\n✓ Stop-loss configured')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/toggle_mode', {method: 'POST'});
+                const data = await res.json();
+                if (data.success) {
+                    alert(`✅ Mode switched to ${data.mode}`);
+                    location.reload();
+                }
+            } catch (e) {
+                alert('❌ Failed to toggle mode');
+            }
+        }
+
+        // Stop Bot
+        async function stopBot() {
+            if (!confirm('Stop the trading bot?')) return;
+            try {
+                await fetch('/api/stop', {method: 'POST'});
+                alert('🛑 Bot stopping...');
+            } catch (e) {
+                alert('❌ Failed to stop');
+            }
+        }
+
+        // Refresh Data
+        function refreshData() {
+            location.reload();
+        }
+
+        // Manual Jupiter Swap
+        async function executeSwap() {
+            const amount = document.getElementById('swapAmount').value;
+            const input = document.getElementById('inputToken').value;
+            const output = document.getElementById('outputToken').value;
+            
+            if (!amount || amount <= 0) {
+                alert('Enter valid amount');
+                return;
+            }
+            
+            if (!confirm(`Execute swap?\n${amount} tokens\n${input.slice(0,8)}... → ${output.slice(0,8)}...`)) return;
+            
+            try {
+                const res = await fetch('/api/swap', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({inputMint: input, outputMint: output, amount: parseFloat(amount)})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`✅ Swap executed!\nTx: ${data.signature.slice(0,20)}...`);
+                    location.reload();
+                } else {
+                    alert(`❌ Swap failed: ${data.error}`);
+                }
+            } catch (e) {
+                alert('❌ Error: ' + e.message);
+            }
+        }
+
+        // Close Position
+        async function closePosition(id) {
+            if (!confirm(`Close position ${id}?`)) return;
+            try {
+                const res = await fetch(`/api/close_position/${id}`, {method: 'POST'});
+                const data = await res.json();
+                if (data.success) {
+                    alert('✅ Position closed');
+                    location.reload();
+                } else {
+                    alert(`❌ Failed: ${data.error}`);
+                }
+            } catch (e) {
+                alert('❌ Error closing position');
+            }
+        }
+
+        // Save Config
+        async function saveConfig() {
+            const config = {
+                min_spread: parseFloat(document.getElementById('minSpread').value),
+                stop_loss: parseFloat(document.getElementById('stopLoss').value),
+                max_position: parseFloat(document.getElementById('maxPos').value)
+            };
+            
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(config)
+                });
+                const data = await res.json();
+                alert(data.message || '✅ Config saved!');
+            } catch (e) {
+                alert('❌ Failed to save config');
+            }
+        }
+
+        // Test Alert
+        async function testAlert() {
+            try {
+                const res = await fetch('/api/test_alert', {method: 'POST'});
+                const data = await res.json();
+                alert(data.message);
+            } catch (e) {
+                alert('❌ Failed to send test alert');
+            }
+        }
+
+        // Export Trades
+        function exportTrades() {
+            const table = document.querySelector('table');
+            if (!table) return;
+            
+            let csv = 'Trade ID,Time,Exchange,Side,Qty,Price,P&L,Status\n';
+            table.querySelectorAll('tbody tr').forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 6) {
+                    const rowData = Array.from(cells).map(c => `"${c.textContent.trim().replace(/"/g,'""')}"`).join(',');
+                    csv += rowData + '\n';
+                }
+            });
+            
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `trades_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+    </script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% set active = 'alerts' %}
+{% block content %}
+<div class="row g-3">
+    <!-- Alert Configuration -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bell"></i> Alert Settings</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="alertEnabled" {% if config.alerts.enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="alertEnabled">Enable Alerts</label>
+                </div>
+                
+                <h6 class="mt-4 mb-3">Telegram</h6>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="telegramEnabled" {% if config.alerts.telegram.enabled %}checked{% endif %}>
+                        <label class="form-check-label">Enable Telegram</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Bot Token</label>
+                    <input type="password" class="form-control bg-dark text-light border-secondary" value="{{ config.alerts.telegram.bot_token|default('') }}" placeholder="123456:ABC-DEF...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Chat ID</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" value="{{ config.alerts.telegram.chat_id|default('') }}" placeholder="@yourchannel or 123456789">
+                </div>
+                
+                <h6 class="mt-4 mb-3">Discord</h6>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="discordEnabled" {% if config.alerts.discord.enabled %}checked{% endif %}>
+                        <label class="form-check-label">Enable Discord</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Webhook URL</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" value="{{ config.alerts.discord.webhook_url|default('') }}" placeholder="https://discord.com/api/webhooks/...">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alert Triggers -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bell-fill"></i> Alert Triggers</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" {% if config.alerts.on_trade %}checked{% endif %}>
+                    <label class="form-check-label">On Trade Execution</label>
+                </div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" {% if config.alerts.on_stop_loss %}checked{% endif %}>
+                    <label class="form-check-label">On Stop Loss Triggered</label>
+                </div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" {% if config.alerts.on_daily_limit %}checked{% endif %}>
+                    <label class="form-check-label">On Daily Loss Limit</label>
+                </div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" checked>
+                    <label class="form-check-label">On Bot Start/Stop</label>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" checked>
+                    <label class="form-check-label">On Errors</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test Alerts -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-send-check"></i> Test Alerts</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Send test alerts to verify your configuration</p>
+                
+                <div class="d-grid gap-2">
+                    <button onclick="testAlert()" class="btn btn-outline-info">
+                        <i class="bi bi-bell"></i> Send Test Notification
+                    </button>
+                    <button onclick="testAlert()" class="btn btn-outline-success">
+                        <i class="bi bi-graph-up-arrow"></i> Simulate Trade Alert
+                    </button>
+                    <button onclick="testAlert()" class="btn btn-outline-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Simulate Stop Loss Alert
+                    </button>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="bi bi-info-circle"></i> 
+                    Check your Telegram/Discord to confirm alerts are received.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alert History -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Alerts</h5>
+            </div>
+            <div class="card-body">
+                {% if alerts %}
+                <div class="list-group list-group-flush bg-transparent">
+                    {% for alert in alerts %}
+                    <div class="list-group-item bg-transparent border-secondary">
+                        <div class="d-flex justify-content-between">
+                            <span class="{% if alert.type == 'error' %}text-danger{% elif alert.type == 'trade' %}text-success{% else %}text-info{% endif %}">
+                                <i class="bi bi-{% if alert.type == 'error' %}exclamation-triangle{% elif alert.type == 'trade' %}check-circle{% else %}info-circle{% endif %}"></i>
+                                {{ alert.message }}
+                            </span>
+                            <small class="text-muted">{{ alert.timestamp[11:16] if alert.timestamp else 'Now' }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No alerts sent yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
