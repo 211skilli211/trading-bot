@@ -1,0 +1,20 @@
+#!/data/data/com.termux/files/usr/bin/sh
+# Trading Bot Autostart for Termux
+# Place this file in ~/.termux/boot/ to auto-start on boot
+
+# Prevent sleep
+termux-wake-lock
+
+# Change to bot directory
+cd /data/data/com.termux/files/home
+
+# Source environment variables
+if [ -f .env ]; then
+    export $(cat .env | grep -v '#' | xargs)
+fi
+
+# Start the bot with nohup (survives session close)
+nohup python trading_bot.py --config config.json --monitor 60 > bot.log 2>&1 &
+
+# Log start time
+echo "Bot started at $(date)" >> bot_start.log
