@@ -468,25 +468,24 @@ class TradingBot:
 
 
 def run_tests():
-    """Run all module tests."""
+    """Run all module tests using pytest."""
     print("\n" + "=" * 70)
     print("🧪 RUNNING ALL MODULE TESTS")
     print("=" * 70)
     
-    modules = [
-        ("Strategy Engine", "strategy_engine.py"),
-        ("Risk Manager", "risk_manager.py"),
-        ("Execution Layer", "execution_layer.py"),
-    ]
+    import subprocess
+    result = subprocess.run(
+        ["python", "-m", "pytest", "tests/", "-v"],
+        capture_output=True,
+        text=True
+    )
     
-    for name, file in modules:
-        print(f"\n{'-'*40}")
-        print(f"Testing: {name}")
-        print(f"{'-'*40}")
-        os.system(f"python {file}")
+    print(result.stdout)
+    if result.stderr:
+        print("ERRORS:", result.stderr)
     
     print("\n" + "=" * 70)
-    print("✅ All tests completed")
+    print("✅ Test run completed")
     print("=" * 70)
 
 
