@@ -1,27 +1,147 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container-fluid">
-    <h2 class="h4 mb-3">Solana DEX</h2>
-    <div class="row g-3">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">Wallet</div>
-                <div class="card-body">
-                    <p>Address: <code>{{ data.solana_address }}</code></p>
-                    <p>SOL: {{ "%.4f"|format(data.sol_balance) }}</p>
-                    <p>USDT: {{ "%.2f"|format(data.usdt_balance) }}</p>
-                </div>
+    <h2 class="mb-3"><i class="bi bi-currency-exchange"></i> Solana DEX</h2>
+    
+    <div class="row g-3 mb-3">
+        <div class="col-6">
+            <div class="card kpi-card">
+                <div class="kpi-value text-info">{{ data.solana_balance }}</div>
+                <div class="kpi-label">SOL Balance</div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">Quick Swap</div>
-                <div class="card-body">
-                    <input type="number" class="form-control mb-2" placeholder="Amount">
-                    <button class="btn btn-success w-100">Swap</button>
-                </div>
+        <div class="col-6">
+            <div class="card kpi-card">
+                <div class="kpi-value">${{ data.balance }}</div>
+                <div class="kpi-label">USDT Balance</div>
             </div>
         </div>
     </div>
+
+    <!-- Jupiter Swap -->
+    <div class="card">
+        <div class="card-header"><i class="bi bi-arrow-left-right"></i> Jupiter Swap</div>
+        <div class="card-body">
+            <div class="row g-2">
+                <div class="col-12 col-md-4">
+                    <label class="form-label">From</label>
+                    <select id="swapInput" class="form-select form-select-sm bg-dark text-light">
+                        <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDT</option>
+                        <option value="So11111111111111111111111111111111111111112">SOL</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label">To</label>
+                    <select id="swapOutput" class="form-select form-select-sm bg-dark text-light">
+                        <option value="So11111111111111111111111111111111111111112" selected>SOL</option>
+                        <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDT</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Amount</label>
+                    <input type="number" id="swapAmount" class="form-control form-control-sm bg-dark text-light" placeholder="10" value="10">
+                </div>
+            </div>
+            <button onclick="executeSwap()" class="btn btn-primary w-100 mt-3">
+                <i class="bi bi-lightning"></i> Execute Swap
+            </button>
+        </div>
+    </div>
+
+    <!-- DEXScreener Sniper Panel -->
+    <div class="card mt-3 border-warning">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-crosshair"></i> DEXScreener Sniper</span>
+            <span id="sniperStatus" class="badge bg-secondary">STOPPED</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label class="form-label">Min Liquidity ($)</label>
+                    <input type="number" id="minLiquidity" class="form-control form-control-sm bg-dark text-light" value="8000">
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Min Score (0-100)</label>
+                    <input type="number" id="minScore" class="form-control form-control-sm bg-dark text-light" value="75" min="0" max="100">
+                </div>
+            </div>
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="dryRun" checked>
+                <label class="form-check-label" for="dryRun">Dry Run Mode (safe testing)</label>
+            </div>
+            <div class="d-flex gap-2">
+                <button onclick="startSniper()" class="btn btn-success flex-fill">
+                    <i class="bi bi-play-fill"></i> Start Sniper
+                </button>
+                <button onclick="stopSniper()" class="btn btn-danger flex-fill">
+                    <i class="bi bi-stop-fill"></i> Stop
+                </button>
+            </div>
+            <div id="sniperLog" class="mt-3 small font-monospace" style="max-height: 200px; overflow-y: auto;">
+                <div class="text-muted">Sniper log will appear here...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-header">Wallet Info</div>
+        <div class="card-body">
+            <p class="mb-1"><strong>Address:</strong> <code class="text-break">6QqkyDZj62L7uvNvAeHNd1bs8PkbVJzGU1ZHiEeV57rS</code></p>
+            <a href="https://solscan.io/account/6QqkyDZj62L7uvNvAeHNd1bs8PkbVJzGU1ZHiEeV57rS" target="_blank" class="btn btn-sm btn-outline-info mt-2">
+                <i class="bi bi-box-arrow-up-right"></i> View on Solscan
+            </a>
+        </div>
+    </div>
 </div>
+
+<script>
+function startSniper() {
+    const minLiq = document.getElementById('minLiquidity').value;
+    const minScore = document.getElementById('minScore').value;
+    const dryRun = document.getElementById('dryRun').checked;
+    
+    fetch('/api/sniper/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({min_liquidity: parseInt(minLiq), min_score: parseInt(minScore), dry_run: dryRun})
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('sniperStatus').className = 'badge bg-success';
+        document.getElementById('sniperStatus').textContent = 'RUNNING';
+        addSniperLog('Sniper started: ' + data.message);
+    });
+}
+
+function stopSniper() {
+    fetch('/api/sniper/stop', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('sniperStatus').className = 'badge bg-secondary';
+        document.getElementById('sniperStatus').textContent = 'STOPPED';
+        addSniperLog('Sniper stopped');
+    });
+}
+
+function addSniperLog(msg) {
+    const log = document.getElementById('sniperLog');
+    const time = new Date().toLocaleTimeString();
+    log.innerHTML = `<div>[${time}] ${msg}</div>` + log.innerHTML;
+}
+
+// Poll sniper status every 5 seconds
+setInterval(() => {
+    fetch('/api/sniper/status')
+    .then(r => r.json())
+    .then(data => {
+        if (data.running) {
+            document.getElementById('sniperStatus').className = 'badge bg-success';
+            document.getElementById('sniperStatus').textContent = 'RUNNING';
+        }
+        if (data.last_opportunity) {
+            addSniperLog(`Found: ${data.last_opportunity}`);
+        }
+    });
+}, 5000);
+</script>
 {% endblock %}

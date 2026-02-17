@@ -3,188 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>211Skilli Bot • Pro Dashboard</title>
+    <title>211Skilli Bot • Pro Dashboard V3</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <style>
-        :root {
-            --bg-primary: #0a0e14;
-            --bg-secondary: #111820;
-            --bg-card: #1a2332;
-            --border: #2d3a4a;
-            --text: #e6edf3;
-            --text-muted: #8b949e;
-            --success: #39d353;
-            --danger: #f85149;
-            --warning: #f0883e;
-            --info: #58a6ff;
-        }
-        body {
-            background: var(--bg-primary);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            overflow-x: hidden;
-        }
-        .sidebar {
-            width: 260px;
-            min-height: 100vh;
-            background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
-        }
-        .sidebar .nav-link {
-            color: var(--text-muted);
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin: 4px 12px;
-        }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            background: var(--bg-card);
-            color: var(--text);
-        }
-        .main-content {
-            padding: 16px;
-        }
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-        }
-        .topbar {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
-            padding: 12px 16px;
-        }
-        .kpi-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-        }
-        .kpi-value {
-            font-size: 1.75rem;
-            font-weight: 700;
-        }
-        .table-dark {
-            --bs-table-bg: var(--bg-card);
-            --bs-table-border-color: var(--border);
-            font-size: 0.9rem;
-        }
-        .text-success { color: var(--success) !important; }
-        .text-danger { color: var(--danger) !important; }
-        .badge-paper { background: var(--success); color: #000; }
-        .badge-live { background: var(--danger); animation: pulse 2s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
-        
-        @media (max-width: 991px) {
-            .sidebar { display: none; }
-            .main-content { margin-left: 0; padding: 12px; }
-            .kpi-value { font-size: 1.5rem; }
-            h2 { font-size: 1.25rem; }
-            .table { font-size: 0.85rem; }
-            .btn { width: 100%; margin-bottom: 8px; }
-            .btn-group { display: flex; flex-direction: column; }
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-    <!-- Mobile Navbar -->
-    <nav class="navbar navbar-dark bg-black d-lg-none">
-        <div class="container-fluid">
-            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <span class="navbar-brand">211Skilli Bot</span>
-            <span class="badge {% if data.mode == "LIVE" %}badge-live{% else %}badge-paper{% endif %}">
-                {{ data.mode }}
-            </span>
-        </div>
+<body class="bg-dark text-light">
+    <nav class="navbar navbar-dark bg-black px-3">
+        <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <span class="navbar-brand fw-bold text-success">211Skilli Bot</span>
+        {% include "topbar.html" %}
     </nav>
-
-    <!-- Mobile Offcanvas Sidebar -->
-    <div class="offcanvas offcanvas-start bg-black" tabindex="-1" id="mobileSidebar">
-        <div class="offcanvas-header">
-            <h5 class="text-success"><i class="bi bi-robot"></i> 211Skilli</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div class="offcanvas-body">
-            <ul class="nav flex-column">
-                <li><a href="/" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i>Overview</a></li>
-                <li><a href="/prices" class="nav-link text-white"><i class="bi bi-graph-up-arrow me-2"></i>Live Prices</a></li>
-                <li><a href="/positions" class="nav-link text-white"><i class="bi bi-wallet2 me-2"></i>Positions</a></li>
-                <li><a href="/trades" class="nav-link text-white"><i class="bi bi-list-ul me-2"></i>Trade History</a></li>
-                <li><a href="/solana" class="nav-link text-white"><i class="bi bi-currency-bitcoin me-2"></i>Solana DEX</a></li>
-                <li><a href="/config" class="nav-link text-white"><i class="bi bi-sliders2 me-2"></i>Config</a></li>
-                <li><a href="/alerts" class="nav-link text-white"><i class="bi bi-bell-fill me-2"></i>Alerts</a></li>
-            </ul>
-        </div>
-    </div>
 
     <div class="d-flex">
         <!-- Desktop Sidebar -->
-        <nav class="sidebar d-none d-lg-block">
-            <div class="p-3">
-                <h4 class="text-success mb-4"><i class="bi bi-robot"></i> 211Skilli</h4>
-                <ul class="nav flex-column">
-                    <li><a href="/" class="nav-link {% if request.path == "/" %}active{% endif %}"><i class="bi bi-speedometer2 me-2"></i>Overview</a></li>
-                    <li><a href="/prices" class="nav-link {% if request.path == "/prices" %}active{% endif %}"><i class="bi bi-graph-up-arrow me-2"></i>Live Prices</a></li>
-                    <li><a href="/positions" class="nav-link {% if request.path == "/positions" %}active{% endif %}"><i class="bi bi-wallet2 me-2"></i>Positions</a></li>
-                    <li><a href="/trades" class="nav-link {% if request.path == "/trades" %}active{% endif %}"><i class="bi bi-list-ul me-2"></i>Trade History</a></li>
-                    <li><a href="/solana" class="nav-link {% if request.path == "/solana" %}active{% endif %}"><i class="bi bi-currency-bitcoin me-2"></i>Solana DEX</a></li>
-                    <li><a href="/config" class="nav-link {% if request.path == "/config" %}active{% endif %}"><i class="bi bi-sliders2 me-2"></i>Config</a></li>
-                    <li><a href="/alerts" class="nav-link {% if request.path == "/alerts" %}active{% endif %}"><i class="bi bi-bell-fill me-2"></i>Alerts</a></li>
-                </ul>
-            </div>
+        <nav class="bg-black p-3 d-none d-lg-block" style="width: 260px; min-height: 100vh;">
+            <ul class="nav flex-column">
+                <li><a href="/" class="nav-link text-white"><i class="bi bi-house-door"></i> Overview</a></li>
+                <li><a href="/prices" class="nav-link text-white"><i class="bi bi-graph-up"></i> Live Prices</a></li>
+                <li><a href="/positions" class="nav-link text-white"><i class="bi bi-bag"></i> Positions</a></li>
+                <li><a href="/trades" class="nav-link text-white"><i class="bi bi-clock-history"></i> Trade History</a></li>
+                <li><a href="/solana" class="nav-link text-white"><i class="bi bi-currency-exchange"></i> Solana DEX</a></li>
+                <li><a href="/config" class="nav-link text-white"><i class="bi bi-sliders"></i> Config</a></li>
+                <li><a href="/alerts" class="nav-link text-white"><i class="bi bi-bell"></i> Alerts</a></li>
+            </ul>
         </nav>
 
         <!-- Main Content -->
-        <div class="main-content flex-grow-1">
-            <!-- Top Bar -->
-            <div class="topbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-                <div class="d-flex align-items-center gap-3">
-                    <span class="badge {% if data.mode == "LIVE" %}badge-live{% else %}badge-paper{% endif %} fs-6">
-                        ● {{ data.mode }}
-                    </span>
-                    <span class="d-none d-sm-inline"><i class="bi bi-wallet2 text-muted"></i> <strong class="{% if data.balance >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "%.2f"|format(data.balance|default(0)) }} USDT</strong></span>
-                    <span class="text-muted small"><i class="bi bi-clock"></i> {{ data.uptime|default("0h 0m") }}</span>
-                </div>
-                <div class="btn-group">
-                    <button onclick="refreshData()" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Refresh</span></button>
-                    <button onclick="toggleMode()" class="btn btn-outline-warning btn-sm"><i class="bi bi-toggle-on"></i> <span class="d-none d-md-inline">Mode</span></button>
-                    <button onclick="stopBot()" class="btn btn-danger btn-sm"><i class="bi bi-stop-fill"></i> <span class="d-none d-md-inline">Stop</span></button>
-                </div>
-            </div>
-
+        <div class="flex-grow-1 p-3 p-lg-4 overflow-auto" style="height: 100vh;">
             {% block content %}{% endblock %}
         </div>
     </div>
 
+    <!-- Mobile Offcanvas -->
+    <div class="offcanvas offcanvas-start bg-black" id="sidebar">
+        <div class="offcanvas-header">
+            <h5 class="text-success">211Skilli Bot</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav flex-column">
+                <li><a href="/" class="nav-link text-white"><i class="bi bi-house-door"></i> Overview</a></li>
+                <li><a href="/prices" class="nav-link text-white"><i class="bi bi-graph-up"></i> Live Prices</a></li>
+                <li><a href="/positions" class="nav-link text-white"><i class="bi bi-bag"></i> Positions</a></li>
+                <li><a href="/trades" class="nav-link text-white"><i class="bi bi-clock-history"></i> Trade History</a></li>
+                <li><a href="/solana" class="nav-link text-white"><i class="bi bi-currency-exchange"></i> Solana DEX</a></li>
+                <li><a href="/config" class="nav-link text-white"><i class="bi bi-sliders"></i> Config</a></li>
+                <li><a href="/alerts" class="nav-link text-white"><i class="bi bi-bell"></i> Alerts</a></li>
+            </ul>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        setInterval(() => { if (!document.querySelector("input:focus, select:focus, textarea:focus")) location.reload(); }, 8000);
-        function toggleMode() {
-            const current = document.querySelector(".badge").textContent.includes("LIVE") ? "LIVE" : "PAPER";
-            const newMode = current === "PAPER" ? "LIVE" : "PAPER";
-            if (newMode === "LIVE" && !confirm("⚠️ Switch to LIVE? Real money will be used!")) return;
-            fetch("/api/toggle_mode", {method: "POST"}).then(() => location.reload());
-        }
-        function stopBot() { if (confirm("Stop the bot?")) fetch("/api/stop"); }
-        function refreshData() { location.reload(); }
-        function exportTrades() {
-            const table = document.querySelector("table");
-            if (!table) return;
-            let csv = "Trade ID,Time,Exchange,Side,Qty,Price,P&L,Status\\n";
-            table.querySelectorAll("tbody tr").forEach(row => {
-                const cells = row.querySelectorAll("td");
-                if (cells.length >= 6) csv += Array.from(cells).map(c => `"${c.textContent.trim()}"`).join(",") + "\\n";
-            });
-            const blob = new Blob([csv], {type: "text/csv"});
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = `trades_${new Date().toISOString().slice(0,10)}.csv`;
-            a.click();
-        }
-    </script>
-    {% block scripts %}{% endblock %}
+    <script src="/static/js/app.js"></script>
 </body>
 </html>

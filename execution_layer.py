@@ -373,8 +373,8 @@ class ExecutionLayer:
         execution_start: float
     ) -> TradeExecution:
         """
-        Execute a live trade on exchanges.
-        NOTE: This is a skeleton - requires proper implementation with API keys.
+        Execute a live trade on exchanges using CCXT.
+        Supports Binance, Coinbase, and other exchanges.
         """
         execution = TradeExecution(
             trade_id=trade_id,
@@ -395,16 +395,131 @@ class ExecutionLayer:
             signal_latency_ms=signal_latency_ms,
             risk_latency_ms=risk_latency_ms,
             execution_latency_ms=0.0,
-            total_latency_ms=0.0,
-            error_message="LIVE mode not fully implemented - use PAPER mode"
+            total_latency_ms=0.0
         )
         
-        print(f"\n⚠️  LIVE TRADE NOT EXECUTED: {trade_id}")
-        print("   Live trading requires proper API implementation")
-        print("   Switch to PAPER mode for testing")
+        # Try to import ccxt
+        try:
+            import ccxt
+        except ImportError:
+            execution.status = OrderStatus.FAILED.value
+            execution.error_message = "CCXT not installed. Run: pip install ccxt"
+            return execution
         
-        execution.status = OrderStatus.FAILED.value
-        execution.error_message = "LIVE mode not implemented"
+        # Initialize exchanges
+        exchanges = {}
+        
+        if buy_exchange.lower() == "binance" and self.binance_api_key:
+            exchanges["buy"] = ccxt.binance({
+                "apiKey": self.binance_api_key,
+                "secret": self.binance_secret,
+                "enableRateLimit": True,
+                "options": {"defaultType": "spot"}
+            })
+        elif buy_exchange.lower() == "coinbase" and self.coinbase_api_key:
+            exchanges["buy"] = ccxt.coinbase({
+                "apiKey": self.coinbase_api_key,
+                "secret": self.coinbase_secret,
+                "enableRateLimit": True
+            })
+        
+        if sell_exchange.lower() == "binance" and self.binance_api_key:
+            exchanges["sell"] = ccxt.binance({
+                "apiKey": self.binance_api_key,
+                "secret": self.binance_secret,
+                "enableRateLimit": True,
+                "options": {"defaultType": "spot"}
+            })
+        elif sell_exchange.lower() == "coinbase" and self.coinbase_api_key:
+            exchanges["sell"] = ccxt.coinbase({
+                "apiKey": self.coinbase_api_key,
+                "secret": self.coinbase_secret,
+                "enableRateLimit": True
+            })
+        
+        # Check if we have the required exchanges
+        if "buy" not in exchanges or "sell" not in exchanges:
+            execution.status = OrderStatus.FAILED.value
+            execution.error_message = f"Missing API credentials for {buy_exchange} or {sell_exchange}"
+            print(f"\n❌ LIVE TRADE FAILED: {trade_id}")
+            print(f"   Error: {execution.error_message}")
+            return execution
+        
+        # Execute trades
+        buy_order_id = None
+        sell_order_id = None
+        actual_buy_price = None
+        actual_sell_price = None
+        total_fees = 0.0
+        
+        try:
+            symbol = "BTC/USDT"
+            
+            # Place BUY order
+            print(f"\n🔴 EXECUTING LIVE TRADE: {trade_id}")
+            print(f"   BUY: {quantity:.6f} BTC on {buy_exchange}")
+            
+            for attempt in range(self.max_retries):
+                try:
+                    buy_order = exchanges["buy"].create_market_buy_order(symbol, quantity)
+                    buy_order_id = buy_order.get("id", f"LIVE_BUY_{trade_id}")
+                    actual_buy_price = buy_order.get("price", buy_price)
+                    buy_fee = buy_order.get("fee", {}).get("cost", 0) or 0
+                    total_fees += buy_fee
+                    print(f"   ✅ BUY filled: {buy_order_id}")
+                    break
+                except Exception as e:
+                    print(f"   ⚠️  BUY attempt {attempt+1} failed: {e}")
+                    if attempt < self.max_retries - 1:
+                        time.sleep(self.retry_delay * (2 ** attempt))
+                    else:
+                        raise
+            
+            # Place SELL order
+            print(f"   SELL: {quantity:.6f} BTC on {sell_exchange}")
+            
+            for attempt in range(self.max_retries):
+                try:
+                    sell_order = exchanges["sell"].create_market_sell_order(symbol, quantity)
+                    sell_order_id = sell_order.get("id", f"LIVE_SELL_{trade_id}")
+                    actual_sell_price = sell_order.get("price", sell_price)
+                    sell_fee = sell_order.get("fee", {}).get("cost", 0) or 0
+                    total_fees += sell_fee
+                    print(f"   ✅ SELL filled: {sell_order_id}")
+                    break
+                except Exception as e:
+                    print(f"   ⚠️  SELL attempt {attempt+1} failed: {e}")
+                    if attempt < self.max_retries - 1:
+                        time.sleep(self.retry_delay * (2 ** attempt))
+                    else:
+                        raise
+            
+            # Calculate results
+            execution_end = time.time()
+            execution_latency_ms = (execution_end - execution_start) * 1000
+            total_latency_ms = signal_latency_ms + risk_latency_ms + execution_latency_ms
+            
+            gross_pnl = (actual_sell_price - actual_buy_price) * quantity
+            net_pnl = gross_pnl - total_fees
+            
+            execution.status = OrderStatus.FILLED.value
+            execution.execution_latency_ms = execution_latency_ms
+            execution.total_latency_ms = total_latency_ms
+            execution.buy_order_id = buy_order_id
+            execution.sell_order_id = sell_order_id
+            execution.actual_buy_price = actual_buy_price
+            execution.actual_sell_price = actual_sell_price
+            execution.fees_paid = total_fees
+            execution.net_pnl = net_pnl
+            
+            print(f"   💰 Net P&L: ${net_pnl:,.2f}")
+            print(f"   ⏱️  Latency: {total_latency_ms:.1f}ms")
+            
+        except Exception as e:
+            execution.status = OrderStatus.FAILED.value
+            execution.error_message = str(e)
+            execution.execution_latency_ms = (time.time() - execution_start) * 1000
+            print(f"   ❌ FAILED: {e}")
         
         return execution
     

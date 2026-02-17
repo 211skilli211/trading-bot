@@ -1,52 +1,71 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container-fluid">
-    <h2 class="h4 mb-3">Overview</h2>
+    <h2 class="mb-3">Dashboard Overview</h2>
     
-    <div class="row g-2 mb-3">
+    <!-- KPI Cards -->
+    <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
-            <div class="kpi-card text-center">
-                <div class="small text-muted">P&L</div>
-                <div class="kpi-value text-success">+0.00</div>
+            <div class="card kpi-card">
+                <div class="kpi-value text-{{ 'success' if data.kpis.pnl.startswith('+') else 'danger' }}">{{ data.kpis.pnl }}</div>
+                <div class="kpi-label">P&L (24h)</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="kpi-card text-center">
-                <div class="small text-muted">TRADES</div>
-                <div class="kpi-value">{{ data.trades|length }}</div>
+            <div class="card kpi-card">
+                <div class="kpi-value">{{ data.kpis.winrate }}</div>
+                <div class="kpi-label">Win Rate</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="kpi-card text-center">
-                <div class="small text-muted">EXPOSURE</div>
-                <div class="kpi-value">0.00</div>
+            <div class="card kpi-card">
+                <div class="kpi-value">{{ data.spread }}%</div>
+                <div class="kpi-label">Best Spread</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="kpi-card text-center">
-                <div class="small text-muted">MODE</div>
-                <div class="kpi-value">{{ data.mode }}</div>
+            <div class="card kpi-card">
+                <div class="kpi-value">{{ data.uptime }}</div>
+                <div class="kpi-label">Uptime</div>
             </div>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header">Live Prices</div>
+    <!-- Prices -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-graph-up"></i> Live Prices</span>
+            <span class="badge bg-secondary">Arbitrage Monitor</span>
+        </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-dark table-sm">
-                    <thead><tr><th>Exchange</th><th>Price</th><th>Action</th></tr></thead>
+                <table class="table table-dark table-striped">
+                    <thead>
+                        <tr><th>Exchange</th><th>Price</th><th>Spread</th></tr>
+                    </thead>
                     <tbody>
-                        {% for price in data.prices %}
+                        {% for exchange, price in data.prices.items() %}
                         <tr>
-                            <td>{{ price.exchange }}</td>
-                            <td>${{ "%.2f"|format(price.price) }}</td>
-                            <td>{% if loop.first %}<span class="badge bg-success">BUY</span>{% elif loop.last %}<span class="badge bg-danger">SELL</span>{% endif %}</td>
+                            <td>{{ exchange }}</td>
+                            <td>${{ "{:,.2f}".format(price) }}</td>
+                            <td class="text-{{ 'success' if loop.first else 'muted' }}">
+                                {{ "+{:.3f}%".format((price - data.prices.values()|list|first) / data.prices.values()|list|first * 100) if not loop.first else '—' }}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-header">Quick Actions</div>
+        <div class="card-body">
+            <a href="/trades" class="btn btn-primary btn-sm me-2"><i class="bi bi-clock-history"></i> View Trades</a>
+            <a href="/solana" class="btn btn-info btn-sm me-2"><i class="bi bi-currency-exchange"></i> Solana DEX</a>
+            <a href="/config" class="btn btn-secondary btn-sm"><i class="bi bi-sliders"></i> Settings</a>
         </div>
     </div>
 </div>

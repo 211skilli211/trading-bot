@@ -11,7 +11,8 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-JUPITER_API = "https://api.jup.ag/v6"
+# Jupiter API V1 (Updated 2026 - V6 deprecated)
+JUPITER_API = "https://api.jup.ag/swap/v1"
 
 
 @dataclass

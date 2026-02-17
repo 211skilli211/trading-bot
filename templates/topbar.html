@@ -1,0 +1,6 @@
+<div class="ms-auto d-flex align-items-center gap-3">
+    <span>Balance: <strong>{{ data.balance }} USDT</strong></span>
+    <span class="badge bg-{{ 'danger' if data.mode == 'LIVE' else 'success' }}">{{ data.mode }}</span>
+    <button onclick="toggleMode()" class="btn btn-sm btn-outline-light">Switch Mode</button>
+    <button onclick="stopBot()" class="btn btn-sm btn-danger">Stop Bot</button>
+</div>
