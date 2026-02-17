@@ -2,8 +2,8 @@
 <html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>211Skilli Trading Bot | Pro Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>211Skilli Bot • Pro Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -23,267 +23,164 @@
         body {
             background: var(--bg-primary);
             color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            overflow-x: hidden;
         }
         .sidebar {
             width: 260px;
             min-height: 100vh;
             background: var(--bg-secondary);
             border-right: 1px solid var(--border);
-            position: fixed;
-            left: 0;
-            top: 0;
-            z-index: 1000;
         }
         .sidebar .nav-link {
             color: var(--text-muted);
-            padding: 12px 20px;
+            padding: 12px 16px;
             border-radius: 8px;
             margin: 4px 12px;
-            transition: all 0.2s;
         }
         .sidebar .nav-link:hover, .sidebar .nav-link.active {
             background: var(--bg-card);
             color: var(--text);
         }
-        .sidebar .nav-link i {
-            width: 24px;
-            margin-right: 8px;
-        }
         .main-content {
-            margin-left: 260px;
-            padding: 20px;
+            padding: 16px;
+        }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
         }
         .topbar {
             background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px 24px;
-            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px;
         }
         .kpi-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 20px;
+            padding: 16px;
         }
         .kpi-value {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: 700;
-            margin: 8px 0;
-        }
-        .btn-mode-live {
-            background: var(--danger);
-            border: none;
-            animation: pulse 2s infinite;
-        }
-        .btn-mode-paper {
-            background: var(--success);
-            border: none;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
         }
         .table-dark {
             --bs-table-bg: var(--bg-card);
             --bs-table-border-color: var(--border);
-        }
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+            font-size: 0.9rem;
         }
         .text-success { color: var(--success) !important; }
         .text-danger { color: var(--danger) !important; }
-        .text-warning { color: var(--warning) !important; }
-        .text-info { color: var(--info) !important; }
+        .badge-paper { background: var(--success); color: #000; }
+        .badge-live { background: var(--danger); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
+        
+        @media (max-width: 991px) {
+            .sidebar { display: none; }
+            .main-content { margin-left: 0; padding: 12px; }
+            .kpi-value { font-size: 1.5rem; }
+            h2 { font-size: 1.25rem; }
+            .table { font-size: 0.85rem; }
+            .btn { width: 100%; margin-bottom: 8px; }
+            .btn-group { display: flex; flex-direction: column; }
+        }
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
-    <nav class="sidebar">
-        <div class="p-3">
-            <h4 class="mb-4"><i class="bi bi-robot text-success"></i> <span class="text-light">211Skilli</span></h4>
-            <ul class="nav flex-column">
-                <li><a href="/" class="nav-link {% if active == 'overview' %}active{% endif %}"><i class="bi bi-speedometer2"></i>Overview</a></li>
-                <li><a href="/prices" class="nav-link {% if active == 'prices' %}active{% endif %}"><i class="bi bi-graph-up-arrow"></i>Live Prices</a></li>
-                <li><a href="/positions" class="nav-link {% if active == 'positions' %}active{% endif %}"><i class="bi bi-wallet2"></i>Positions</a></li>
-                <li><a href="/trades" class="nav-link {% if active == 'trades' %}active{% endif %}"><i class="bi bi-list-columns"></i>Trade History</a></li>
-                <li><a href="/solana" class="nav-link {% if active == 'solana' %}active{% endif %}"><i class="bi bi-currency-bitcoin"></i>Solana DEX</a></li>
-                <li><a href="/config" class="nav-link {% if active == 'config' %}active{% endif %}"><i class="bi bi-sliders2"></i>Strategy & Risk</a></li>
-                <li><a href="/alerts" class="nav-link {% if active == 'alerts' %}active{% endif %}"><i class="bi bi-bell-fill"></i>Alerts</a></li>
-            </ul>
-        </div>
-        <div class="mt-auto p-3 border-top border-secondary">
-            <small class="text-muted">v2.1.0 Pro</small>
+    <!-- Mobile Navbar -->
+    <nav class="navbar navbar-dark bg-black d-lg-none">
+        <div class="container-fluid">
+            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <span class="navbar-brand">211Skilli Bot</span>
+            <span class="badge {% if data.mode == "LIVE" %}badge-live{% else %}badge-paper{% endif %}">
+                {{ data.mode }}
+            </span>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <div class="main-content">
-        <!-- Top Bar -->
-        <div class="topbar d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-4">
-                <button id="modeBtn" onclick="toggleMode()" class="btn {% if mode == 'LIVE' %}btn-mode-live{% else %}btn-mode-paper{% endif %} text-white fw-bold">
-                    {% if mode == 'LIVE' %}● LIVE{% else %}● PAPER{% endif %}
-                </button>
-                <span><i class="bi bi-wallet2 text-muted"></i> <strong class="{% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "%.2f"|format(balance|default(0)) }} USDT</strong></span>
-                <span class="text-muted"><i class="bi bi-clock"></i> {{ uptime }}</span>
-            </div>
-            <div class="d-flex gap-2">
-                <button onclick="refreshData()" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-                <button onclick="stopBot()" class="btn btn-danger btn-sm"><i class="bi bi-stop-fill"></i> Stop</button>
-            </div>
+    <!-- Mobile Offcanvas Sidebar -->
+    <div class="offcanvas offcanvas-start bg-black" tabindex="-1" id="mobileSidebar">
+        <div class="offcanvas-header">
+            <h5 class="text-success"><i class="bi bi-robot"></i> 211Skilli</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
         </div>
+        <div class="offcanvas-body">
+            <ul class="nav flex-column">
+                <li><a href="/" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i>Overview</a></li>
+                <li><a href="/prices" class="nav-link text-white"><i class="bi bi-graph-up-arrow me-2"></i>Live Prices</a></li>
+                <li><a href="/positions" class="nav-link text-white"><i class="bi bi-wallet2 me-2"></i>Positions</a></li>
+                <li><a href="/trades" class="nav-link text-white"><i class="bi bi-list-ul me-2"></i>Trade History</a></li>
+                <li><a href="/solana" class="nav-link text-white"><i class="bi bi-currency-bitcoin me-2"></i>Solana DEX</a></li>
+                <li><a href="/config" class="nav-link text-white"><i class="bi bi-sliders2 me-2"></i>Config</a></li>
+                <li><a href="/alerts" class="nav-link text-white"><i class="bi bi-bell-fill me-2"></i>Alerts</a></li>
+            </ul>
+        </div>
+    </div>
 
-        <!-- Content -->
-        {% block content %}{% endblock %}
+    <div class="d-flex">
+        <!-- Desktop Sidebar -->
+        <nav class="sidebar d-none d-lg-block">
+            <div class="p-3">
+                <h4 class="text-success mb-4"><i class="bi bi-robot"></i> 211Skilli</h4>
+                <ul class="nav flex-column">
+                    <li><a href="/" class="nav-link {% if request.path == "/" %}active{% endif %}"><i class="bi bi-speedometer2 me-2"></i>Overview</a></li>
+                    <li><a href="/prices" class="nav-link {% if request.path == "/prices" %}active{% endif %}"><i class="bi bi-graph-up-arrow me-2"></i>Live Prices</a></li>
+                    <li><a href="/positions" class="nav-link {% if request.path == "/positions" %}active{% endif %}"><i class="bi bi-wallet2 me-2"></i>Positions</a></li>
+                    <li><a href="/trades" class="nav-link {% if request.path == "/trades" %}active{% endif %}"><i class="bi bi-list-ul me-2"></i>Trade History</a></li>
+                    <li><a href="/solana" class="nav-link {% if request.path == "/solana" %}active{% endif %}"><i class="bi bi-currency-bitcoin me-2"></i>Solana DEX</a></li>
+                    <li><a href="/config" class="nav-link {% if request.path == "/config" %}active{% endif %}"><i class="bi bi-sliders2 me-2"></i>Config</a></li>
+                    <li><a href="/alerts" class="nav-link {% if request.path == "/alerts" %}active{% endif %}"><i class="bi bi-bell-fill me-2"></i>Alerts</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="main-content flex-grow-1">
+            <!-- Top Bar -->
+            <div class="topbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="badge {% if data.mode == "LIVE" %}badge-live{% else %}badge-paper{% endif %} fs-6">
+                        ● {{ data.mode }}
+                    </span>
+                    <span class="d-none d-sm-inline"><i class="bi bi-wallet2 text-muted"></i> <strong class="{% if data.balance >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "%.2f"|format(data.balance|default(0)) }} USDT</strong></span>
+                    <span class="text-muted small"><i class="bi bi-clock"></i> {{ data.uptime|default("0h 0m") }}</span>
+                </div>
+                <div class="btn-group">
+                    <button onclick="refreshData()" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Refresh</span></button>
+                    <button onclick="toggleMode()" class="btn btn-outline-warning btn-sm"><i class="bi bi-toggle-on"></i> <span class="d-none d-md-inline">Mode</span></button>
+                    <button onclick="stopBot()" class="btn btn-danger btn-sm"><i class="bi bi-stop-fill"></i> <span class="d-none d-md-inline">Stop</span></button>
+                </div>
+            </div>
+
+            {% block content %}{% endblock %}
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Auto-refresh every 5 seconds
-        setInterval(() => {
-            if (!document.querySelector('input:focus, select:focus, textarea:focus')) {
-                location.reload();
-            }
-        }, 5000);
-
-        // Toggle Mode
-        async function toggleMode() {
-            const currentMode = document.getElementById('modeBtn').textContent.includes('LIVE') ? 'LIVE' : 'PAPER';
-            const newMode = currentMode === 'PAPER' ? 'LIVE' : 'PAPER';
-            
-            if (newMode === 'LIVE' && !confirm('⚠️ SWITCH TO LIVE MODE?\n\nReal money will be used!\n\nMake sure you have:\n✓ Tested thoroughly\n✓ Funds in wallet\n✓ Stop-loss configured')) {
-                return;
-            }
-            
-            try {
-                const res = await fetch('/api/toggle_mode', {method: 'POST'});
-                const data = await res.json();
-                if (data.success) {
-                    alert(`✅ Mode switched to ${data.mode}`);
-                    location.reload();
-                }
-            } catch (e) {
-                alert('❌ Failed to toggle mode');
-            }
+        setInterval(() => { if (!document.querySelector("input:focus, select:focus, textarea:focus")) location.reload(); }, 8000);
+        function toggleMode() {
+            const current = document.querySelector(".badge").textContent.includes("LIVE") ? "LIVE" : "PAPER";
+            const newMode = current === "PAPER" ? "LIVE" : "PAPER";
+            if (newMode === "LIVE" && !confirm("⚠️ Switch to LIVE? Real money will be used!")) return;
+            fetch("/api/toggle_mode", {method: "POST"}).then(() => location.reload());
         }
-
-        // Stop Bot
-        async function stopBot() {
-            if (!confirm('Stop the trading bot?')) return;
-            try {
-                await fetch('/api/stop', {method: 'POST'});
-                alert('🛑 Bot stopping...');
-            } catch (e) {
-                alert('❌ Failed to stop');
-            }
-        }
-
-        // Refresh Data
-        function refreshData() {
-            location.reload();
-        }
-
-        // Manual Jupiter Swap
-        async function executeSwap() {
-            const amount = document.getElementById('swapAmount').value;
-            const input = document.getElementById('inputToken').value;
-            const output = document.getElementById('outputToken').value;
-            
-            if (!amount || amount <= 0) {
-                alert('Enter valid amount');
-                return;
-            }
-            
-            if (!confirm(`Execute swap?\n${amount} tokens\n${input.slice(0,8)}... → ${output.slice(0,8)}...`)) return;
-            
-            try {
-                const res = await fetch('/api/swap', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({inputMint: input, outputMint: output, amount: parseFloat(amount)})
-                });
-                const data = await res.json();
-                if (data.success) {
-                    alert(`✅ Swap executed!\nTx: ${data.signature.slice(0,20)}...`);
-                    location.reload();
-                } else {
-                    alert(`❌ Swap failed: ${data.error}`);
-                }
-            } catch (e) {
-                alert('❌ Error: ' + e.message);
-            }
-        }
-
-        // Close Position
-        async function closePosition(id) {
-            if (!confirm(`Close position ${id}?`)) return;
-            try {
-                const res = await fetch(`/api/close_position/${id}`, {method: 'POST'});
-                const data = await res.json();
-                if (data.success) {
-                    alert('✅ Position closed');
-                    location.reload();
-                } else {
-                    alert(`❌ Failed: ${data.error}`);
-                }
-            } catch (e) {
-                alert('❌ Error closing position');
-            }
-        }
-
-        // Save Config
-        async function saveConfig() {
-            const config = {
-                min_spread: parseFloat(document.getElementById('minSpread').value),
-                stop_loss: parseFloat(document.getElementById('stopLoss').value),
-                max_position: parseFloat(document.getElementById('maxPos').value)
-            };
-            
-            try {
-                const res = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(config)
-                });
-                const data = await res.json();
-                alert(data.message || '✅ Config saved!');
-            } catch (e) {
-                alert('❌ Failed to save config');
-            }
-        }
-
-        // Test Alert
-        async function testAlert() {
-            try {
-                const res = await fetch('/api/test_alert', {method: 'POST'});
-                const data = await res.json();
-                alert(data.message);
-            } catch (e) {
-                alert('❌ Failed to send test alert');
-            }
-        }
-
-        // Export Trades
+        function stopBot() { if (confirm("Stop the bot?")) fetch("/api/stop"); }
+        function refreshData() { location.reload(); }
         function exportTrades() {
-            const table = document.querySelector('table');
+            const table = document.querySelector("table");
             if (!table) return;
-            
-            let csv = 'Trade ID,Time,Exchange,Side,Qty,Price,P&L,Status\n';
-            table.querySelectorAll('tbody tr').forEach(row => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 6) {
-                    const rowData = Array.from(cells).map(c => `"${c.textContent.trim().replace(/"/g,'""')}"`).join(',');
-                    csv += rowData + '\n';
-                }
+            let csv = "Trade ID,Time,Exchange,Side,Qty,Price,P&L,Status\\n";
+            table.querySelectorAll("tbody tr").forEach(row => {
+                const cells = row.querySelectorAll("td");
+                if (cells.length >= 6) csv += Array.from(cells).map(c => `"${c.textContent.trim()}"`).join(",") + "\\n";
             });
-            
-            const blob = new Blob([csv], {type: 'text/csv'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
+            const blob = new Blob([csv], {type: "text/csv"});
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
             a.download = `trades_${new Date().toISOString().slice(0,10)}.csv`;
             a.click();
         }
