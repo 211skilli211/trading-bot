@@ -12,11 +12,21 @@ Core Responsibilities:
 """
 
 import json
+import logging
 from decimal import Decimal, ROUND_DOWN
 from datetime import datetime, timezone
 from dataclasses import dataclass, asdict
 from typing import Dict, Any, Optional, List
 from enum import Enum
+
+# Import validation utilities
+try:
+    from security_utils import validate_config_value
+    VALIDATION_AVAILABLE = True
+except ImportError:
+    VALIDATION_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
 
 
 class RiskDecision(Enum):
@@ -93,6 +103,13 @@ class RiskManager:
             initial_balance: Starting account balance in USD
             daily_loss_limit_pct: Daily loss limit before halting
         """
+        # Validate inputs
+        self._validate_inputs(
+            max_position_btc, stop_loss_pct, take_profit_pct,
+            capital_pct_per_trade, max_total_exposure_pct,
+            initial_balance, daily_loss_limit_pct
+        )
+        
         self.max_position_btc = Decimal(str(max_position_btc))
         self.stop_loss_pct = Decimal(str(stop_loss_pct))
         self.take_profit_pct = Decimal(str(take_profit_pct)) if take_profit_pct else None
@@ -122,6 +139,45 @@ class RiskManager:
         print(f"  Capital per Trade: {float(self.capital_pct_per_trade):.2%}")
         print(f"  Max Exposure: {float(self.max_total_exposure_pct):.2%}")
         print(f"  Daily Loss Limit: {float(self.daily_loss_limit_pct):.2%}")
+    
+    def _validate_inputs(
+        self,
+        max_position_btc: float,
+        stop_loss_pct: float,
+        take_profit_pct: Optional[float],
+        capital_pct_per_trade: float,
+        max_total_exposure_pct: float,
+        initial_balance: float,
+        daily_loss_limit_pct: float
+    ):
+        """Validate all risk parameters."""
+        # Use validation utils if available
+        if VALIDATION_AVAILABLE:
+            validate_config_value("max_position_btc", max_position_btc, (int, float), 0.0001, 100)
+            validate_config_value("stop_loss_pct", stop_loss_pct, (int, float), 0.001, 0.5)
+            validate_config_value("capital_pct_per_trade", capital_pct_per_trade, (int, float), 0.001, 1.0)
+            validate_config_value("max_total_exposure_pct", max_total_exposure_pct, (int, float), 0.01, 2.0)
+            validate_config_value("initial_balance", initial_balance, (int, float), 10, 10000000)
+            validate_config_value("daily_loss_limit_pct", daily_loss_limit_pct, (int, float), 0.001, 0.5)
+            
+            if take_profit_pct is not None:
+                validate_config_value("take_profit_pct", take_profit_pct, (int, float), 0.001, 10.0)
+        else:
+            # Manual validation fallback
+            if not 0.001 <= stop_loss_pct <= 0.5:
+                raise ValueError(f"stop_loss_pct must be between 0.1% and 50%, got {stop_loss_pct}")
+            if not 0.001 <= capital_pct_per_trade <= 1.0:
+                raise ValueError(f"capital_pct_per_trade must be between 0.1% and 100%, got {capital_pct_per_trade}")
+            if initial_balance < 10:
+                raise ValueError(f"initial_balance must be >= $10, got {initial_balance}")
+        
+        # Warn about high-risk settings
+        if capital_pct_per_trade > 0.2:
+            logger.warning(f"High capital allocation: {capital_pct_per_trade:.1%} per trade")
+        if stop_loss_pct > 0.1:
+            logger.warning(f"Wide stop loss: {stop_loss_pct:.1%}")
+        if max_total_exposure_pct > 0.5:
+            logger.warning(f"High total exposure: {max_total_exposure_pct:.1%}")
     
     def assess_trade(
         self,

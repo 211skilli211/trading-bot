@@ -17,12 +17,26 @@ import json
 import hashlib
 import hmac
 import base64
+import logging
+import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_DOWN
 from dataclasses import dataclass, asdict
 from typing import Dict, Any, Optional, List, Callable
 from enum import Enum
 import random  # For simulating latency in paper mode
+
+# Import security and retry utilities
+try:
+    from security_utils import sanitize_for_log, SecureLogger, generate_idempotency_key
+    from retry_utils import with_retry, CircuitBreaker, RETRY_NETWORK
+    UTILS_AVAILABLE = True
+except ImportError:
+    UTILS_AVAILABLE = False
+    print("[ExecutionLayer] Warning: security_utils/retry_utils not available")
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
 class ExecutionMode(Enum):
@@ -135,18 +149,90 @@ class ExecutionLayer:
         self.failed_executions = 0
         self.avg_latency_ms = 0.0
         
-        print(f"[ExecutionLayer] Initialized")
-        print(f"  Mode: {mode.value}")
-        print(f"  Max Retries: {max_retries}")
-        
-        if mode == ExecutionMode.LIVE:
-            if not all([binance_api_key, binance_secret]):
-                print("  ⚠️  WARNING: Binance credentials not provided")
-            if not all([coinbase_api_key, coinbase_secret]):
-                print("  ⚠️  WARNING: Coinbase credentials not provided")
-            print("  🔴 LIVE TRADING ENABLED - Real orders will be placed!")
+        # Initialize secure logger
+        if UTILS_AVAILABLE:
+            self.secure_logger = SecureLogger(logger)
         else:
-            print("  📊 PAPER TRADING MODE - No real orders will be placed")
+            self.secure_logger = None
+        
+        # Circuit breaker for live trading
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=5,
+            recovery_timeout=60.0
+        ) if mode == ExecutionMode.LIVE else None
+        
+        # Track executed orders for idempotency
+        self.executed_orders = set()
+        
+        self._log_init_info()
+    
+    def _log_init_info(self):
+        """Log initialization info securely."""
+        log_msg = f"[ExecutionLayer] Initialized\n"
+        log_msg += f"  Mode: {self.mode.value}\n"
+        log_msg += f"  Max Retries: {self.max_retries}"
+        
+        if self.mode == ExecutionMode.LIVE:
+            # Sanitize credentials in logs
+            binance_ok = bool(self.binance_api_key and self.binance_secret)
+            coinbase_ok = bool(self.coinbase_api_key and self.coinbase_secret)
+            
+            if not binance_ok:
+                log_msg += "\n  ⚠️  WARNING: Binance credentials not provided"
+            else:
+                masked = sanitize_for_log(self.binance_api_key) if UTILS_AVAILABLE else "****"
+                log_msg += f"\n  ✅ Binance API key: {masked}"
+            
+            if not coinbase_ok:
+                log_msg += "\n  ⚠️  WARNING: Coinbase credentials not provided"
+            
+            log_msg += "\n  🔴 LIVE TRADING ENABLED - Real orders will be placed!"
+        else:
+            log_msg += "\n  📊 PAPER TRADING MODE - No real orders will be placed"
+        
+        print(log_msg)
+        if self.secure_logger:
+            self.secure_logger.info(log_msg)
+    
+    def _validate_inputs(self, strategy_signal: Dict, risk_result: Dict) -> Optional[str]:
+        """Validate inputs before execution. Returns error message or None."""
+        # Validate strategy signal
+        if not isinstance(strategy_signal, dict):
+            return "strategy_signal must be a dict"
+        
+        decision = strategy_signal.get("decision")
+        if decision not in ["TRADE", "NO_TRADE", "HOLD"]:
+            return f"Invalid decision: {decision}"
+        
+        if decision == "TRADE":
+            buy_price = strategy_signal.get("buy_price")
+            sell_price = strategy_signal.get("sell_price")
+            
+            if buy_price is not None and (not isinstance(buy_price, (int, float)) or buy_price <= 0):
+                return f"Invalid buy_price: {buy_price}"
+            if sell_price is not None and (not isinstance(sell_price, (int, float)) or sell_price <= 0):
+                return f"Invalid sell_price: {sell_price}"
+        
+        # Validate risk result
+        if not isinstance(risk_result, dict):
+            return "risk_result must be a dict"
+        
+        risk_decision = risk_result.get("decision")
+        if risk_decision not in ["APPROVE", "REJECT", "MODIFY", "HOLD"]:
+            return f"Invalid risk decision: {risk_decision}"
+        
+        return None
+    
+    def _check_live_ready(self) -> bool:
+        """Check if live trading is properly configured."""
+        if self.mode != ExecutionMode.LIVE:
+            return True
+        
+        # Need at least one exchange configured
+        has_binance = bool(self.binance_api_key and self.binance_secret)
+        has_coinbase = bool(self.coinbase_api_key and self.coinbase_secret)
+        
+        return has_binance or has_coinbase
     
     def execute_trade(
         self,
@@ -165,8 +251,119 @@ class ExecutionLayer:
         Returns:
             TradeExecution record
         """
-        self.trade_counter += 1
-        trade_id = f"TRADE_{self.trade_counter:04d}"
+        # Generate unique trade ID with idempotency key
+        if UTILS_AVAILABLE:
+            trade_id = generate_idempotency_key("TRADE")
+        else:
+            self.trade_counter += 1
+            trade_id = f"TRADE_{self.trade_counter:04d}_{uuid.uuid4().hex[:8]}"
+        
+        # Check for duplicate (idempotency)
+        if trade_id in self.executed_orders:
+            error_msg = f"Trade {trade_id} already executed (idempotency check)"
+            print(f"⚠️  {error_msg}")
+            return TradeExecution(
+                trade_id=trade_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                mode=self.mode.value,
+                status=OrderStatus.REJECTED.value,
+                strategy_decision=strategy_signal.get("decision", "UNKNOWN"),
+                spread_pct=0,
+                risk_decision="REJECT",
+                position_size_btc=0.0,
+                allocation_usd=0.0,
+                stop_loss_price=None,
+                buy_exchange="N/A",
+                sell_exchange="N/A",
+                buy_price=0,
+                sell_price=0,
+                quantity=0.0,
+                signal_latency_ms=0,
+                risk_latency_ms=0,
+                execution_latency_ms=0.0,
+                total_latency_ms=0.0,
+                error_message=error_msg
+            )
+        
+        # Validate inputs
+        validation_error = self._validate_inputs(strategy_signal, risk_result)
+        if validation_error:
+            return TradeExecution(
+                trade_id=trade_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                mode=self.mode.value,
+                status=OrderStatus.REJECTED.value,
+                strategy_decision=strategy_signal.get("decision", "UNKNOWN"),
+                spread_pct=strategy_signal.get("spread_pct", 0),
+                risk_decision="REJECT",
+                position_size_btc=0.0,
+                allocation_usd=0.0,
+                stop_loss_price=None,
+                buy_exchange=strategy_signal.get("buy_exchange", "N/A"),
+                sell_exchange=strategy_signal.get("sell_exchange", "N/A"),
+                buy_price=strategy_signal.get("buy_price", 0) or 0,
+                sell_price=strategy_signal.get("sell_price", 0) or 0,
+                quantity=0.0,
+                signal_latency_ms=0,
+                risk_latency_ms=0,
+                execution_latency_ms=0.0,
+                total_latency_ms=0.0,
+                error_message=f"Validation failed: {validation_error}"
+            )
+        
+        # Check live trading readiness
+        if self.mode == ExecutionMode.LIVE and not self._check_live_ready():
+            error_msg = "Live mode not configured: API keys missing"
+            print(f"❌ {error_msg}")
+            return TradeExecution(
+                trade_id=trade_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                mode=self.mode.value,
+                status=OrderStatus.REJECTED.value,
+                strategy_decision=strategy_signal.get("decision", "UNKNOWN"),
+                spread_pct=strategy_signal.get("spread_pct", 0),
+                risk_decision=risk_result.get("decision", "UNKNOWN"),
+                position_size_btc=0.0,
+                allocation_usd=0.0,
+                stop_loss_price=None,
+                buy_exchange=strategy_signal.get("buy_exchange", "N/A"),
+                sell_exchange=strategy_signal.get("sell_exchange", "N/A"),
+                buy_price=strategy_signal.get("buy_price", 0) or 0,
+                sell_price=strategy_signal.get("sell_price", 0) or 0,
+                quantity=0.0,
+                signal_latency_ms=0,
+                risk_latency_ms=0,
+                execution_latency_ms=0.0,
+                total_latency_ms=0.0,
+                error_message=error_msg
+            )
+        
+        # Check circuit breaker
+        if self.circuit_breaker and not self.circuit_breaker.can_execute():
+            error_msg = f"Circuit breaker is {self.circuit_breaker.state} - trading halted"
+            print(f"🛑 {error_msg}")
+            return TradeExecution(
+                trade_id=trade_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                mode=self.mode.value,
+                status=OrderStatus.REJECTED.value,
+                strategy_decision=strategy_signal.get("decision", "UNKNOWN"),
+                spread_pct=strategy_signal.get("spread_pct", 0),
+                risk_decision=risk_result.get("decision", "UNKNOWN"),
+                position_size_btc=0.0,
+                allocation_usd=0.0,
+                stop_loss_price=None,
+                buy_exchange=strategy_signal.get("buy_exchange", "N/A"),
+                sell_exchange=strategy_signal.get("sell_exchange", "N/A"),
+                buy_price=strategy_signal.get("buy_price", 0) or 0,
+                sell_price=strategy_signal.get("sell_price", 0) or 0,
+                quantity=0.0,
+                signal_latency_ms=0,
+                risk_latency_ms=0,
+                execution_latency_ms=0.0,
+                total_latency_ms=0.0,
+                error_message=error_msg
+            )
         
         start_time = time.time()
         
@@ -277,6 +474,16 @@ class ExecutionLayer:
         
         self.executions.append(execution)
         self._update_stats(execution)
+        
+        # Track executed order for idempotency
+        self.executed_orders.add(trade_id)
+        
+        # Update circuit breaker
+        if self.circuit_breaker:
+            if execution.status == OrderStatus.FILLED.value:
+                self.circuit_breaker.record_success()
+            elif execution.status == OrderStatus.FAILED.value:
+                self.circuit_breaker.record_failure()
         
         return execution
     
