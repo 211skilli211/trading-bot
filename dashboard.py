@@ -60,6 +60,7 @@ NAVIGATION = [
     {"name": "Live Prices", "url": "/prices", "icon": "graph-up", "requires_funding": False},
     {"name": "Positions", "url": "/positions", "icon": "wallet", "requires_funding": False},
     {"name": "Multi-Agent", "url": "/multi-agent", "icon": "people-fill", "requires_funding": False},
+    {"name": "Strategies", "url": "/strategies", "icon": "cpu", "requires_funding": False},
     {"name": "Trade History", "url": "/trades", "icon": "clock-history", "requires_funding": False},
     {"name": "Portfolio", "url": "/portfolio", "icon": "pie-chart", "requires_funding": False},
     {"name": "Analytics", "url": "/analytics", "icon": "bar-chart", "requires_funding": False},
@@ -314,8 +315,11 @@ def get_bot_data() -> Dict[str, Any]:
             "exposure_value": exposure_pct,
             "total_positions": len(positions),
             "daily_pnl": 0.0,
-            "win_rate": 0.0
+            "win_rate": 0.0,
+            "pnl": "+$0.00",
+            "winrate": "0%"
         },
+        "spread": 0.0,
         "solana_address": "Not connected",
         "sol_balance": 0.0,
         "usdt_balance": 0.0,
@@ -455,6 +459,10 @@ def alerts():
     except:
         data["alerts_history"] = []
     return render_template("alerts.html", data=data, nav=NAVIGATION, wallet=get_wallet_status())
+
+@app.route("/strategies")
+def strategies_page():
+    return render_template("strategies.html", data=get_bot_data(), nav=NAVIGATION, wallet=get_wallet_status())
 
 @app.route("/config", methods=["GET", "POST"])
 def config():
@@ -963,6 +971,256 @@ def save_alert_settings():
             json.dump(settings, f, indent=2)
         
         return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/strategies")
+def get_strategies():
+    """Get all strategy configurations"""
+    try:
+        # Load from config
+        strategies = {}
+        if os.path.exists("config.json"):
+            with open("config.json", "r") as f:
+                config = json.load(f)
+                strategies = config.get("strategies", {})
+        
+        # Default strategies if none exist
+        if not strategies:
+            strategies = {
+                "arbitrage": {
+                    "name": "Binary Arbitrage",
+                    "enabled": True,
+                    "max_position_usd": 100,
+                    "check_interval_seconds": 30,
+                    "stop_loss_pct": 0.02,
+                    "take_profit_pct": 0.06,
+                    "risk": "medium",
+                    "max_concurrent": 3,
+                    "params": {"min_spread_pct": 0.5, "max_slippage": 0.1}
+                },
+                "sniper": {
+                    "name": "15-Min Sniper",
+                    "enabled": True,
+                    "max_position_usd": 50,
+                    "check_interval_seconds": 60,
+                    "stop_loss_pct": 0.03,
+                    "take_profit_pct": 0.09,
+                    "risk": "high",
+                    "max_concurrent": 2,
+                    "params": {"timeframe": "15m", "volume_threshold": 1.5}
+                },
+                "momentum": {
+                    "name": "Momentum Trader",
+                    "enabled": False,
+                    "max_position_usd": 100,
+                    "check_interval_seconds": 300,
+                    "stop_loss_pct": 0.02,
+                    "take_profit_pct": 0.08,
+                    "risk": "medium",
+                    "max_concurrent": 3,
+                    "params": {"fast_ma": 20, "slow_ma": 50}
+                },
+                "mean_reversion": {
+                    "name": "Mean Reversion",
+                    "enabled": False,
+                    "max_position_usd": 75,
+                    "check_interval_seconds": 300,
+                    "stop_loss_pct": 0.025,
+                    "take_profit_pct": 0.05,
+                    "risk": "low",
+                    "max_concurrent": 3,
+                    "params": {"rsi_overbought": 70, "rsi_oversold": 30}
+                },
+                "grid": {
+                    "name": "Grid Trading",
+                    "enabled": False,
+                    "max_position_usd": 200,
+                    "check_interval_seconds": 60,
+                    "stop_loss_pct": 0.05,
+                    "take_profit_pct": 0.02,
+                    "risk": "low",
+                    "max_concurrent": 1,
+                    "params": {"grid_levels": 10, "grid_spacing": 0.5}
+                },
+                "pairs": {
+                    "name": "Pairs Trading",
+                    "enabled": False,
+                    "max_position_usd": 150,
+                    "check_interval_seconds": 300,
+                    "stop_loss_pct": 0.03,
+                    "take_profit_pct": 0.04,
+                    "risk": "medium",
+                    "max_concurrent": 2,
+                    "params": {"correlation_threshold": 0.8, "zscore_threshold": 2.0}
+                }
+            }
+        
+        # Generate AI recommendations based on recent performance
+        ai_recommendations = {}
+        conn = get_db_connection()
+        if conn:
+            c = conn.cursor()
+            for strat_id in strategies.keys():
+                c.execute("""
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) as winners,
+                        AVG(net_pnl) as avg_pnl
+                    FROM trades 
+                    WHERE strategy = ? AND timestamp > datetime('now', '-7 days')
+                """, (strat_id,))
+                
+                row = c.fetchone()
+                if row and row['total'] > 5:
+                    win_rate = row['winners'] / row['total']
+                    avg_pnl = row['avg_pnl'] or 0
+                    
+                    if win_rate < 0.4 and avg_pnl < 0:
+                        ai_recommendations[strat_id] = {
+                            "recommendation": "Consider reducing position size",
+                            "action": "Reduce Risk",
+                            "message": f"Low win rate ({win_rate*100:.0f}%). Consider reducing position size or disabling.",
+                            "suggested_params": {"max_position_usd": strategies[strat_id].get("max_position_usd", 100) * 0.5}
+                        }
+                    elif win_rate > 0.6 and avg_pnl > 0:
+                        ai_recommendations[strat_id] = {
+                            "recommendation": "Strong performance - can increase allocation",
+                            "action": "Increase Allocation",
+                            "message": f"Strong performance ({win_rate*100:.0f}% win rate). Consider increasing position size.",
+                            "suggested_params": {"max_position_usd": min(strategies[strat_id].get("max_position_usd", 100) * 1.5, 500)}
+                        }
+            conn.close()
+        
+        return jsonify({
+            "success": True,
+            "strategies": strategies,
+            "ai_recommendations": ai_recommendations
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/strategies/<strategy_id>", methods=["POST"])
+def update_strategy(strategy_id):
+    """Update strategy configuration"""
+    try:
+        data = request.get_json() or {}
+        
+        # Load current config
+        config = {}
+        if os.path.exists("config.json"):
+            with open("config.json", "r") as f:
+                config = json.load(f)
+        
+        if "strategies" not in config:
+            config["strategies"] = {}
+        
+        config["strategies"][strategy_id] = data
+        
+        with open("config.json", "w") as f:
+            json.dump(config, f, indent=2)
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/strategies/<strategy_id>/toggle", methods=["POST"])
+def toggle_strategy(strategy_id):
+    """Toggle strategy enabled/disabled"""
+    try:
+        data = request.get_json() or {}
+        enabled = data.get('enabled', True)
+        
+        # Load current config
+        config = {}
+        if os.path.exists("config.json"):
+            with open("config.json", "r") as f:
+                config = json.load(f)
+        
+        if "strategies" not in config:
+            config["strategies"] = {}
+        
+        if strategy_id not in config["strategies"]:
+            config["strategies"][strategy_id] = {}
+        
+        config["strategies"][strategy_id]["enabled"] = enabled
+        
+        with open("config.json", "w") as f:
+            json.dump(config, f, indent=2)
+        
+        return jsonify({"success": True, "enabled": enabled})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/strategies/ai-recommendations")
+def get_strategy_ai_recommendations():
+    """Get AI recommendations for all strategies"""
+    try:
+        recommendations = {}
+        summary = "Based on recent market analysis:"
+        
+        conn = get_db_connection()
+        if conn:
+            c = conn.cursor()
+            
+            # Analyze recent performance
+            c.execute("""
+                SELECT 
+                    strategy,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) as winners,
+                    AVG(net_pnl) as avg_pnl,
+                    SUM(net_pnl) as total_pnl
+                FROM trades 
+                WHERE timestamp > datetime('now', '-7 days')
+                GROUP BY strategy
+            """)
+            
+            best_strategy = None
+            best_pnl = float('-inf')
+            worst_strategy = None
+            worst_pnl = float('inf')
+            
+            for row in c.fetchall():
+                strat = row['strategy']
+                total_pnl = row['total_pnl'] or 0
+                win_rate = (row['winners'] / row['total']) if row['total'] > 0 else 0
+                
+                if total_pnl > best_pnl:
+                    best_pnl = total_pnl
+                    best_strategy = strat
+                if total_pnl < worst_pnl:
+                    worst_pnl = total_pnl
+                    worst_strategy = strat
+                
+                if row['total'] >= 3:
+                    if win_rate < 0.4:
+                        recommendations[strat] = {
+                            "recommendation": "Reduce position size",
+                            "action": "Reduce Risk",
+                            "message": f"Low win rate ({win_rate*100:.0f}%). Reduce position size or disable.",
+                            "suggested_params": {"max_position_usd": 50}
+                        }
+                    elif win_rate > 0.6 and total_pnl > 0:
+                        recommendations[strat] = {
+                            "recommendation": "Increase allocation",
+                            "action": "Scale Up",
+                            "message": f"Strong performance ({win_rate*100:.0f}% win rate, ${total_pnl:.2f} P&L).",
+                            "suggested_params": {"max_position_usd": 200}
+                        }
+            
+            conn.close()
+            
+            if best_strategy and best_pnl > 0:
+                summary += f" {best_strategy} is performing best."
+            if worst_strategy and worst_pnl < 0:
+                summary += f" Consider reviewing {worst_strategy}."
+        
+        return jsonify({
+            "success": True,
+            "recommendations": recommendations,
+            "summary": summary
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
