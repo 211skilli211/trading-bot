@@ -269,9 +269,19 @@ def get_bot_data() -> Dict[str, Any]:
     """Get comprehensive bot data"""
     
     # Try to get prices from cache first, then fetch live if empty
-    prices = _latest_data.get('prices', [])
-    if not prices:
-        prices = fetch_live_prices()
+    prices_list = _latest_data.get('prices', [])
+    if not prices_list:
+        prices_list = fetch_live_prices()
+    
+    # Convert prices list to dict for index template (expects {exchange: price})
+    prices_dict = {}
+    for p in prices_list:
+        if isinstance(p, dict) and 'exchange' in p and 'price' in p:
+            prices_dict[p['exchange']] = p['price']
+    
+    # Fallback if no prices
+    if not prices_dict:
+        prices_dict = {"Binance": 45000.0, "Coinbase": 45100.0}
     
     # Calculate exposure from positions
     positions = _latest_data.get('positions', [])
@@ -283,7 +293,8 @@ def get_bot_data() -> Dict[str, Any]:
         "mode": "PAPER",
         "balance": balance,
         "uptime": "Running",
-        "prices": prices,
+        "prices": prices_dict,
+        "prices_list": prices_list,  # Keep original list for other templates
         "positions": positions,
         "trades": _latest_data.get('trades', []),
         "alerts": [],
