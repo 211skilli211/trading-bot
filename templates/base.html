@@ -3,284 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>211Skilli Trading Bot</title>
+    <title>211Skilli Bot • Pro Dashboard V3</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        :root {
-            --bg-primary: #0a0e14;
-            --bg-secondary: #111820;
-            --bg-card: #1a2332;
-            --border: #2d3a4a;
-            --text: #e6edf3;
-            --text-muted: #8b949e;
-            --success: #39d353;
-            --danger: #f85149;
-            --warning: #f59e0b;
-            --info: #3b82f6;
-        }
-        body {
-            background: var(--bg-primary);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            overflow-x: hidden;
-        }
-        .sidebar {
-            width: 260px;
-            min-height: 100vh;
-            background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
-            position: fixed;
-            left: 0;
-            top: 0;
-            z-index: 1000;
-        }
-        .main-content {
-            margin-left: 260px;
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .topbar {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
-            padding: 15px 20px;
-            margin: -20px -20px 20px -20px;
-        }
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            margin-bottom: 15px;
-        }
-        .card-header {
-            background: transparent;
-            border-bottom: 1px solid var(--border);
-            padding: 15px 20px;
-            font-weight: 600;
-        }
-        .kpi-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-        }
-        .kpi-value {
-            font-size: 2rem;
-            font-weight: 700;
-            margin: 10px 0;
-        }
-        .badge-paper { background: var(--success); color: #000; }
-        .badge-live { background: var(--danger); animation: pulse 2s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
-        
-        /* Funding Status Banner */
-        .funding-banner {
-            padding: 12px 20px;
-            margin: -20px -20px 20px -20px;
-            border-bottom: 1px solid var(--border);
-        }
-        .funding-banner.unfunded {
-            background: linear-gradient(90deg, rgba(245,158,11,0.1) 0%, rgba(245,158,11,0.05) 100%);
-            border-left: 4px solid var(--warning);
-        }
-        .funding-banner.funded {
-            background: linear-gradient(90deg, rgba(57,211,83,0.1) 0%, rgba(57,211,83,0.05) 100%);
-            border-left: 4px solid var(--success);
-        }
-        
-        /* Navigation items */
-        .nav-link {
-            border-radius: 8px;
-            margin: 2px 8px;
-            transition: all 0.2s;
-        }
-        .nav-link:hover {
-            background: rgba(255,255,255,0.05);
-        }
-        .nav-link.active {
-            background: rgba(57,211,83,0.2);
-            color: var(--success) !important;
-        }
-        .nav-link.locked {
-            opacity: 0.5;
-        }
-        
-        /* Mobile Styles */
-        @media (max-width: 991px) {
-            .sidebar { display: none; }
-            .main-content { margin-left: 0; padding: 15px; }
-            .topbar { margin: -15px -15px 15px -15px; padding: 12px 15px; }
-            .funding-banner { margin: -15px -15px 15px -15px; }
-            .kpi-value { font-size: 1.5rem; }
-        }
-        
-        /* Table scrolling */
-        .table-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        
-        /* Loading spinner */
-        .loading-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(10,14,20,0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid var(--border);
-            border-top-color: var(--success);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-    <!-- Mobile Header -->
-    <nav class="navbar navbar-dark bg-black d-lg-none sticky-top">
-        <div class="container-fluid">
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <span class="navbar-brand fs-6">211Skilli Bot</span>
-            <span class="badge {% if data.mode == 'LIVE' %}badge-live{% else %}badge-paper{% endif %}">
-                {{ data.mode }}
-            </span>
-        </div>
+<body class="bg-dark text-light">
+    <nav class="navbar navbar-dark bg-black px-3">
+        <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <span class="navbar-brand fw-bold text-success">211Skilli Bot</span>
+        {% include "topbar.html" %}
     </nav>
 
-    <!-- Offcanvas Sidebar (Mobile) -->
-    <div class="offcanvas offcanvas-start bg-black" tabindex="-1" id="sidebar" style="width: 280px;">
-        <div class="offcanvas-header border-bottom border-secondary">
-            <h5 class="offcanvas-title text-success"><i class="bi bi-robot"></i> 211Skilli</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div class="offcanvas-body p-0">
-            <nav class="nav flex-column">
-                {% for item in nav %}
-                <a class="nav-link text-light py-3 px-4 border-bottom border-secondary 
-                          {% if item.requires_funding and not wallet.funded %}locked{% endif %}
-                          {% if request.path == item.url %}active{% endif %}"
-                   href="{{ item.url }}"
-                   {% if item.requires_funding and not wallet.funded %}title="Requires funded wallet"{% endif %}>
-                    <i class="bi bi-{{ item.icon }} me-2"></i>{{ item.name }}
-                    {% if item.requires_funding and not wallet.funded %}<span class="float-end">🔒</span>{% endif %}
-                </a>
-                {% endfor %}
-            </nav>
+    <div class="d-flex">
+        <!-- Desktop Sidebar -->
+        <nav class="bg-black p-3 d-none d-lg-block" style="width: 260px; min-height: 100vh;">
+            <ul class="nav flex-column">
+                <li><a href="/" class="nav-link text-white"><i class="bi bi-house-door"></i> Overview</a></li>
+                <li><a href="/prices" class="nav-link text-white"><i class="bi bi-graph-up"></i> Live Prices</a></li>
+                <li><a href="/positions" class="nav-link text-white"><i class="bi bi-bag"></i> Positions</a></li>
+                <li><a href="/trades" class="nav-link text-white"><i class="bi bi-clock-history"></i> Trade History</a></li>
+                <li><a href="/solana" class="nav-link text-white"><i class="bi bi-currency-exchange"></i> Solana DEX</a></li>
+                <li><a href="/config" class="nav-link text-white"><i class="bi bi-sliders"></i> Config</a></li>
+                <li><a href="/alerts" class="nav-link text-white"><i class="bi bi-bell"></i> Alerts</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="flex-grow-1 p-3 p-lg-4 overflow-auto" style="height: 100vh;">
+            {% block content %}{% endblock %}
         </div>
     </div>
 
-    <!-- Desktop Sidebar -->
-    <nav class="sidebar d-none d-lg-block">
-        <div class="p-4">
-            <h4 class="text-success mb-4"><i class="bi bi-robot"></i> 211Skilli</h4>
-            <nav class="nav flex-column">
-                {% for item in nav %}
-                <a class="nav-link text-light py-2 {% if item.requires_funding and not wallet.funded %}locked{% endif %} {% if request.path == item.url %}active{% endif %}"
-                   href="{{ item.url }}"
-                   {% if item.requires_funding and not wallet.funded %}title="Requires funded wallet"{% endif %}>
-                    <i class="bi bi-{{ item.icon }} me-2"></i>{{ item.name }}
-                    {% if item.requires_funding and not wallet.funded %}<span class="float-end">🔒</span>{% endif %}
-                </a>
-                {% endfor %}
-            </nav>
+    <!-- Mobile Offcanvas -->
+    <div class="offcanvas offcanvas-start bg-black" id="sidebar">
+        <div class="offcanvas-header">
+            <h5 class="text-success">211Skilli Bot</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
         </div>
-    </nav>
-
-    <!-- Main Content -->
-    <div class="main-content">
-        <!-- Topbar -->
-        <div class="topbar d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <div class="d-flex align-items-center gap-3">
-                <span class="badge {% if data.mode == 'LIVE' %}badge-live{% else %}badge-paper{% endif %} fs-6">
-                    ● {{ data.mode }}
-                </span>
-                <span class="d-none d-sm-inline">
-                    <i class="bi bi-wallet2 text-muted"></i> 
-                    <strong class="{% if wallet.connected %}text-success{% else %}text-warning{% endif %}">
-                        {% if wallet.connected %}Connected{% else %}Paper Mode{% endif %}
-                    </strong>
-                </span>
-            </div>
-            <div class="d-flex gap-2">
-                <button onclick="toggleMode()" class="btn btn-outline-light btn-sm" title="Toggle Mode">
-                    <i class="bi bi-toggle-{% if data.mode == 'LIVE' %}on{% else %}off{% endif %}"></i>
-                </button>
-                <button onclick="location.reload()" class="btn btn-outline-light btn-sm">
-                    <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Refresh</span>
-                </button>
-            </div>
+        <div class="offcanvas-body">
+            <ul class="nav flex-column">
+                <li><a href="/" class="nav-link text-white"><i class="bi bi-house-door"></i> Overview</a></li>
+                <li><a href="/prices" class="nav-link text-white"><i class="bi bi-graph-up"></i> Live Prices</a></li>
+                <li><a href="/positions" class="nav-link text-white"><i class="bi bi-bag"></i> Positions</a></li>
+                <li><a href="/trades" class="nav-link text-white"><i class="bi bi-clock-history"></i> Trade History</a></li>
+                <li><a href="/solana" class="nav-link text-white"><i class="bi bi-currency-exchange"></i> Solana DEX</a></li>
+                <li><a href="/config" class="nav-link text-white"><i class="bi bi-sliders"></i> Config</a></li>
+                <li><a href="/alerts" class="nav-link text-white"><i class="bi bi-bell"></i> Alerts</a></li>
+            </ul>
         </div>
-
-        <!-- Funding Status Banner -->
-        {% if not wallet.connected %}
-        <div class="funding-banner unfunded">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div>
-                    <i class="bi bi-info-circle"></i> <strong>Paper Mode Active</strong>
-                    <small class="d-block">Connect wallet to enable live trading</small>
-                </div>
-                <button class="btn btn-warning btn-sm" onclick="alert('Use Config page to connect wallet')">
-                    <i class="bi bi-wallet2"></i> Connect
-                </button>
-            </div>
-        </div>
-        {% else %}
-        <div class="funding-banner funded">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div>
-                    <i class="bi bi-check-circle"></i> <strong>Wallet Connected</strong>
-                    <small class="d-block">{{ wallet.primary_address|default('Ready') }}</small>
-                </div>
-                <span class="badge bg-success">Funded</span>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        {% block content %}{% endblock %}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/coinData.js"></script>
-    <script>
-        // Initialize coin icons on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof loadCoinIcons === 'function') {
-                loadCoinIcons();
-            }
-        });
-        
-        // Toggle mode
-        function toggleMode() {
-            fetch('/api/toggle_mode', {method: 'POST'})
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) location.reload();
-                    else alert('Error: ' + (data.error || 'Unknown'));
-                })
-                .catch(e => alert('Error: ' + e));
-        }
-    </script>
-    {% block scripts %}{% endblock %}
+    <script src="/static/js/app.js"></script>
 </body>
 </html>

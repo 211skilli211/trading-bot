@@ -17,20 +17,26 @@ import json
 import hashlib
 import hmac
 import base64
+import logging
+import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_DOWN
 from dataclasses import dataclass, asdict
 from typing import Dict, Any, Optional, List, Callable
 from enum import Enum
 import random  # For simulating latency in paper mode
-import os
 
-# CCXT import for live trading
+# Import security and retry utilities
 try:
-    import ccxt
-    CCXT_AVAILABLE = True
+    from security_utils import sanitize_for_log, SecureLogger, generate_idempotency_key
+    from retry_utils import with_retry, CircuitBreaker, RETRY_NETWORK
+    UTILS_AVAILABLE = True
 except ImportError:
-    CCXT_AVAILABLE = False
+    UTILS_AVAILABLE = False
+    print("[ExecutionLayer] Warning: security_utils/retry_utils not available")
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
 class ExecutionMode(Enum):
@@ -109,9 +115,7 @@ class ExecutionLayer:
         binance_api_key: Optional[str] = None,
         binance_secret: Optional[str] = None,
         coinbase_api_key: Optional[str] = None,
-        coinbase_secret: Optional[str] = None,
-        kraken_api_key: Optional[str] = None,
-        kraken_secret: Optional[str] = None
+        coinbase_secret: Optional[str] = None
     ):
         """
         Initialize Execution Layer.
@@ -124,8 +128,6 @@ class ExecutionLayer:
             binance_secret: Binance API secret (required for LIVE)
             coinbase_api_key: Coinbase API key (required for LIVE)
             coinbase_secret: Coinbase API secret (required for LIVE)
-            kraken_api_key: Kraken API key (required for LIVE)
-            kraken_secret: Kraken API secret (required for LIVE)
         """
         self.mode = mode
         self.max_retries = max_retries
@@ -136,8 +138,6 @@ class ExecutionLayer:
         self.binance_secret = binance_secret
         self.coinbase_api_key = coinbase_api_key
         self.coinbase_secret = coinbase_secret
-        self.kraken_api_key = kraken_api_key
-        self.kraken_secret = kraken_secret
         
         # Trade tracking
         self.trade_counter = 0
@@ -149,83 +149,90 @@ class ExecutionLayer:
         self.failed_executions = 0
         self.avg_latency_ms = 0.0
         
-        print(f"[ExecutionLayer] Initialized")
-        print(f"  Mode: {mode.value}")
-        print(f"  Max Retries: {max_retries}")
-        
-        # Initialize CCXT exchanges for live trading
-        self.exchanges = {}
-        if mode == ExecutionMode.LIVE and CCXT_AVAILABLE:
-            self._init_ccxt_exchanges(
-                binance_api_key, binance_secret, 
-                coinbase_api_key, coinbase_secret,
-                kraken_api_key, kraken_secret
-            )
-        
-        if mode == ExecutionMode.LIVE:
-            if not all([binance_api_key, binance_secret]):
-                print("  ⚠️  WARNING: Binance credentials not provided")
-            if not all([coinbase_api_key, coinbase_secret]):
-                print("  ⚠️  WARNING: Coinbase credentials not provided")
-            if not all([kraken_api_key, kraken_secret]):
-                print("  ⚠️  WARNING: Kraken credentials not provided")
-            if not CCXT_AVAILABLE:
-                print("  ⚠️  WARNING: CCXT not installed - live trading disabled")
-                print("     Run: pip install ccxt")
-            print("  🔴 LIVE TRADING ENABLED - Real orders will be placed!")
+        # Initialize secure logger
+        if UTILS_AVAILABLE:
+            self.secure_logger = SecureLogger(logger)
         else:
-            print("  📊 PAPER TRADING MODE - No real orders will be placed")
-    
-    def _init_ccxt_exchanges(self, binance_key, binance_secret, coinbase_key, coinbase_secret, 
-                              kraken_key=None, kraken_secret=None):
-        """Initialize CCXT exchange connections for live trading."""
-        # Binance
-        if binance_key and binance_secret:
-            try:
-                self.exchanges['binance'] = ccxt.binance({
-                    'apiKey': binance_key,
-                    'secret': binance_secret,
-                    'enableRateLimit': True,
-                    'options': {'defaultType': 'spot'}
-                })
-                print("  ✅ Binance: Connected")
-            except Exception as e:
-                print(f"  ❌ Binance: {e}")
+            self.secure_logger = None
         
-        # Coinbase
-        if coinbase_key and coinbase_secret:
-            try:
-                self.exchanges['coinbase'] = ccxt.coinbase({
-                    'apiKey': coinbase_key,
-                    'secret': coinbase_secret,
-                    'enableRateLimit': True,
-                })
-                print("  ✅ Coinbase: Connected")
-            except Exception as e:
-                print(f"  ❌ Coinbase: {e}")
+        # Circuit breaker for live trading
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=5,
+            recovery_timeout=60.0
+        ) if mode == ExecutionMode.LIVE else None
         
-        # Kraken
-        if kraken_key and kraken_secret:
-            try:
-                self.exchanges['kraken'] = ccxt.kraken({
-                    'apiKey': kraken_key,
-                    'secret': kraken_secret,
-                    'enableRateLimit': True,
-                })
-                print("  ✅ Kraken: Connected")
-            except Exception as e:
-                print(f"  ❌ Kraken: {e}")
+        # Track executed orders for idempotency
+        self.executed_orders = set()
+        
+        self._log_init_info()
     
-    def _normalize_symbol(self, symbol: str, exchange: str) -> str:
-        """Normalize symbol for CCXT format (BTC/USDT)."""
-        symbol = symbol.replace("-", "/").upper()
-        # Handle common variations
-        if "/" not in symbol:
-            if symbol.endswith("USDT"):
-                symbol = symbol.replace("USDT", "/USDT")
-            elif symbol.endswith("USD"):
-                symbol = symbol.replace("USD", "/USD")
-        return symbol
+    def _log_init_info(self):
+        """Log initialization info securely."""
+        log_msg = f"[ExecutionLayer] Initialized\n"
+        log_msg += f"  Mode: {self.mode.value}\n"
+        log_msg += f"  Max Retries: {self.max_retries}"
+        
+        if self.mode == ExecutionMode.LIVE:
+            # Sanitize credentials in logs
+            binance_ok = bool(self.binance_api_key and self.binance_secret)
+            coinbase_ok = bool(self.coinbase_api_key and self.coinbase_secret)
+            
+            if not binance_ok:
+                log_msg += "\n  ⚠️  WARNING: Binance credentials not provided"
+            else:
+                masked = sanitize_for_log(self.binance_api_key) if UTILS_AVAILABLE else "****"
+                log_msg += f"\n  ✅ Binance API key: {masked}"
+            
+            if not coinbase_ok:
+                log_msg += "\n  ⚠️  WARNING: Coinbase credentials not provided"
+            
+            log_msg += "\n  🔴 LIVE TRADING ENABLED - Real orders will be placed!"
+        else:
+            log_msg += "\n  📊 PAPER TRADING MODE - No real orders will be placed"
+        
+        print(log_msg)
+        if self.secure_logger:
+            self.secure_logger.info(log_msg)
+    
+    def _validate_inputs(self, strategy_signal: Dict, risk_result: Dict) -> Optional[str]:
+        """Validate inputs before execution. Returns error message or None."""
+        # Validate strategy signal
+        if not isinstance(strategy_signal, dict):
+            return "strategy_signal must be a dict"
+        
+        decision = strategy_signal.get("decision")
+        if decision not in ["TRADE", "NO_TRADE", "HOLD"]:
+            return f"Invalid decision: {decision}"
+        
+        if decision == "TRADE":
+            buy_price = strategy_signal.get("buy_price")
+            sell_price = strategy_signal.get("sell_price")
+            
+            if buy_price is not None and (not isinstance(buy_price, (int, float)) or buy_price <= 0):
+                return f"Invalid buy_price: {buy_price}"
+            if sell_price is not None and (not isinstance(sell_price, (int, float)) or sell_price <= 0):
+                return f"Invalid sell_price: {sell_price}"
+        
+        # Validate risk result
+        if not isinstance(risk_result, dict):
+            return "risk_result must be a dict"
+        
+        risk_decision = risk_result.get("decision")
+        if risk_decision not in ["APPROVE", "REJECT", "MODIFY", "HOLD"]:
+            return f"Invalid risk decision: {risk_decision}"
+        
+        return None
+    
+    def _check_live_ready(self) -> bool:
+        """Check if live trading is properly configured."""
+        if self.mode != ExecutionMode.LIVE:
+            return True
+        
+        # Need at least one exchange configured
+        has_binance = bool(self.binance_api_key and self.binance_secret)
+        has_coinbase = bool(self.coinbase_api_key and self.coinbase_secret)
+        
+        return has_binance or has_coinbase
     
     def execute_trade(
         self,
@@ -244,8 +251,119 @@ class ExecutionLayer:
         Returns:
             TradeExecution record
         """
-        self.trade_counter += 1
-        trade_id = f"TRADE_{self.trade_counter:04d}"
+        # Generate unique trade ID with idempotency key
+        if UTILS_AVAILABLE:
+            trade_id = generate_idempotency_key("TRADE")
+        else:
+            self.trade_counter += 1
+            trade_id = f"TRADE_{self.trade_counter:04d}_{uuid.uuid4().hex[:8]}"
+        
+        # Check for duplicate (idempotency)
+        if trade_id in self.executed_orders:
+            error_msg = f"Trade {trade_id} already executed (idempotency check)"
+            print(f"⚠️  {error_msg}")
+            return TradeExecution(
+                trade_id=trade_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                mode=self.mode.value,
+                status=OrderStatus.REJECTED.value,
+                strategy_decision=strategy_signal.get("decision", "UNKNOWN"),
+                spread_pct=0,
+                risk_decision="REJECT",
+                position_size_btc=0.0,
+                allocation_usd=0.0,
+                stop_loss_price=None,
+                buy_exchange="N/A",
+                sell_exchange="N/A",
+                buy_price=0,
+                sell_price=0,
+                quantity=0.0,
+                signal_latency_ms=0,
+                risk_latency_ms=0,
+                execution_latency_ms=0.0,
+                total_latency_ms=0.0,
+                error_message=error_msg
+            )
+        
+        # Validate inputs
+        validation_error = self._validate_inputs(strategy_signal, risk_result)
+        if validation_error:
+            return TradeExecution(
+                trade_id=trade_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                mode=self.mode.value,
+                status=OrderStatus.REJECTED.value,
+                strategy_decision=strategy_signal.get("decision", "UNKNOWN"),
+                spread_pct=strategy_signal.get("spread_pct", 0),
+                risk_decision="REJECT",
+                position_size_btc=0.0,
+                allocation_usd=0.0,
+                stop_loss_price=None,
+                buy_exchange=strategy_signal.get("buy_exchange", "N/A"),
+                sell_exchange=strategy_signal.get("sell_exchange", "N/A"),
+                buy_price=strategy_signal.get("buy_price", 0) or 0,
+                sell_price=strategy_signal.get("sell_price", 0) or 0,
+                quantity=0.0,
+                signal_latency_ms=0,
+                risk_latency_ms=0,
+                execution_latency_ms=0.0,
+                total_latency_ms=0.0,
+                error_message=f"Validation failed: {validation_error}"
+            )
+        
+        # Check live trading readiness
+        if self.mode == ExecutionMode.LIVE and not self._check_live_ready():
+            error_msg = "Live mode not configured: API keys missing"
+            print(f"❌ {error_msg}")
+            return TradeExecution(
+                trade_id=trade_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                mode=self.mode.value,
+                status=OrderStatus.REJECTED.value,
+                strategy_decision=strategy_signal.get("decision", "UNKNOWN"),
+                spread_pct=strategy_signal.get("spread_pct", 0),
+                risk_decision=risk_result.get("decision", "UNKNOWN"),
+                position_size_btc=0.0,
+                allocation_usd=0.0,
+                stop_loss_price=None,
+                buy_exchange=strategy_signal.get("buy_exchange", "N/A"),
+                sell_exchange=strategy_signal.get("sell_exchange", "N/A"),
+                buy_price=strategy_signal.get("buy_price", 0) or 0,
+                sell_price=strategy_signal.get("sell_price", 0) or 0,
+                quantity=0.0,
+                signal_latency_ms=0,
+                risk_latency_ms=0,
+                execution_latency_ms=0.0,
+                total_latency_ms=0.0,
+                error_message=error_msg
+            )
+        
+        # Check circuit breaker
+        if self.circuit_breaker and not self.circuit_breaker.can_execute():
+            error_msg = f"Circuit breaker is {self.circuit_breaker.state} - trading halted"
+            print(f"🛑 {error_msg}")
+            return TradeExecution(
+                trade_id=trade_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                mode=self.mode.value,
+                status=OrderStatus.REJECTED.value,
+                strategy_decision=strategy_signal.get("decision", "UNKNOWN"),
+                spread_pct=strategy_signal.get("spread_pct", 0),
+                risk_decision=risk_result.get("decision", "UNKNOWN"),
+                position_size_btc=0.0,
+                allocation_usd=0.0,
+                stop_loss_price=None,
+                buy_exchange=strategy_signal.get("buy_exchange", "N/A"),
+                sell_exchange=strategy_signal.get("sell_exchange", "N/A"),
+                buy_price=strategy_signal.get("buy_price", 0) or 0,
+                sell_price=strategy_signal.get("sell_price", 0) or 0,
+                quantity=0.0,
+                signal_latency_ms=0,
+                risk_latency_ms=0,
+                execution_latency_ms=0.0,
+                total_latency_ms=0.0,
+                error_message=error_msg
+            )
         
         start_time = time.time()
         
@@ -357,6 +475,16 @@ class ExecutionLayer:
         self.executions.append(execution)
         self._update_stats(execution)
         
+        # Track executed order for idempotency
+        self.executed_orders.add(trade_id)
+        
+        # Update circuit breaker
+        if self.circuit_breaker:
+            if execution.status == OrderStatus.FILLED.value:
+                self.circuit_breaker.record_success()
+            elif execution.status == OrderStatus.FAILED.value:
+                self.circuit_breaker.record_failure()
+        
         return execution
     
     def _execute_paper(
@@ -453,6 +581,7 @@ class ExecutionLayer:
     ) -> TradeExecution:
         """
         Execute a live trade on exchanges using CCXT.
+        Supports Binance, Coinbase, and other exchanges.
         """
         execution = TradeExecution(
             trade_id=trade_id,
@@ -473,23 +602,57 @@ class ExecutionLayer:
             signal_latency_ms=signal_latency_ms,
             risk_latency_ms=risk_latency_ms,
             execution_latency_ms=0.0,
-            total_latency_ms=0.0,
-            error_message=None
+            total_latency_ms=0.0
         )
         
-        if not CCXT_AVAILABLE:
+        # Try to import ccxt
+        try:
+            import ccxt
+        except ImportError:
             execution.status = OrderStatus.FAILED.value
-            execution.error_message = "CCXT not installed (pip install ccxt)"
+            execution.error_message = "CCXT not installed. Run: pip install ccxt"
             return execution
         
-        # Determine symbol (e.g., BTC/USDT)
-        symbol = strategy_signal.get("symbol", "BTC/USDT")
+        # Initialize exchanges
+        exchanges = {}
         
-        print(f"\n🔴 EXECUTING LIVE TRADE: {trade_id}")
-        print(f"   Buy: {buy_exchange} @ ${buy_price:,.2f}")
-        print(f"   Sell: {sell_exchange} @ ${sell_price:,.2f}")
-        print(f"   Amount: {quantity:.6f} {symbol.split('/')[0]}")
+        if buy_exchange.lower() == "binance" and self.binance_api_key:
+            exchanges["buy"] = ccxt.binance({
+                "apiKey": self.binance_api_key,
+                "secret": self.binance_secret,
+                "enableRateLimit": True,
+                "options": {"defaultType": "spot"}
+            })
+        elif buy_exchange.lower() == "coinbase" and self.coinbase_api_key:
+            exchanges["buy"] = ccxt.coinbase({
+                "apiKey": self.coinbase_api_key,
+                "secret": self.coinbase_secret,
+                "enableRateLimit": True
+            })
         
+        if sell_exchange.lower() == "binance" and self.binance_api_key:
+            exchanges["sell"] = ccxt.binance({
+                "apiKey": self.binance_api_key,
+                "secret": self.binance_secret,
+                "enableRateLimit": True,
+                "options": {"defaultType": "spot"}
+            })
+        elif sell_exchange.lower() == "coinbase" and self.coinbase_api_key:
+            exchanges["sell"] = ccxt.coinbase({
+                "apiKey": self.coinbase_api_key,
+                "secret": self.coinbase_secret,
+                "enableRateLimit": True
+            })
+        
+        # Check if we have the required exchanges
+        if "buy" not in exchanges or "sell" not in exchanges:
+            execution.status = OrderStatus.FAILED.value
+            execution.error_message = f"Missing API credentials for {buy_exchange} or {sell_exchange}"
+            print(f"\n❌ LIVE TRADE FAILED: {trade_id}")
+            print(f"   Error: {execution.error_message}")
+            return execution
+        
+        # Execute trades
         buy_order_id = None
         sell_order_id = None
         actual_buy_price = None
@@ -497,69 +660,73 @@ class ExecutionLayer:
         total_fees = 0.0
         
         try:
-            # Execute BUY order
-            buy_ex = self.exchanges.get(buy_exchange.lower())
-            if buy_ex:
-                buy_symbol = self._normalize_symbol(symbol, buy_exchange)
-                print(f"   Placing BUY order on {buy_exchange}...")
-                
-                buy_order = buy_ex.create_market_buy_order(buy_symbol, quantity)
-                buy_order_id = buy_order.get('id')
-                actual_buy_price = buy_order.get('average', buy_order.get('price', buy_price))
-                fee = buy_order.get('fee', {})
-                if fee:
-                    total_fees += fee.get('cost', 0)
-                
-                print(f"   ✅ BUY executed: {buy_order_id}")
-                print(f"      Filled @ ${actual_buy_price:,.2f}")
-            else:
-                raise Exception(f"Buy exchange {buy_exchange} not connected")
+            symbol = "BTC/USDT"
             
-            # Execute SELL order
-            sell_ex = self.exchanges.get(sell_exchange.lower())
-            if sell_ex:
-                sell_symbol = self._normalize_symbol(symbol, sell_exchange)
-                print(f"   Placing SELL order on {sell_exchange}...")
-                
-                sell_order = sell_ex.create_market_sell_order(sell_symbol, quantity)
-                sell_order_id = sell_order.get('id')
-                actual_sell_price = sell_order.get('average', sell_order.get('price', sell_price))
-                fee = sell_order.get('fee', {})
-                if fee:
-                    total_fees += fee.get('cost', 0)
-                
-                print(f"   ✅ SELL executed: {sell_order_id}")
-                print(f"      Filled @ ${actual_sell_price:,.2f}")
-            else:
-                raise Exception(f"Sell exchange {sell_exchange} not connected")
+            # Place BUY order
+            print(f"\n🔴 EXECUTING LIVE TRADE: {trade_id}")
+            print(f"   BUY: {quantity:.6f} BTC on {buy_exchange}")
             
-            # Calculate P&L
+            for attempt in range(self.max_retries):
+                try:
+                    buy_order = exchanges["buy"].create_market_buy_order(symbol, quantity)
+                    buy_order_id = buy_order.get("id", f"LIVE_BUY_{trade_id}")
+                    actual_buy_price = buy_order.get("price", buy_price)
+                    buy_fee = buy_order.get("fee", {}).get("cost", 0) or 0
+                    total_fees += buy_fee
+                    print(f"   ✅ BUY filled: {buy_order_id}")
+                    break
+                except Exception as e:
+                    print(f"   ⚠️  BUY attempt {attempt+1} failed: {e}")
+                    if attempt < self.max_retries - 1:
+                        time.sleep(self.retry_delay * (2 ** attempt))
+                    else:
+                        raise
+            
+            # Place SELL order
+            print(f"   SELL: {quantity:.6f} BTC on {sell_exchange}")
+            
+            for attempt in range(self.max_retries):
+                try:
+                    sell_order = exchanges["sell"].create_market_sell_order(symbol, quantity)
+                    sell_order_id = sell_order.get("id", f"LIVE_SELL_{trade_id}")
+                    actual_sell_price = sell_order.get("price", sell_price)
+                    sell_fee = sell_order.get("fee", {}).get("cost", 0) or 0
+                    total_fees += sell_fee
+                    print(f"   ✅ SELL filled: {sell_order_id}")
+                    break
+                except Exception as e:
+                    print(f"   ⚠️  SELL attempt {attempt+1} failed: {e}")
+                    if attempt < self.max_retries - 1:
+                        time.sleep(self.retry_delay * (2 ** attempt))
+                    else:
+                        raise
+            
+            # Calculate results
+            execution_end = time.time()
+            execution_latency_ms = (execution_end - execution_start) * 1000
+            total_latency_ms = signal_latency_ms + risk_latency_ms + execution_latency_ms
+            
             gross_pnl = (actual_sell_price - actual_buy_price) * quantity
             net_pnl = gross_pnl - total_fees
             
-            execution_latency_ms = (time.time() - execution_start) * 1000
-            total_latency_ms = signal_latency_ms + risk_latency_ms + execution_latency_ms
-            
             execution.status = OrderStatus.FILLED.value
+            execution.execution_latency_ms = execution_latency_ms
+            execution.total_latency_ms = total_latency_ms
             execution.buy_order_id = buy_order_id
             execution.sell_order_id = sell_order_id
             execution.actual_buy_price = actual_buy_price
             execution.actual_sell_price = actual_sell_price
             execution.fees_paid = total_fees
             execution.net_pnl = net_pnl
-            execution.execution_latency_ms = execution_latency_ms
-            execution.total_latency_ms = total_latency_ms
             
-            print(f"\n   💰 Trade Complete!")
-            print(f"      Gross P&L: ${gross_pnl:,.2f}")
-            print(f"      Fees: ${total_fees:,.2f}")
-            print(f"      Net P&L: ${net_pnl:,.2f}")
+            print(f"   💰 Net P&L: ${net_pnl:,.2f}")
+            print(f"   ⏱️  Latency: {total_latency_ms:.1f}ms")
             
         except Exception as e:
-            error_msg = str(e)
-            print(f"\n   ❌ Trade Failed: {error_msg}")
             execution.status = OrderStatus.FAILED.value
-            execution.error_message = error_msg
+            execution.error_message = str(e)
+            execution.execution_latency_ms = (time.time() - execution_start) * 1000
+            print(f"   ❌ FAILED: {e}")
         
         return execution
     
@@ -603,198 +770,6 @@ class ExecutionLayer:
         print(f"Success Rate:     {summary['success_rate']:.1f}%")
         print(f"Avg Latency:      {summary['avg_latency_ms']:.1f}ms")
         print("=" * 60)
-
-    def get_exchange_balance(self, exchange_name: str, currency: str = 'USDT') -> Dict[str, Any]:
-        """
-        Get balance for a specific currency from a specific exchange.
-        
-        Args:
-            exchange_name: Name of the exchange (binance, coinbase, kraken)
-            currency: Currency to get balance for (e.g., 'USDT', 'BTC', 'USD')
-            
-        Returns:
-            Dict with balance info or error message
-        """
-        if self.mode == ExecutionMode.PAPER:
-            return {
-                'exchange': exchange_name,
-                'currency': currency,
-                'free': 10000.0,  # Simulated paper balance
-                'used': 0.0,
-                'total': 10000.0,
-                'mode': 'PAPER'
-            }
-        
-        if not CCXT_AVAILABLE:
-            return {'error': 'CCXT not installed', 'exchange': exchange_name}
-        
-        exchange = self.exchanges.get(exchange_name.lower())
-        if not exchange:
-            return {'error': f'Exchange {exchange_name} not connected', 'exchange': exchange_name}
-        
-        try:
-            balance = exchange.fetch_balance()
-            currency_balance = balance.get(currency.upper(), {})
-            return {
-                'exchange': exchange_name,
-                'currency': currency,
-                'free': currency_balance.get('free', 0),
-                'used': currency_balance.get('used', 0),
-                'total': currency_balance.get('total', 0),
-                'mode': 'LIVE'
-            }
-        except Exception as e:
-            return {'error': str(e), 'exchange': exchange_name, 'currency': currency}
-
-    def get_all_balances(self, currency: str = 'USDT') -> Dict[str, Any]:
-        """
-        Get balances from all connected exchanges.
-        
-        Args:
-            currency: Currency to get balance for
-            
-        Returns:
-            Dict with balances from all exchanges
-        """
-        balances = {}
-        
-        for exchange_name in ['binance', 'coinbase', 'kraken']:
-            balance = self.get_exchange_balance(exchange_name, currency)
-            balances[exchange_name] = balance
-        
-        # Calculate totals
-        total_free = sum(b.get('free', 0) for b in balances.values() if 'free' in b)
-        total_used = sum(b.get('used', 0) for b in balances.values() if 'used' in b)
-        
-        return {
-            'currency': currency,
-            'exchanges': balances,
-            'total_free': total_free,
-            'total_used': total_used,
-            'total': total_free + total_used,
-            'timestamp': datetime.now(timezone.utc).isoformat()
-        }
-
-    def get_exchange_price(self, exchange_name: str, symbol: str = 'BTC/USDT') -> Optional[Dict[str, Any]]:
-        """
-        Get current price from a specific exchange.
-        
-        Args:
-            exchange_name: Name of the exchange
-            symbol: Trading pair symbol
-            
-        Returns:
-            Price data dict or None
-        """
-        if not CCXT_AVAILABLE:
-            return None
-        
-        exchange = self.exchanges.get(exchange_name.lower())
-        if not exchange:
-            return None
-        
-        try:
-            normalized_symbol = self._normalize_symbol(symbol, exchange_name)
-            ticker = exchange.fetch_ticker(normalized_symbol)
-            return {
-                'exchange': exchange_name,
-                'symbol': symbol,
-                'price': ticker.get('last'),
-                'bid': ticker.get('bid'),
-                'ask': ticker.get('ask'),
-                'timestamp': ticker.get('timestamp'),
-                'datetime': datetime.now(timezone.utc).isoformat()
-            }
-        except Exception as e:
-            print(f"[ExecutionLayer] Error fetching price from {exchange_name}: {e}")
-            return None
-
-    def find_arbitrage_opportunities(
-        self, 
-        symbol: str = 'BTC/USDT',
-        min_spread_pct: float = 0.002
-    ) -> List[Dict[str, Any]]:
-        """
-        Find arbitrage opportunities between connected exchanges.
-        
-        Args:
-            symbol: Trading pair to check (e.g., 'BTC/USDT')
-            min_spread_pct: Minimum spread percentage to consider (0.002 = 0.2%)
-            
-        Returns:
-            List of arbitrage opportunities
-        """
-        opportunities = []
-        prices = {}
-        
-        # Fetch prices from all connected exchanges
-        for exchange_name in ['binance', 'coinbase', 'kraken']:
-            price_data = self.get_exchange_price(exchange_name, symbol)
-            if price_data and price_data.get('price'):
-                prices[exchange_name] = price_data
-        
-        if len(prices) < 2:
-            print(f"[ExecutionLayer] Not enough exchanges have prices for {symbol}")
-            return opportunities
-        
-        # Find arbitrage opportunities (buy low, sell high)
-        for buy_exchange, buy_data in prices.items():
-            for sell_exchange, sell_data in prices.items():
-                if buy_exchange == sell_exchange:
-                    continue
-                
-                buy_price = buy_data.get('ask', buy_data.get('price', 0))
-                sell_price = sell_data.get('bid', sell_data.get('price', 0))
-                
-                if buy_price <= 0 or sell_price <= 0:
-                    continue
-                
-                spread = sell_price - buy_price
-                spread_pct = spread / buy_price if buy_price > 0 else 0
-                
-                if spread_pct >= min_spread_pct:
-                    opportunities.append({
-                        'symbol': symbol,
-                        'buy_exchange': buy_exchange,
-                        'sell_exchange': sell_exchange,
-                        'buy_price': buy_price,
-                        'sell_price': sell_price,
-                        'spread': spread,
-                        'spread_pct': spread_pct,
-                        'potential_profit_pct': spread_pct - 0.002,  # Approximate fees
-                        'timestamp': datetime.now(timezone.utc).isoformat()
-                    })
-        
-        # Sort by spread percentage (highest first)
-        opportunities.sort(key=lambda x: x['spread_pct'], reverse=True)
-        
-        return opportunities
-
-    def print_arbitrage_opportunities(self, symbol: str = 'BTC/USDT', min_spread_pct: float = 0.002):
-        """
-        Print arbitrage opportunities between exchanges.
-        
-        Args:
-            symbol: Trading pair to check
-            min_spread_pct: Minimum spread percentage
-        """
-        print(f"\n[ExecutionLayer] Scanning for arbitrage opportunities on {symbol}...")
-        
-        opportunities = self.find_arbitrage_opportunities(symbol, min_spread_pct)
-        
-        if not opportunities:
-            print("  No arbitrage opportunities found.")
-            return
-        
-        print(f"\n  Found {len(opportunities)} arbitrage opportunity(s):")
-        print("  " + "-" * 70)
-        
-        for i, opp in enumerate(opportunities[:5], 1):  # Show top 5
-            print(f"  {i}. Buy on {opp['buy_exchange'].upper()} @ ${opp['buy_price']:,.2f}")
-            print(f"     Sell on {opp['sell_exchange'].upper()} @ ${opp['sell_price']:,.2f}")
-            print(f"     Spread: {opp['spread_pct']:.4%} (${opp['spread']:,.2f})")
-            print(f"     Est. Profit: {opp['potential_profit_pct']:.4%} after fees")
-            print()
 
 
 # Example usage and testing
