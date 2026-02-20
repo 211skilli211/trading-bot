@@ -1,336 +1,272 @@
-# 🚀 Trading Bot - Complete Setup Guide
+# Trading Bot - Complete Setup Guide
 
-## Overview
-Professional-grade Solana trading bot with:
-- **5 exchanges** via CCXT (100+ supported)
-- **Solana DEX** via Jupiter (on-chain arbitrage)
-- **Real-time WebSocket** feeds
-- **SQLite database** for persistence
-- **Backtesting** with Birdeye API
-- **Advanced orders** (Limit, DCA)
-- **24/7 operation** on Termux
+## 🚀 Quick Start (Testnet/Devnet Only)
+
+### Step 1: Access the Dashboard
+Open your browser to:
+```
+http://localhost:8080
+```
+
+You should see the dashboard without "Internal Server Error"
+
+### Step 2: Verify ZeroClaw AI
+Check ZeroClaw status:
+```bash
+curl http://localhost:3000/health
+```
+
+Should show: `{"status":"ok", "paired":false}`
+
+**Note:** `paired:false` is normal - pairing is only needed for remote Telegram/Discord access.
 
 ---
 
-## 📋 Prerequisites
+## 🔧 Testnet Configuration (Binance)
 
-- Android device with Termux
-- 20-50 USDT on Solana (Trust Wallet or similar)
-- GitHub account (for code backup)
+### 1. Create Binance Testnet Account
+1. Go to: https://testnet.binance.vision/
+2. Click "Generate HMAC_SHA256 Key"
+3. Save your **API Key** and **Secret Key**
 
----
-
-## ⚡ Quick Start (5 minutes)
-
-### 1. Clone and Setup
+### 2. Configure Trading Bot
+Edit `/root/trading-bot/.env`:
 ```bash
-git clone https://github.com/211skilli211/trading-bot.git
-cd trading-bot
-chmod +x setup.sh
-./setup.sh
+# Binance Testnet (NOT real money!)
+BINANCE_API_KEY=your_testnet_api_key_here
+BINANCE_SECRET_KEY=your_testnet_secret_here
+BINANCE_TESTNET=true
+
+# Trading Mode
+TRADING_MODE=PAPER
 ```
 
-### 2. Configure Environment
+### 3. Test Connection
 ```bash
-# Copy template
-cp .env.example .env
-
-# Edit with your keys
-nano .env
-```
-
-### 3. Test Paper Trading
-```bash
-python trading_bot.py --mode paper --monitor 60
-```
-
----
-
-## 🔧 Detailed Setup
-
-### Step 1: Install Dependencies
-
-```bash
-# Update Termux
-pkg update && pkg upgrade
-
-# Install Python and tools
-pkg install python git
-
-# Install Python packages
-pip install -r requirements.txt
-```
-
-### Step 2: Create Solana Wallet
-
-```bash
-# Generate new wallet
-python3 << 'EOF'
-from solders.keypair import Keypair
-kp = Keypair()
-print("="*60)
-print("SAVE THESE SECURELY:")
-print("="*60)
-print(f"Address: {kp.pubkey()}")
-print(f"Private Key: {kp.to_base58_string()}")
-print("="*60)
-EOF
-```
-
-**SAVE THE OUTPUT!** This is your bot's wallet.
-
-### Step 3: Fund the Wallet
-
-1. Copy the **Address** from Step 2
-2. Open Trust Wallet
-3. Send 20-50 USDT (Solana network) to that address
-4. Also send 0.1 SOL for transaction fees
-5. Verify on https://solscan.io
-
-### Step 4: Configure Environment
-
-Edit `.env`:
-
-```bash
-# Solana (REQUIRED)
-SOLANA_PRIVATE_KEY=your_private_key_from_step_2
-SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
-
-# Trading mode
-TRADING_MODE=paper  # Change to 'live' when ready
-
-# Optional: Alerts
-TELEGRAM_BOT_TOKEN=your_token
-TELEGRAM_CHAT_ID=your_chat_id
-```
-
-### Step 5: Test Components
-
-```bash
-# Test Solana DEX
-python solana_dex.py
-
-# Test Birdeye backtester
-python birdeye_connector.py
-
-# Test WebSocket
-python websocket_feeds.py
-
-# Test database
-python database.py
-
-# Test Jupiter orders
-python jupiter_orders.py
-```
-
----
-
-## 🎯 Usage Modes
-
-### 1. Paper Trading (Testing)
-```bash
-python trading_bot.py --mode paper --monitor 60 --config config.json
-```
-
-### 2. Live Trading (Real Money)
-```bash
-# Edit .env first: TRADING_MODE=live
-python trading_bot.py --mode live --monitor 60
-```
-
-### 3. Backtesting
-```bash
-python backtester.py --days 30 --strategy arbitrage
-```
-
-### 4. Web Dashboard
-```bash
-python trading_bot.py --dashboard --port 8080
-# Access at http://localhost:8080
-```
-
-### 5. 24/7 Operation
-```bash
-# Enable auto-start
-mkdir -p ~/.termux/boot
-cp .termux/boot/trading-bot ~/.termux/boot/
-
-# Or run manually with nohup
-nohup python trading_bot.py --monitor 60 > bot.log 2>&1 &
-```
-
----
-
-## 📊 Strategies
-
-### Arbitrage (Cross-Exchange)
-```json
-{
-  "strategy": {
-    "type": "arbitrage",
-    "min_spread": 0.005,
-    "fee_rate": 0.001
-  }
-}
-```
-
-### Triangular (Solana DEX)
-```python
-# USDC -> SOL -> BTC -> USDC
-dex = SolanaDEX()
-opportunities = dex.find_triangular_arbitrage('USDC', amount=20)
-```
-
-### DCA (Dollar Cost Average)
-```python
-# Buy $5 of SOL every 12 hours for 7 days
-jup = JupiterOrders()
-order = jup.create_dca_order(
-    input_mint=USDC,
-    output_mint=SOL,
-    total_amount=50000000,  # 50 USDC
-    number_of_orders=14,
-    interval_seconds=43200  # 12 hours
-)
-```
-
-### Limit Orders
-```python
-# Buy SOL when price drops to $65
-limit = jup.create_limit_order(
-    input_mint=USDC,
-    output_mint=SOL,
-    input_amount=10000000,  # 10 USDC
-    target_price=65.0,
-    wallet_address=YOUR_WALLET
-)
-```
-
----
-
-## 🔒 Security Checklist
-
-- [ ] Private keys in `.env` (never commit!)
-- [ ] `.env` in `.gitignore`
-- [ ] Wallet only holds trading funds (not main savings)
-- [ ] Daily loss limits configured
-- [ ] Alerts enabled for stop-losses
-- [ ] API keys have withdrawal disabled
-
----
-
-## 📈 Performance Monitoring
-
-### Check Logs
-```bash
-# Real-time logs
-tail -f trading_bot.log | python -m json.tool
-
-# SQLite database
-sqlite3 trades.db "SELECT * FROM trades ORDER BY timestamp DESC LIMIT 10;"
-```
-
-### Health Check
-```bash
-# View summary
-python trading_bot.py  # single run with summary
-
-# Check database stats
-python -c "
-from database import TradingDatabase
-db = TradingDatabase()
-print(db.get_performance_summary(days=7))
+cd /root/trading-bot
+python3 -c "
+import ccxt
+exchange = ccxt.binance({
+    'apiKey': 'your_testnet_api_key',
+    'secret': 'your_testnet_secret',
+    'enableRateLimit': True,
+    'options': {'defaultType': 'spot'}
+})
+exchange.set_sandbox_mode(True)
+print('Balance:', exchange.fetch_balance())
 "
 ```
+
+You should see testnet balances (free fake money).
+
+---
+
+## 🪐 Devnet Configuration (Solana)
+
+### 1. Create Solana Devnet Wallet
+```bash
+# Install solana CLI if not present
+curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
+
+# Create new wallet
+solana-keygen new --outfile ~/.config/solana/devnet.json
+
+# Set devnet cluster
+solana config set --url devnet
+
+# Get devnet SOL (free)
+solana airdrop 2
+```
+
+### 2. Configure Solana DEX
+Edit `/root/trading-bot/.env`:
+```bash
+# Solana Devnet
+SOLANA_RPC_URL=https://api.devnet.solana.com
+SOLANA_WALLET_FILE=solana_wallet.json
+SOLANA_ENABLED=true
+```
+
+### 3. Test Jupiter Integration
+```bash
+curl -s 'https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=100000000&slippageBps=50'
+```
+
+Should return quote data.
+
+---
+
+## 🤖 ZeroClaw AI Integration
+
+### Using ZeroClaw to Fix Errors
+
+ZeroClaw can help debug and fix issues. Access it via:
+- **Dashboard:** http://localhost:8080/zeroclaw
+- **Command Line:** `cd /root/zeroclaw && ./target/release/zeroclaw agent`
+
+### Common Commands
+
+**Check System Status:**
+```bash
+curl http://localhost:3000/health | python3 -m json.tool
+```
+
+**View ZeroClaw Logs:**
+```bash
+tail -f /root/zeroclaw/zeroclaw.log
+```
+
+**Restart ZeroClaw:**
+```bash
+pkill -f "zeroclaw daemon"
+cd /root/zeroclaw
+./target/release/zeroclaw daemon &
+```
+
+**Get AI Predictions:**
+```bash
+curl http://localhost:8080/api/zeroclaw/predictions
+```
+
+---
+
+## 🧪 Testing Checklist
+
+### Before Adding Any Real Money:
+
+1. **Dashboard Loads**
+   - [ ] http://localhost:8080 shows dashboard
+   - [ ] No 500 errors
+   - [ ] All navigation links work
+
+2. **Paper Trading Active**
+   - [ ] Mode shows "PAPER" in top bar
+   - [ ] Cannot switch to LIVE (button disabled)
+
+3. **Testnet Connected**
+   - [ ] Binance testnet API key configured
+   - [ ] Balance shows test USDT/BTC
+   - [ ] Prices updating from testnet
+
+4. **Strategies Configured**
+   - [ ] Visit /strategies page
+   - [ ] Enable 1-2 strategies for testing
+   - [ ] Set small position sizes ($10-50)
+
+5. **ZeroClaw Working**
+   - [ ] /zeroclaw page loads
+   - [ ] Chat responds to queries
+   - [ ] Charts display data
+   - [ ] AI predictions generated
+
+6. **Run Paper Trades**
+   - [ ] Monitor for 24-48 hours
+   - [ ] Check that trades are logged
+   - [ ] Verify P&L calculations
+   - [ ] Confirm no real money used
 
 ---
 
 ## 🆘 Troubleshooting
 
-### "Module not found"
+### "Internal Server Error" on Dashboard
 ```bash
-pip install -r requirements.txt
+# Check logs
+tail -50 /root/trading-bot/dashboard.log
+
+# Restart dashboard
+pkill -f "python.*dashboard"
+cd /root/trading-bot
+python3 dashboard.py
 ```
 
-### "Connection refused"
-- Check internet connection
-- Try different RPC URL in `.env`
-- Check if Termux has network permission
-
-### "Insufficient funds"
-- Ensure wallet has SOL for fees (0.1 minimum)
-- Verify USDT balance on Solana network (not Ethereum)
-
-### Bot stops when screen off
+### ZeroClaw Not Responding
 ```bash
-# Enable wake lock
-termux-wake-lock
+# Check if running
+ps aux | grep zeroclaw
 
-# Or add to .termux/boot/trading-bot
+# Check health
+curl http://localhost:3000/health
+
+# Restart
+cd /root/zeroclaw
+pkill -f "zeroclaw daemon"
+./target/release/zeroclaw daemon &
 ```
 
----
-
-## 🎯 7-Day Launch Plan
-
-| Day | Task | Command |
-|-----|------|---------|
-| 1 | Setup & paper test | `python trading_bot.py --mode paper` |
-| 2 | Run backtest | `python backtester.py` |
-| 3 | Enable WebSocket | Update config, test speed |
-| 4 | Test alerts | Configure Telegram/Discord |
-| 5 | Small live test | 20 USDT, tiny positions |
-| 6 | Monitor & adjust | Check dashboard, tweak params |
-| 7 | Scale up | Increase position sizes |
-
----
-
-## 🚀 Production Deployment
-
-### 24/7 with Termux Services
+### Database Errors
 ```bash
-# Install termux-services
-pkg install termux-services
+# Check database
+sqlite3 /root/trading-bot/trades.db ".tables"
 
-# Enable on boot
-sv-enable trading-bot
-
-# Start now
-sv up trading-bot
-
-# Check status
-sv status trading-bot
+# Reset if needed (BACKUP FIRST!)
+mv trades.db trades.db.backup
+touch trades.db
 ```
 
-### Dashboard Access
+### Port Already in Use
 ```bash
-# Start dashboard
-python trading_bot.py --dashboard
+# Kill processes on port 8080
+fuser -k 8080/tcp
 
-# Access from other devices on same network:
-# http://YOUR_PHONE_IP:8080
+# Or use different port
+python3 dashboard.py --port 8081
 ```
 
 ---
 
-## 💡 Pro Tips
+## 🔐 Security Reminders
 
-1. **Start small**: 20 USDT first, scale after profits
-2. **Monitor daily**: Check Telegram alerts
-3. **Keep logs**: SQLite helps analyze performance
-4. **Update regularly**: `git pull` for improvements
-5. **Backup wallet**: Save private key in multiple secure places
+### NEVER DO THESE:
+- ❌ Use mainnet API keys in testing
+- ❌ Store real private keys in plain text
+- ❌ Share your .env file
+- ❌ Run with real money before 7-day paper test
+- ❌ Disable stop losses
+- ❌ Ignore error alerts
+
+### ALWAYS DO THESE:
+- ✅ Use testnet/devnet only for testing
+- ✅ Encrypt API keys
+- ✅ Set daily loss limits (recommend 5%)
+- ✅ Enable all alerts
+- ✅ Monitor first 48 hours closely
+- ✅ Start with $100 max
 
 ---
 
-## 📞 Support
+## 📊 Going Live (After Successful Testing)
 
-- GitHub Issues: https://github.com/211skilli211/trading-bot/issues
-- Solana Explorer: https://solscan.io
-- Jupiter Docs: https://docs.jup.ag
+### ONLY after 7-day paper test:
+1. Create mainnet API keys (small limits!)
+2. Deposit $100-500 maximum
+3. Set daily loss limit to 5%
+4. Enable all safety features
+5. Monitor 24/7 for first week
+6. Scale up gradually only after proven success
 
 ---
 
-**Ready to launch?** 🚀
+## 🎯 Current Status
 
-Start with: `python trading_bot.py --mode paper --monitor 60`
+| Service | Status | URL |
+|---------|--------|-----|
+| Dashboard | ✅ Running | http://localhost:8080 |
+| ZeroClaw AI | ✅ Running | http://localhost:3000 |
+| Database | ✅ Ready | trades.db |
+| Testnet | 🟡 Configure | See guide above |
+| Devnet | 🟡 Configure | See guide above |
+
+---
+
+## 📞 Getting Help
+
+1. **Dashboard Logs:** `/root/trading-bot/dashboard.log`
+2. **ZeroClaw Logs:** `/root/zeroclaw/zeroclaw.log`
+3. **GitHub:** https://github.com/211skilli211/trading-bot
+4. **Test Checklist:** See TESTING_CHECKLIST.md
+
+---
+
+**Last Updated:** 2026-02-20
+**Version:** 3.0 Enterprise
