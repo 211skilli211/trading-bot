@@ -94,11 +94,8 @@
             if (diff > threshold && window.scrollY === 0) {
                 pullIndicator.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Refreshing...';
                 
-                if (typeof refreshAllData === 'function') {
-                    refreshAllData().then(() => {
-                        pullIndicator.classList.add('d-none');
-                    });
-                }
+                // Reload page for fresh data
+                setTimeout(() => location.reload(), 500);
             } else {
                 pullIndicator.classList.add('d-none');
             }

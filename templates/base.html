@@ -120,10 +120,10 @@
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
-            <ul class="nav flex-column">
+            <ul class="nav flex-column" id="mobile-nav-links">
                 {% for item in nav %}
                 <li class="nav-item mb-1">
-                    <a href="{{ item.url }}" class="nav-link text-white {% if request.path == item.url %}active bg-success{% endif %} rounded" data-bs-dismiss="offcanvas">
+                    <a href="{{ item.url }}" class="nav-link text-white {% if request.path == item.url %}active bg-success{% endif %} rounded mobile-nav-link">
                         <i class="bi bi-{{ item.icon }}"></i>
                         <span>{{ item.name }}</span>
                     </a>
@@ -243,6 +243,22 @@
                 refreshAllData();
             }
         }
+        
+        // Mobile offcanvas navigation - close menu then navigate
+        document.querySelectorAll('.mobile-nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                const offcanvas = document.getElementById('sidebar');
+                
+                if (offcanvas && offcanvas.classList.contains('show')) {
+                    e.preventDefault();
+                    const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvas);
+                    bsOffcanvas.hide();
+                    // Navigate after offcanvas closes
+                    setTimeout(() => window.location.href = href, 300);
+                }
+            });
+        });
     </script>
     
     {% block scripts %}{% endblock %}

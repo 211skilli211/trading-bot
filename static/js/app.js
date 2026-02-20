@@ -29,7 +29,35 @@ function executeSwap() {
     .then(data => alert(data.status || data.message));
 }
 
-// Auto-refresh every 7 seconds for live feel
+// Refresh data without full page reload
+async function refreshAllData() {
+    try {
+        const resp = await fetch('/api/data');
+        const data = await resp.json();
+        
+        // Update price displays if they exist
+        if (data.prices) {
+            document.querySelectorAll('[data-price]').forEach(el => {
+                const symbol = el.getAttribute('data-price');
+                if (data.prices[symbol]) {
+                    el.textContent = '$' + data.prices[symbol].toFixed(2);
+                }
+            });
+        }
+        
+        // Update status indicators
+        if (data.mode) {
+            const modeBadge = document.getElementById('mode-badge');
+            if (modeBadge) modeBadge.textContent = data.mode;
+        }
+        
+        return data;
+    } catch (e) {
+        console.error('Refresh error:', e);
+    }
+}
+
+// Auto-refresh data via API every 30 seconds (not full page reload)
 setInterval(() => {
-    if (!document.hidden) location.reload();
-}, 7000);
+    if (!document.hidden) refreshAllData();
+}, 30000);
