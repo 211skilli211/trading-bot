@@ -73,13 +73,39 @@
     </div>
 </div>
 
+<!-- Custom Agent Creator -->
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center bg-info bg-opacity-10">
+        <span><i class="bi bi-plus-circle"></i> Custom Agent Creator</span>
+        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#createAgentModal">
+            <i class="bi bi-plus-lg"></i> Create Agent
+        </button>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-0">Create custom trading agents with specific strategies, risk profiles, and skill sets. Use natural language prompts or skill files to define behavior.</p>
+        
+        <!-- Custom Agents List -->
+        <div id="custom-agents-list" class="mt-3 d-none">
+            <h6 class="text-muted">Your Custom Agents</h6>
+            <div class="row g-2" id="custom-agents-container">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Signal History -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-clock-history"></i> Recent Signals</span>
-        <button class="btn btn-sm btn-outline-light" onclick="loadMultiAgentStatus()">
-            <i class="bi bi-arrow-clockwise"></i> Refresh
-        </button>
+        <div>
+            <button class="btn btn-sm btn-outline-success me-2" data-bs-toggle="modal" data-bs-target="#createAgentModal">
+                <i class="bi bi-plus-lg"></i> Add Agent
+            </button>
+            <button class="btn btn-sm btn-outline-light" onclick="loadMultiAgentStatus()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
     </div>
     <div class="card-body table-wrapper">
         <table class="table table-dark table-hover table-sm" id="signals-table">
@@ -292,10 +318,207 @@ function showAgentLogs(name) {
     alert('Agent logs for ' + name + ' - Feature coming soon');
 }
 
+// Custom Agent Management
+let customAgents = JSON.parse(localStorage.getItem('customAgents') || '[]');
+
+function renderCustomAgents() {
+    const container = document.getElementById('custom-agents-container');
+    const list = document.getElementById('custom-agents-list');
+    
+    if (customAgents.length === 0) {
+        list.classList.add('d-none');
+        return;
+    }
+    
+    list.classList.remove('d-none');
+    container.innerHTML = customAgents.map((agent, idx) => `
+        <div class="col-md-6">
+            <div class="card border-info">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">${agent.name}</h6>
+                            <small class="text-muted">${agent.strategy}</small>
+                        </div>
+                        <span class="badge bg-${agent.risk === 'low' ? 'success' : agent.risk === 'high' ? 'danger' : 'warning'}">${agent.risk}</span>
+                    </div>
+                    <div class="mt-2 small text-muted">${agent.description || 'Custom agent'}</div>
+                    <div class="mt-2 d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-success" onclick="activateCustomAgent(${idx})">
+                            <i class="bi bi-play"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomAgent(${idx})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function createCustomAgent() {
+    const name = document.getElementById('agent-name').value;
+    const strategy = document.getElementById('agent-strategy').value;
+    const risk = document.getElementById('agent-risk').value;
+    const prompt = document.getElementById('agent-prompt').value;
+    const capital = parseFloat(document.getElementById('agent-capital').value);
+    
+    if (!name || !strategy || !prompt) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    const agent = {
+        name: name,
+        strategy: strategy,
+        risk: risk,
+        description: prompt.substring(0, 100) + '...',
+        capital: capital,
+        status: 'inactive',
+        created: new Date().toISOString()
+    };
+    
+    // Send to backend
+    try {
+        const resp = await fetch('/api/multi-agent/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(agent)
+        });
+        
+        const result = await resp.json();
+        
+        if (result.success) {
+            customAgents.push(agent);
+            localStorage.setItem('customAgents', JSON.stringify(customAgents));
+            renderCustomAgents();
+            bootstrap.Modal.getInstance(document.getElementById('createAgentModal')).hide();
+            
+            // Reset form
+            document.getElementById('create-agent-form').reset();
+            
+            showToast(`Agent "${name}" created successfully!`, 'success');
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (e) {
+        // Offline mode - save locally only
+        customAgents.push(agent);
+        localStorage.setItem('customAgents', JSON.stringify(customAgents));
+        renderCustomAgents();
+        bootstrap.Modal.getInstance(document.getElementById('createAgentModal')).hide();
+        showToast(`Agent "${name}" created (offline mode)`, 'warning');
+    }
+}
+
+function activateCustomAgent(idx) {
+    const agent = customAgents[idx];
+    showToast(`Activating ${agent.name}...`, 'info');
+    // Would send activation to backend
+}
+
+function deleteCustomAgent(idx) {
+    if (!confirm('Delete this custom agent?')) return;
+    customAgents.splice(idx, 1);
+    localStorage.setItem('customAgents', JSON.stringify(customAgents));
+    renderCustomAgents();
+    showToast('Agent deleted', 'success');
+}
+
+function loadSkillFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        document.getElementById('agent-prompt').value = content;
+        showToast('Skill file loaded', 'success');
+    };
+    reader.readAsText(file);
+}
+
+function showToast(message, type) {
+    if (window.showToast) window.showToast(message, type);
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadMultiAgentStatus();
-    setInterval(loadMultiAgentStatus, 30000); // Refresh every 30s
+    renderCustomAgents();
+    setInterval(loadMultiAgentStatus, 30000);
 });
 </script>
+
+<!-- Create Agent Modal -->
+<div class="modal fade" id="createAgentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Create Custom Agent</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-agent-form">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Agent Name *</label>
+                            <input type="text" class="form-control bg-dark text-light" id="agent-name" 
+                                   placeholder="e.g., MyCustomBot" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Strategy Type *</label>
+                            <select class="form-select bg-dark text-light" id="agent-strategy" required>
+                                <option value="">Select strategy...</option>
+                                <option value="momentum">Momentum Following</option>
+                                <option value="mean_reversion">Mean Reversion</option>
+                                <option value="breakout">Breakout Trading</option>
+                                <option value="scalping">Scalping</option>
+                                <option value="grid">Grid Trading</option>
+                                <option value="custom">Custom/Hybrid</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Risk Level</label>
+                            <select class="form-select bg-dark text-light" id="agent-risk">
+                                <option value="low">Low Risk</option>
+                                <option value="medium" selected>Medium Risk</option>
+                                <option value="high">High Risk</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Capital Allocation ($)</label>
+                            <input type="number" class="form-control bg-dark text-light" id="agent-capital" 
+                                   value="100" min="10" step="10">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Strategy Prompt / Skill Definition *</label>
+                            <textarea class="form-control bg-dark text-light" id="agent-prompt" rows="6" 
+                                      placeholder="Describe your trading strategy in natural language or paste skill file content...
+
+Example:
+- Buy when RSI < 30 and price above 50 SMA
+- Sell when RSI > 70 or stop loss hit
+- Max position size: 5% of portfolio
+- Only trade BTC and ETH pairs" required></textarea>
+                            <small class="text-muted">Use natural language or structured skill definitions</small>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Or Upload Skill File (.skill, .txt, .json)</label>
+                            <input type="file" class="form-control bg-dark text-light" accept=".skill,.txt,.json" 
+                                   onchange="loadSkillFile(event)">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="createCustomAgent()">
+                    <i class="bi bi-plus-lg"></i> Create Agent
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

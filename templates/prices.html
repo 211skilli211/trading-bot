@@ -84,8 +84,8 @@
         {% endfor %}
     </div>
     
-    <!-- Detailed Table -->
-    <div class="card mt-3" id="prices-table-container">
+    <!-- Detailed Table (hidden by default on mobile) -->
+    <div class="card mt-3 d-none d-md-block" id="prices-table-container">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="bi bi-table"></i> Detailed View</span>
             <div>
@@ -307,17 +307,23 @@ function toggleView(view) {
     const gridBtn = document.getElementById('view-grid');
     const tableBtn = document.getElementById('view-table');
     
+    if (!grid || !table) return;
+    
     if (view === 'grid') {
-        grid.style.display = '';
-        if (table) table.style.display = 'none';
-        gridBtn.classList.add('active');
-        tableBtn.classList.remove('active');
+        // Show grid, hide table
+        grid.classList.remove('d-none');
+        table.classList.add('d-none');
+        table.classList.remove('d-md-block');
+        if (gridBtn) gridBtn.classList.add('active');
+        if (tableBtn) tableBtn.classList.remove('active');
         localStorage.setItem('prices-view', 'grid');
     } else {
-        grid.style.display = 'none';
-        if (table) table.style.display = '';
-        gridBtn.classList.remove('active');
-        tableBtn.classList.add('active');
+        // Show table, hide grid
+        grid.classList.add('d-none');
+        table.classList.remove('d-none');
+        table.classList.add('d-md-block');
+        if (gridBtn) gridBtn.classList.remove('active');
+        if (tableBtn) tableBtn.classList.add('active');
         localStorage.setItem('prices-view', 'table');
     }
 }
@@ -379,9 +385,32 @@ function sortPrices() {
 
 // Initialize view preference
 document.addEventListener('DOMContentLoaded', () => {
+    const grid = document.getElementById('prices-grid');
+    const table = document.getElementById('prices-table-container');
+    const gridBtn = document.getElementById('view-grid');
+    const tableBtn = document.getElementById('view-table');
+    
+    // Default to grid view
     const savedView = localStorage.getItem('prices-view') || 'grid';
+    
     if (savedView === 'table') {
-        toggleView('table');
+        // Show table view
+        if (grid) grid.classList.add('d-none');
+        if (table) {
+            table.classList.remove('d-none');
+            table.classList.add('d-md-block');
+        }
+        if (gridBtn) gridBtn.classList.remove('active');
+        if (tableBtn) tableBtn.classList.add('active');
+    } else {
+        // Show grid view (default)
+        if (grid) grid.classList.remove('d-none');
+        if (table) {
+            table.classList.add('d-none');
+            table.classList.remove('d-md-block');
+        }
+        if (gridBtn) gridBtn.classList.add('active');
+        if (tableBtn) tableBtn.classList.remove('active');
     }
 });
 

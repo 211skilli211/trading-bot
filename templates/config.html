@@ -103,7 +103,7 @@
                     <div class="col-md-4">
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="macro.regime_detection" id="regimeDetection"
-                                   {% if data.config.macro.regime_detection|default(true) %}checked{% endif %}>
+                                   {% if data.config.macro is defined and data.config.macro.regime_detection|default(true) %}checked{% endif %}>
                             <label class="form-check-label" for="regimeDetection">
                                 <i class="bi bi-globe"></i> Regime Detection
                             </label>
@@ -113,7 +113,7 @@
                     <div class="col-md-4">
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="macro.macro_calendar" id="macroCalendar"
-                                   {% if data.config.macro.macro_calendar|default(true) %}checked{% endif %}>
+                                   {% if data.config.macro is defined and data.config.macro.macro_calendar|default(true) %}checked{% endif %}>
                             <label class="form-check-label" for="macroCalendar">
                                 <i class="bi bi-calendar-event"></i> Macro Event Pause
                             </label>
@@ -123,7 +123,7 @@
                     <div class="col-md-4">
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="macro.accumulation_zones" id="accumulationZones"
-                                   {% if data.config.macro.accumulation_zones|default(true) %}checked{% endif %}>
+                                   {% if data.config.macro is defined and data.config.macro.accumulation_zones|default(true) %}checked{% endif %}>
                             <label class="form-check-label" for="accumulationZones">
                                 <i class="bi bi-bullseye"></i> Accumulation Zones
                             </label>
