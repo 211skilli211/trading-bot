@@ -2,11 +2,375 @@
 {% block content %}
 <div class="container-fluid px-0 px-lg-3">
     <h2 class="h4 mb-3">⚙️ Configuration</h2>
-    <div class="card">
-        <div class="card-body">
-            <p><strong>Mode:</strong> {{ data.mode }}</p>
-            <p><strong>Min Spread:</strong> {{ data.config.strategy.min_spread|default(0.5) }}%</p>
+    
+    <form id="configForm" method="POST" action="/config">
+        <!-- Bot Mode Card -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="bi bi-robot"></i> Trading Bot Mode
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Current Mode</label>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn {% if data.mode == 'PAPER' %}btn-success{% else %}btn-outline-secondary{% endif %} flex-fill"
+                                    onclick="setMode('PAPER')">
+                                <i class="bi bi-file-text"></i> Paper Trading
+                            </button>
+                            <button type="button" class="btn {% if data.mode == 'LIVE' %}btn-danger{% else %}btn-outline-secondary{% endif %} flex-fill {% if not wallet.funded %}disabled{% endif %}"
+                                    onclick="{% if wallet.funded %}setMode('LIVE'){% else %}alert('Fund wallet first'){% endif %}">
+                                <i class="bi bi-currency-dollar"></i> Live Trading
+                            </button>
+                        </div>
+                        <input type="hidden" name="bot.mode" id="modeInput" value="{{ data.mode }}">
+                        <small class="text-muted d-block mt-2">
+                            {% if not wallet.funded %}
+                            🔒 Live trading requires a funded wallet
+                            {% else %}
+                            Click to toggle between paper and live trading
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Monitor Interval (seconds)</label>
+                        <input type="number" class="form-control" name="bot.monitor_interval" 
+                               value="{{ data.config.bot.monitor_interval|default(60) }}" min="10" max="3600">
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+
+        <!-- Strategy Settings -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="bi bi-graph-up"></i> Strategy Settings
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Minimum Spread %</label>
+                        <div class="preset-group mb-2">
+                            <span class="preset-chip {% if data.config.strategy.min_spread == 0.005 %}active{% endif %}" data-value="0.005">0.5%</span>
+                            <span class="preset-chip {% if data.config.strategy.min_spread == 0.01 %}active{% endif %}" data-value="0.01">1.0%</span>
+                            <span class="preset-chip {% if data.config.strategy.min_spread == 0.015 %}active{% endif %}" data-value="0.015">1.5%</span>
+                        </div>
+                        <input type="number" class="form-control" name="strategy.min_spread" id="minSpread"
+                               value="{{ data.config.strategy.min_spread|default(0.005) }}" step="0.001" min="0.001" max="0.1">
+                        <small class="text-muted">Minimum spread to trigger a trade</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Fee Rate %</label>
+                        <input type="number" class="form-control" name="strategy.fee_rate" 
+                               value="{{ data.config.strategy.fee_rate|default(0.001) }}" step="0.0001" min="0" max="0.01">
+                        <small class="text-muted">Trading fee per transaction</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Slippage %</label>
+                        <input type="number" class="form-control" name="strategy.slippage" 
+                               value="{{ data.config.strategy.slippage|default(0.0005) }}" step="0.0001" min="0" max="0.01">
+                        <small class="text-muted">Expected price slippage</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Management -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="bi bi-shield-check"></i> Risk Management
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Capital % per Trade</label>
+                        <input type="number" class="form-control" name="risk.capital_pct_per_trade" 
+                               value="{{ data.config.risk.capital_pct_per_trade|default(0.03) }}" step="0.01" min="0.01" max="1">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Stop Loss %</label>
+                        <input type="number" class="form-control" name="risk.stop_loss_pct" 
+                               value="{{ data.config.risk.stop_loss_pct|default(0.015) }}" step="0.001" min="0.005" max="0.1">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Daily Loss Limit %</label>
+                        <input type="number" class="form-control" name="risk.daily_loss_limit_pct" 
+                               value="{{ data.config.risk.daily_loss_limit_pct|default(0.03) }}" step="0.01" min="0.01" max="0.2">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Max Exposure %</label>
+                        <input type="number" class="form-control" name="risk.max_total_exposure_pct" 
+                               value="{{ data.config.risk.max_total_exposure_pct|default(0.25) }}" step="0.05" min="0.1" max="1">
+                    </div>
+                </div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Initial Paper Balance (USD)</label>
+                        <input type="number" class="form-control" name="risk.initial_balance" 
+                               value="{{ data.config.risk.initial_balance|default(5000) }}" step="100" min="100" max="1000000">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Max Position Size (BTC)</label>
+                        <input type="number" class="form-control" name="risk.max_position_btc" 
+                               value="{{ data.config.risk.max_position_btc|default(0.02) }}" step="0.001" min="0.001" max="1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wallet Configuration -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="bi bi-wallet2"></i> Wallet Configuration
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <!-- Solana -->
+                    <div class="col-md-6">
+                        <div class="card bg-dark">
+                            <div class="card-header d-flex justify-content-between">
+                                <span><i class="bi bi-currency-bitcoin"></i> Solana</span>
+                                <span class="badge {% if wallet.chains.solana and wallet.chains.solana.connected %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if wallet.chains.solana and wallet.chains.solana.connected %}Connected{% else %}Not Connected{% endif %}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="wallets.solana.enabled" 
+                                           {% if data.config.get('wallets', {}).get('solana', {}).get('enabled', true) %}checked{% endif %}>
+                                    <label class="form-check-label">Enabled</label>
+                                </div>
+                                <label class="form-label">RPC URL</label>
+                                <input type="text" class="form-control mb-2" name="solana.rpc_url" 
+                                       value="{{ data.config.solana.rpc_url|default('https://api.mainnet-beta.solana.com') }}">
+                                <small class="text-muted">
+                                    {% if wallet.chains.solana %}
+                                    Balance: {{ wallet.chains.solana.balance_sol|default(0) }} SOL / 
+                                    {{ wallet.chains.solana.balance_usdc|default(0) }} USDC
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ethereum -->
+                    <div class="col-md-6">
+                        <div class="card bg-dark">
+                            <div class="card-header d-flex justify-content-between">
+                                <span><i class="bi bi-currency-exchange"></i> Ethereum</span>
+                                <span class="badge bg-secondary">Coming Soon</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="wallets.ethereum.enabled" 
+                                           {% if data.config.get('wallets', {}).get('ethereum', {}).get('enabled', false) %}checked{% endif %}>
+                                    <label class="form-check-label">Enabled</label>
+                                </div>
+                                <label class="form-label">RPC URL</label>
+                                <input type="text" class="form-control" name="wallets.ethereum.rpc_url" 
+                                       value="{{ data.config.get('wallets', {}).get('ethereum', {}).get('rpc_url', '') }}"
+                                       placeholder="https://eth-mainnet.g.alchemy.com/v2/...">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Telegram Configuration -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="bi bi-telegram"></i> Telegram Alerts
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="alerts.enabled" 
+                                   {% if data.config.get('alerts', {}).get('enabled', true) %}checked{% endif %}>
+                            <label class="form-check-label">Enable Alerts</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="alerts.telegram.enabled" 
+                                   {% if data.config.get('alerts', {}).get('telegram', {}).get('enabled', false) %}checked{% endif %}>
+                            <label class="form-check-label">Telegram Enabled</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="alerts.on_trade" 
+                                   {% if data.config.get('alerts', {}).get('on_trade', true) %}checked{% endif %}>
+                            <label class="form-check-label">Alert on Trades</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Bot Token</label>
+                        <input type="password" class="form-control" name="alerts.telegram.bot_token" 
+                               value="{{ data.config.get('alerts', {}).get('telegram', {}).get('bot_token', '') }}"
+                               placeholder="123456:ABC-DEF...">
+                        <small class="text-muted">Get from @BotFather</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Chat ID</label>
+                        <input type="text" class="form-control" name="alerts.telegram.chat_id" 
+                               value="{{ data.config.get('alerts', {}).get('telegram', {}).get('chat_id', '') }}"
+                               placeholder="123456789">
+                        <small class="text-muted">Your Telegram chat ID</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ZeroClaw Data Pipeline -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="bi bi-arrow-repeat"></i> ZeroClaw Data Pipeline
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="zeroclaw.enabled" 
+                                   {% if data.config.get('zeroclaw', {}).get('enabled', false) %}checked{% endif %}>
+                            <label class="form-check-label">Enable ZeroClaw</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Instance URL</label>
+                        <input type="text" class="form-control" name="zeroclaw.instance_url" 
+                               value="{{ data.config.get('zeroclaw', {}).get('instance_url', '') }}"
+                               placeholder="http://localhost:8080">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">API Key</label>
+                        <input type="password" class="form-control" name="zeroclaw.api_key" 
+                               value="{{ data.config.get('zeroclaw', {}).get('api_key', '') }}"
+                               placeholder="Your ZeroClaw API key">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">
+                <i class="bi bi-x-circle"></i> Cancel
+            </button>
+            <button type="submit" class="btn btn-success" id="saveBtn">
+                <i class="bi bi-check-circle"></i> Save Configuration
+            </button>
+        </div>
+    </form>
 </div>
+
+<script>
+// Preset chip selection
+document.querySelectorAll('.preset-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+        const group = this.closest('.preset-group');
+        group.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Update the input
+        const input = group.nextElementSibling;
+        if (input && input.tagName === 'INPUT') {
+            input.value = this.dataset.value;
+        }
+    });
+});
+
+// Set mode
+function setMode(mode) {
+    document.getElementById('modeInput').value = mode;
+    // Update button styles
+    const buttons = document.querySelectorAll('[onclick^="setMode"]');
+    buttons.forEach(btn => {
+        if (btn.textContent.includes('Paper') && mode === 'PAPER') {
+            btn.className = 'btn btn-success flex-fill';
+        } else if (btn.textContent.includes('Live') && mode === 'LIVE') {
+            btn.className = 'btn btn-danger flex-fill';
+        } else {
+            btn.className = 'btn btn-outline-secondary flex-fill';
+        }
+    });
+}
+
+// Form submission
+document.getElementById('configForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+    
+    const formData = new FormData(this);
+    const config = {};
+    
+    // Convert flat form data to nested structure
+    for (let [key, value] of formData.entries()) {
+        if (key.includes('.')) {
+            const parts = key.split('.');
+            let target = config;
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (!(parts[i] in target)) {
+                    target[parts[i]] = {};
+                }
+                target = target[parts[i]];
+            }
+            // Try to parse as number/boolean
+            if (value === 'on') {
+                target[parts[parts.length - 1]] = true;
+            } else if (!isNaN(value) && value !== '') {
+                target[parts[parts.length - 1]] = parseFloat(value);
+            } else {
+                target[parts[parts.length - 1]] = value;
+            }
+        } else {
+            config[key] = value;
+        }
+    }
+    
+    // Handle unchecked checkboxes (they don't appear in formData)
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        if (!cb.checked) {
+            const name = cb.name;
+            if (name.includes('.')) {
+                const parts = name.split('.');
+                let target = config;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    if (!(parts[i] in target)) target[parts[i]] = {};
+                    target = target[parts[i]];
+                }
+                target[parts[parts.length - 1]] = false;
+            }
+        }
+    });
+    
+    try {
+        const response = await fetch('/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(config)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            btn.className = 'btn btn-success';
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> Saved!';
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            throw new Error(result.error || 'Save failed');
+        }
+    } catch (e) {
+        btn.disabled = false;
+        btn.className = 'btn btn-danger';
+        btn.innerHTML = '<i class="bi bi-exclamation-circle"></i> Error: ' + e.message;
+    }
+});
+</script>
 {% endblock %}

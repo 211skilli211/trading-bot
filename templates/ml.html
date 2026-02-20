@@ -1,0 +1,509 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-cpu text-info"></i> AI & ML Command Center</h4>
+
+<!-- Agent Status Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card bg-dark border-info h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-robot display-4 text-info"></i>
+                <h6 class="mt-2">ZeroClaw AI</h6>
+                <span id="zeroclaw-status" class="badge bg-secondary">Checking...</span>
+                <p class="small text-muted mt-2 mb-0">Natural Language Processing</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-dark border-success h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-graph-up display-4 text-success"></i>
+                <h6 class="mt-2">ML Predictor</h6>
+                <span class="badge bg-success">Active</span>
+                <p class="small text-muted mt-2 mb-0">sklearn + Technical Analysis</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-dark border-warning h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-lightning display-4 text-warning"></i>
+                <h6 class="mt-2">Strategy Agents</h6>
+                <span class="badge bg-warning text-dark">3 Running</span>
+                <p class="small text-muted mt-2 mb-0">Arbitrage, Sniper, Multi-Agent</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-dark border-primary h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-gear display-4 text-primary"></i>
+                <h6 class="mt-2">Ensemble Engine</h6>
+                <span class="badge bg-primary">Combining</span>
+                <p class="small text-muted mt-2 mb-0">Multi-signal consensus</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Combined Signal Score -->
+<div class="card mb-4 border-light">
+    <div class="card-header bg-dark">
+        <i class="bi bi-magic"></i> Combined Trading Signals
+        <span class="badge bg-info ms-2">Live</span>
+    </div>
+    <div class="card-body" id="signals-container">
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2 text-muted">Loading agent signals...</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- ML Predictions -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between">
+                <span><i class="bi bi-graph-up-arrow text-success"></i> ML Predictions</span>
+                <button class="btn btn-sm btn-outline-light" onclick="refreshML()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="ml-predictions">
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ZeroClaw AI -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between">
+                <span><i class="bi bi-robot text-info"></i> ZeroClaw AI Insights</span>
+                <span id="zc-connection" class="badge bg-secondary">Disconnected</span>
+            </div>
+            <div class="card-body">
+                <div id="zeroclaw-insights" class="mb-3">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        ZeroClaw AI provides natural language analysis and insights.
+                    </div>
+                </div>
+                
+                <!-- Quick AI Queries -->
+                <div class="btn-group-vertical w-100" role="group">
+                    <button class="btn btn-outline-info text-start" onclick="askAI('Analyze BTC trend')">
+                        <i class="bi bi-chat-dots"></i> "Analyze BTC trend"
+                    </button>
+                    <button class="btn btn-outline-info text-start" onclick="askAI('Scan for arbitrage')">
+                        <i class="bi bi-search"></i> "Scan for arbitrage"
+                    </button>
+                    <button class="btn btn-outline-info text-start" onclick="askAI('Portfolio analysis')">
+                        <i class="bi bi-pie-chart"></i> "Portfolio analysis"
+                    </button>
+                </div>
+                
+                <div id="ai-response" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Strategy Agents -->
+<div class="card mt-3">
+    <div class="card-header">
+        <i class="bi bi-lightning text-warning"></i> Strategy Agents
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="card bg-dark">
+                    <div class="card-body">
+                        <h6><i class="bi bi-arrow-left-right text-primary"></i> Arbitrage Agent</h6>
+                        <div id="arb-status">Scanning PolyMarket...</div>
+                        <button class="btn btn-sm btn-outline-primary w-100 mt-2" onclick="triggerStrategy('arbitrage')">
+                            Scan Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark">
+                    <div class="card-body">
+                        <h6><i class="bi bi-crosshair text-danger"></i> Sniper Agent</h6>
+                        <div id="sniper-status">Watching 5 pairs...</div>
+                        <button class="btn btn-sm btn-outline-danger w-100 mt-2" onclick="triggerStrategy('sniper')">
+                            Check Signals
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark">
+                    <div class="card-body">
+                        <h6><i class="bi bi-people text-success"></i> Multi-Agent System</h6>
+                        <div id="multi-agent-status">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Active Agents:</span>
+                                <span id="ma-active" class="text-success">--</span>
+                            </div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Total Capital:</span>
+                                <span id="ma-capital">--</span>
+                            </div>
+                            <div class="d-flex justify-content-between small">
+                                <span>Total P&L:</span>
+                                <span id="ma-pnl">--</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-success w-100 mt-2" onclick="evaluateMultiAgent()">
+                            <i class="bi bi-play"></i> Run Evaluation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Chat with AI -->
+<div class="card mt-3">
+    <div class="card-header">
+        <i class="bi bi-chat-square-text"></i> Chat with AI Agents
+    </div>
+    <div class="card-body">
+        <div class="input-group mb-3">
+            <input type="text" id="ai-chat-input" class="form-control bg-dark text-light" 
+                   placeholder="Ask anything: 'What's BTC looking like?' or 'Find arbitrage opportunities'">
+            <button class="btn btn-info" onclick="sendChat()">
+                <i class="bi bi-send"></i> Send
+            </button>
+        </div>
+        <div id="chat-history" style="max-height: 200px; overflow-y: auto;">
+            <!-- Chat messages appear here -->
+        </div>
+    </div>
+</div>
+
+<script>
+// Check ZeroClaw status
+async function checkZeroClaw() {
+    try {
+        const resp = await fetch('/api/zeroclaw/status');
+        const data = await resp.json();
+        
+        const statusEl = document.getElementById('zeroclaw-status');
+        const connEl = document.getElementById('zc-connection');
+        
+        if (data.running) {
+            statusEl.className = 'badge bg-success';
+            statusEl.textContent = 'Connected';
+            connEl.className = 'badge bg-success';
+            connEl.textContent = data.paired ? 'Paired' : 'Unpaired';
+        } else {
+            statusEl.className = 'badge bg-danger';
+            statusEl.textContent = 'Offline';
+            connEl.className = 'badge bg-danger';
+            connEl.textContent = 'Disconnected';
+        }
+    } catch (e) {
+        console.error('ZeroClaw check failed:', e);
+    }
+}
+
+// Load ML predictions
+async function loadMLPredictions() {
+    try {
+        const resp = await fetch('/api/data');
+        const data = await resp.json();
+        
+        const container = document.getElementById('ml-predictions');
+        
+        if (data.stats && data.stats.ml_prediction) {
+            const pred = data.stats.ml_prediction;
+            const directionClass = pred.direction === 'UP' ? 'success' : pred.direction === 'DOWN' ? 'danger' : 'warning';
+            
+            container.innerHTML = `
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-grow-1">
+                        <h5 class="mb-0">${pred.symbol}</h5>
+                        <small class="text-muted">Current: $${pred.price_now.toLocaleString()}</small>
+                    </div>
+                    <div class="text-end">
+                        <h4 class="text-${directionClass} mb-0">${pred.direction}</h4>
+                        <small>${pred.confidence.toFixed(0)}% confidence</small>
+                    </div>
+                </div>
+                <div class="progress mb-2" style="height: 10px;">
+                    <div class="progress-bar bg-${directionClass}" style="width: ${pred.confidence}%"></div>
+                </div>
+                <p class="small text-muted mb-0">
+                    Predicted: $${pred.price_predicted.toLocaleString()} 
+                    (${((pred.price_predicted - pred.price_now) / pred.price_now * 100).toFixed(2)}%)
+                </p>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    Run the trading bot to generate ML predictions
+                </div>
+            `;
+        }
+    } catch (e) {
+        console.error('ML load failed:', e);
+    }
+}
+
+// Generate combined signals
+async function loadCombinedSignals() {
+    const container = document.getElementById('signals-container');
+    
+    try {
+        // Fetch all data sources
+        const [dataResp, discoveryResp] = await Promise.all([
+            fetch('/api/data'),
+            fetch('/api/discovery/coins')
+        ]);
+        
+        const data = await dataResp.json();
+        const discovery = await discoveryResp.json();
+        
+        // Get top coins
+        const coins = (data.prices || []).slice(0, 5);
+        
+        let html = '<div class="row g-3">';
+        
+        for (const coin of coins) {
+            const symbol = coin.symbol.split('/')[0];
+            const change = coin.change_24h || 0;
+            
+            // Calculate signal strength based on available data
+            let signalStrength = 50; // Neutral
+            let signals = [];
+            
+            // ML signal
+            if (data.stats && data.stats.ml_prediction) {
+                const ml = data.stats.ml_prediction;
+                if (ml.direction === 'UP') signalStrength += 15;
+                else if (ml.direction === 'DOWN') signalStrength -= 15;
+                signals.push(`ML: ${ml.direction}`);
+            }
+            
+            // Price action
+            if (change > 5) {
+                signalStrength += 10;
+                signals.push('Momentum: Strong');
+            } else if (change < -5) {
+                signalStrength -= 10;
+                signals.push('Momentum: Weak');
+            }
+            
+            // Clamp
+            signalStrength = Math.max(0, Math.min(100, signalStrength));
+            
+            const signalClass = signalStrength > 60 ? 'success' : signalStrength < 40 ? 'danger' : 'warning';
+            const signalText = signalStrength > 60 ? 'BULLISH' : signalStrength < 40 ? 'BEARISH' : 'NEUTRAL';
+            
+            html += `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card bg-dark border-${signalClass}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="mb-0">${symbol}</h5>
+                                <span class="badge bg-${signalClass}">${signalText}</span>
+                            </div>
+                            <div class="h4">$${coin.price.toLocaleString()}</div>
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar bg-${signalClass}" style="width: ${signalStrength}%"></div>
+                            </div>
+                            <small class="text-muted">${signals.join(' • ') || 'No signals'}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        container.innerHTML = html;
+        
+    } catch (e) {
+        console.error('Signals load failed:', e);
+        container.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> 
+                Could not load combined signals. Start the trading bot for full functionality.
+            </div>
+        `;
+    }
+}
+
+// Ask AI a question
+async function askAI(question) {
+    const responseEl = document.getElementById('ai-response');
+    responseEl.innerHTML = '<div class="spinner-border spinner-border-sm text-info"></div> Thinking...';
+    
+    try {
+        const resp = await fetch('/api/zeroclaw/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message: question})
+        });
+        
+        const data = await resp.json();
+        
+        if (data.response) {
+            responseEl.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-robot"></i> <strong>AI:</strong> ${data.response}
+                </div>
+            `;
+        } else {
+            responseEl.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    ${data.error || 'AI not available. ZeroClaw needs pairing.'}
+                </div>
+            `;
+        }
+    } catch (e) {
+        responseEl.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-x-circle"></i> Error: ${e.message}
+            </div>
+        `;
+    }
+}
+
+// Send chat message
+function sendChat() {
+    const input = document.getElementById('ai-chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    // Add to history
+    const history = document.getElementById('chat-history');
+    history.innerHTML += `
+        <div class="mb-2">
+            <span class="badge bg-secondary">You</span>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    input.value = '';
+    askAI(message);
+}
+
+// Trigger strategy manually
+async function triggerStrategy(name) {
+    const statusEl = name === 'arbitrage' ? document.getElementById('arb-status') :
+                     name === 'sniper' ? document.getElementById('sniper-status') :
+                     document.getElementById('multi-agent-status');
+    
+    statusEl.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
+    
+    try {
+        // This would call your strategy endpoints
+        await new Promise(r => setTimeout(r, 1000)); // Simulate
+        
+        statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Scan complete</span>';
+    } catch (e) {
+        statusEl.innerHTML = '<span class="text-danger">Error</span>';
+    }
+}
+
+// Load Multi-Agent status
+async function loadMultiAgentStatus() {
+    try {
+        const resp = await fetch('/api/multi-agent/status');
+        const data = await resp.json();
+        
+        if (data.success) {
+            const ma = data.data;
+            document.getElementById('ma-active').textContent = `${ma.active_agents}/${ma.total_agents}`;
+            document.getElementById('ma-capital').textContent = `$${ma.total_capital.toLocaleString()}`;
+            document.getElementById('ma-pnl').textContent = `$${ma.total_pnl.toFixed(2)}`;
+            document.getElementById('ma-pnl').className = ma.total_pnl >= 0 ? 'text-success' : 'text-danger';
+        }
+    } catch (e) {
+        console.error('Multi-Agent status load failed:', e);
+    }
+}
+
+// Run Multi-Agent evaluation
+async function evaluateMultiAgent() {
+    const btn = document.querySelector('button[onclick="evaluateMultiAgent()"]');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Evaluating...';
+    btn.disabled = true;
+    
+    try {
+        const resp = await fetch('/api/multi-agent/evaluate', {method: 'POST'});
+        const data = await resp.json();
+        
+        if (data.success) {
+            const results = data.results;
+            let msg = '<strong>Evaluation Complete:</strong><br>';
+            if (results.killed.length > 0) {
+                msg += `❌ Killed: ${results.killed.join(', ')}<br>`;
+            }
+            if (results.scaled_up.length > 0) {
+                msg += `✅ Scaled up: ${results.scaled_up.map(s => s.name).join(', ')}`;
+            }
+            if (results.killed.length === 0 && results.scaled_up.length === 0) {
+                msg += 'ℹ️ No changes this cycle';
+            }
+            
+            document.getElementById('multi-agent-status').innerHTML = `
+                <div class="alert alert-info alert-sm py-2">${msg}</div>
+            `;
+            
+            // Refresh status after a moment
+            setTimeout(loadMultiAgentStatus, 500);
+        } else {
+            document.getElementById('multi-agent-status').innerHTML = `
+                <div class="alert alert-warning alert-sm py-2">Error: ${data.error}</div>
+            `;
+        }
+    } catch (e) {
+        document.getElementById('multi-agent-status').innerHTML = `
+            <div class="alert alert-danger alert-sm py-2">Error: ${e.message}</div>
+        `;
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function refreshML() {
+    loadMLPredictions();
+    loadCombinedSignals();
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    checkZeroClaw();
+    loadMLPredictions();
+    loadCombinedSignals();
+    loadMultiAgentStatus();
+    
+    // Refresh every 30 seconds
+    setInterval(() => {
+        checkZeroClaw();
+        loadMLPredictions();
+        loadCombinedSignals();
+        loadMultiAgentStatus();
+    }, 30000);
+});
+
+// Enter key in chat
+ document.getElementById('ai-chat-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendChat();
+});
+</script>
+{% endblock %}

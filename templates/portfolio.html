@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-pie-chart text-info"></i> Portfolio</h4>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Total Portfolio Value</div>
+            <div class="card-body text-center">
+                <h2 class="text-success">$12,450.75</h2>
+                <small class="text-success"><i class="bi bi-arrow-up"></i> +5.2% (24h)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Asset Allocation</div>
+            <div class="card-body">
+                <div class="progress mb-2" style="height: 25px;">
+                    <div class="progress-bar bg-primary" style="width: 45%">SOL 45%</div>
+                    <div class="progress-bar bg-success" style="width: 30%">USDC 30%</div>
+                    <div class="progress-bar bg-warning" style="width: 25%">Other 25%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Performance</div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-1"><span>Today:</span><span class="text-success">+$245</span></div>
+                <div class="d-flex justify-content-between mb-1"><span>7 Days:</span><span class="text-success">+$1,230</span></div>
+                <div class="d-flex justify-content-between"><span>30 Days:</span><span class="text-danger">-$89</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-coin"></i> Holdings</div>
+    <div class="card-body table-wrapper">
+        <table class="table table-dark table-hover">
+            <thead>
+                <tr><th>Asset</th><th>Balance</th><th>Price</th><th>Value</th><th>Allocation</th><th>24h Change</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><i class="bi bi-currency-dollar text-success"></i> USDC</td>
+                    <td>2,450.50</td>
+                    <td>$1.00</td>
+                    <td>$2,450.50</td>
+                    <td>30%</td>
+                    <td class="text-muted">0.00%</td>
+                </tr>
+                <tr>
+                    <td><i class="bi bi-currency-bitcoin text-primary"></i> SOL</td>
+                    <td>24.5</td>
+                    <td>$102.50</td>
+                    <td>$2,511.25</td>
+                    <td>45%</td>
+                    <td class="text-success">+3.2%</td>
+                </tr>
+                <tr>
+                    <td><i class="bi bi-fire text-warning"></i> BONK</td>
+                    <td>5,000,000</td>
+                    <td>$0.000012</td>
+                    <td>$60.00</td>
+                    <td>5%</td>
+                    <td class="text-danger">-1.5%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

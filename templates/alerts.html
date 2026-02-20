@@ -2,11 +2,196 @@
 {% block content %}
 <div class="container-fluid px-0 px-lg-3">
     <h2 class="h4 mb-3">🔔 Alerts</h2>
+    
+    <!-- Alert Statistics -->
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="small text-muted">TOTAL ALERTS</div>
+                <div class="kpi-value">{{ data.alerts_history|length|default(0) }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="small text-muted">TELEGRAM</div>
+                <div class="kpi-value">
+                    {% if data.config.alerts.telegram.enabled %}
+                    <span class="text-success">ON</span>
+                    {% else %}
+                    <span class="text-muted">OFF</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="small text-muted">DISCORD</div>
+                <div class="kpi-value">
+                    {% if data.config.alerts.discord.enabled %}
+                    <span class="text-success">ON</span>
+                    {% else %}
+                    <span class="text-muted">OFF</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="small text-muted">TRADE ALERTS</div>
+                <div class="kpi-value">
+                    {% if data.config.alerts.on_trade %}
+                    <span class="text-success">ON</span>
+                    {% else %}
+                    <span class="text-muted">OFF</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Telegram Commands Info -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-telegram"></i> Telegram Bot Commands
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-2"><code>/start</code> - Initialize bot connection</p>
+                    <p class="mb-2"><code>/status</code> - Get bot status and uptime</p>
+                    <p class="mb-2"><code>/portfolio</code> - View current holdings</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-2"><code>/trades</code> - Show recent trades</p>
+                    <p class="mb-2"><code>/stop</code> - Stop the trading bot</p>
+                    <p class="mb-2"><code>/help</code> - Show available commands</p>
+                </div>
+            </div>
+            {% if not data.config.alerts.telegram.enabled %}
+            <div class="alert alert-warning mt-3 mb-0">
+                <i class="bi bi-exclamation-triangle"></i> 
+                Telegram alerts not configured. 
+                <a href="/config">Configure now</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Alert History -->
     <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-bell text-muted" style="font-size: 3rem;"></i>
-            <p class="mt-3 text-muted">No active alerts</p>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-clock-history"></i> Alert History</span>
+            <button class="btn btn-sm btn-outline-light" onclick="clearHistory()">
+                <i class="bi bi-trash"></i> Clear
+            </button>
+        </div>
+        <div class="card-body p-0">
+            {% if data.alerts_history and data.alerts_history|length > 0 %}
+            <div class="table-wrapper">
+                <table class="table table-dark table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Message</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in data.alerts_history|reverse %}
+                        <tr>
+                            <td class="small" style="white-space: nowrap;">
+                                {{ alert.timestamp|default('--:--') }}
+                            </td>
+                            <td>
+                                {% if alert.type == 'trade' %}
+                                <span class="badge bg-success">Trade</span>
+                                {% elif alert.type == 'error' %}
+                                <span class="badge bg-danger">Error</span>
+                                {% elif alert.type == 'stop_loss' %}
+                                <span class="badge bg-warning">Stop Loss</span>
+                                {% elif alert.type == 'daily_limit' %}
+                                <span class="badge bg-info">Daily Limit</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ alert.type|default('Info') }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="small">{{ alert.message|truncate(80) }}</td>
+                            <td>
+                                {% if alert.sent %}
+                                <span class="text-success"><i class="bi bi-check-circle"></i> Sent</span>
+                                {% else %}
+                                <span class="text-danger"><i class="bi bi-x-circle"></i> Failed</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-bell-slash text-muted" style="font-size: 3rem;"></i>
+                <p class="mt-3 text-muted">No alerts yet</p>
+                <small class="text-muted">Alerts will appear here when triggered</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Test Alert -->
+    <div class="card mt-3">
+        <div class="card-header">
+            <i class="bi bi-bell"></i> Test Alerts
+        </div>
+        <div class="card-body">
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-success" onclick="sendTestAlert('trade')">
+                    <i class="bi bi-arrow-left-right"></i> Test Trade Alert
+                </button>
+                <button class="btn btn-outline-danger" onclick="sendTestAlert('error')">
+                    <i class="bi bi-exclamation-triangle"></i> Test Error Alert
+                </button>
+                <button class="btn btn-outline-info" onclick="sendTestAlert('telegram')">
+                    <i class="bi bi-telegram"></i> Test Telegram
+                </button>
+            </div>
+            <div id="testResult" class="mt-3"></div>
         </div>
     </div>
 </div>
+
+<script>
+function clearHistory() {
+    if (confirm('Clear all alert history?')) {
+        fetch('/api/alerts/clear', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) location.reload();
+            });
+    }
+}
+
+function sendTestAlert(type) {
+    const resultDiv = document.getElementById('testResult');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm"></div> Sending...';
+    
+    fetch('/api/alerts/test', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({type: type})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle"></i> Test alert sent!</div>';
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-exclamation-circle"></i> ' + (data.error || 'Failed') + '</div>';
+        }
+    })
+    .catch(e => {
+        resultDiv.innerHTML = '<div class="alert alert-danger">Error: ' + e + '</div>';
+    });
+}
+</script>
 {% endblock %}

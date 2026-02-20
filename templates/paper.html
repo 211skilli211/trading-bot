@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="bi bi-journal text-success"></i> Paper Trading</h4>
+    <span class="badge badge-paper fs-6">PAPER MODE</span>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> <strong>Simulation Mode</strong>
+    Practice trading without risking real money. Trades are simulated.
+</div>
+
+<div class="row g-3">
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <small class="text-muted">Paper Balance</small>
+            <div class="kpi-value text-success">${{ "%.2f"|format(data.balance) }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <small class="text-muted">Today's P&L</small>
+            <div class="kpi-value text-success">+$124.50</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <small class="text-muted">Win Rate</small>
+            <div class="kpi-value text-info">67%</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <small class="text-muted">Trades Today</small>
+            <div class="kpi-value">12</div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-controller"></i> Paper Trading Positions</div>
+    <div class="card-body table-wrapper">
+        {% if data.positions %}
+        <table class="table table-dark table-hover">
+            <thead>
+                <tr><th>Pair</th><th>Side</th><th>Entry</th><th>Size</th><th>P&L</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                {% for pos in data.positions %}
+                <tr>
+                    <td>{{ pos.pair }}</td>
+                    <td class="{% if pos.side == 'LONG' %}text-success{% else %}text-danger{% endif %}">{{ pos.side }}</td>
+                    <td>${{ "%.4f"|format(pos.entry_price) }}</td>
+                    <td>{{ "%.4f"|format(pos.size) }}</td>
+                    <td class="{% if pos.unrealized_pnl > 0 %}text-success{% else %}text-danger{% endif %}">${{ "%.2f"|format(pos.unrealized_pnl or 0) }}</td>
+                    <td><button class="btn btn-sm btn-outline-danger">Close</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-inbox fs-1"></i>
+            <p>No open paper positions</p>
+            <button class="btn btn-success">Start Paper Trade</button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-graph-up"></i> Paper Trade History</div>
+    <div class="card-body table-wrapper">
+        <table class="table table-dark table-sm">
+            <thead>
+                <tr><th>Time</th><th>Pair</th><th>Side</th><th>Entry</th><th>Exit</th><th>P&L</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>14:30</td><td>SOL/USDC</td><td class="text-success">LONG</td><td>$102.00</td><td>$104.50</td><td class="text-success">+$25.00</td></tr>
+                <tr><td>13:15</td><td>BONK/SOL</td><td class="text-danger">SHORT</td><td>0.000012</td><td>0.000011</td><td class="text-success">+$18.50</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

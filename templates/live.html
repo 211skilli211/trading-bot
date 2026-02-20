@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="bi bi-broadcast text-danger"></i> Live Trading</h4>
+    <span class="badge badge-live fs-6">● LIVE MODE</span>
+</div>
+
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> <strong>Real Money Trading</strong>
+    Trades execute on live exchanges with real funds.
+</div>
+
+<div class="row g-3">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <span><i class="bi bi-lightning"></i> Active Orders</span>
+                <span class="badge bg-success">3 Active</span>
+            </div>
+            <div class="card-body table-wrapper">
+                <table class="table table-dark table-hover table-sm">
+                    <thead>
+                        <tr><th>Pair</th><th>Type</th><th>Side</th><th>Price</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>SOL/USDC</td><td>Limit</td><td class="text-success">BUY</td><td>$102.50</td><td><span class="badge bg-success">Filled</span></td></tr>
+                        <tr><td>BONK/SOL</td><td>Market</td><td class="text-danger">SELL</td><td>Market</td><td><span class="badge bg-warning">Pending</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-wallet2"></i> Live Balance</div>
+            <div class="card-body">
+                <div class="kpi-card mb-2">
+                    <small class="text-muted">USDC</small>
+                    <div class="kpi-value text-success">$2,450.50</div>
+                </div>
+                <div class="kpi-card">
+                    <small class="text-muted">SOL</small>
+                    <div class="kpi-value">24.5 SOL</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-activity"></i> Live Activity Log</div>
+    <div class="card-body">
+        <div class="timeline">
+            <div class="mb-2"><span class="text-muted">14:32:15</span> - Order executed: SOL/USDC BUY @ $102.50</div>
+            <div class="mb-2"><span class="text-muted">14:28:03</span> - Price alert triggered for BONK</div>
+            <div class="mb-2"><span class="text-muted">14:15:22</span> - Connected to Solana mainnet</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

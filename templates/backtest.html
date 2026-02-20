@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-arrow-counterclockwise text-warning"></i> Backtesting</h4>
+
+<div class="card mb-3">
+    <div class="card-header"><i class="bi bi-sliders"></i> Backtest Configuration</div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Strategy</label>
+                <select id="bt-strategy" class="form-select form-select-sm bg-dark text-light">
+                    <option value="arbitrage">Cross-Exchange Arbitrage</option>
+                    <option value="trend">Trend Following</option>
+                    <option value="mean_reversion">Mean Reversion</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Symbol</label>
+                <input type="text" id="bt-symbol" class="form-control form-control-sm bg-dark text-light" value="BTC/USDT">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Date Range</label>
+                <select id="bt-days" class="form-select form-select-sm bg-dark text-light">
+                    <option value="7">Last 7 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Initial Balance</label>
+                <input type="number" id="bt-balance" class="form-control form-control-sm bg-dark text-light" value="10000">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <button id="bt-run-btn" class="btn btn-primary btn-sm w-100" onclick="runBacktest()">
+                    <i class="bi bi-play"></i> Run Backtest
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="bt-loading" class="text-center py-4" style="display: none;">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Fetching historical data and running simulation...</p>
+</div>
+
+<div id="bt-results" style="display: none;">
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <small class="text-muted">Total Return</small>
+                <div id="bt-return" class="kpi-value text-success">--</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <small class="text-muted">Sharpe Ratio</small>
+                <div id="bt-sharpe" class="kpi-value text-info">--</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <small class="text-muted">Max Drawdown</small>
+                <div id="bt-drawdown" class="kpi-value text-warning">--</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <small class="text-muted">Win Rate</small>
+                <div id="bt-winrate" class="kpi-value">--</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function runBacktest() {
+    const btn = document.getElementById('bt-run-btn');
+    const loading = document.getElementById('bt-loading');
+    const results = document.getElementById('bt-results');
+    
+    btn.disabled = true;
+    loading.style.display = 'block';
+    results.style.display = 'none';
+    
+    try {
+        const response = await fetch('/api/backtest/run', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                strategy: document.getElementById('bt-strategy').value,
+                symbol: document.getElementById('bt-symbol').value,
+                days: parseInt(document.getElementById('bt-days').value),
+                initial_balance: parseFloat(document.getElementById('bt-balance').value)
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('bt-results').style.display = 'block';
+            document.getElementById('bt-return').textContent = data.result.total_return_pct.toFixed(2) + '%';
+            document.getElementById('bt-sharpe').textContent = data.result.sharpe_ratio.toFixed(2);
+            document.getElementById('bt-drawdown').textContent = data.result.max_drawdown_pct.toFixed(2) + '%';
+            document.getElementById('bt-winrate').textContent = data.result.win_rate.toFixed(1) + '%';
+        } else {
+            alert('Backtest failed: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        loading.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

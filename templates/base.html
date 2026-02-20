@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>211Skilli Bot</title>
+    <title>211Skilli Trading Bot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
@@ -16,6 +16,8 @@
             --text-muted: #8b949e;
             --success: #39d353;
             --danger: #f85149;
+            --warning: #f59e0b;
+            --info: #3b82f6;
         }
         body {
             background: var(--bg-primary);
@@ -72,18 +74,45 @@
         .badge-live { background: var(--danger); animation: pulse 2s infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
         
+        /* Funding Status Banner */
+        .funding-banner {
+            padding: 12px 20px;
+            margin: -20px -20px 20px -20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .funding-banner.unfunded {
+            background: linear-gradient(90deg, rgba(245,158,11,0.1) 0%, rgba(245,158,11,0.05) 100%);
+            border-left: 4px solid var(--warning);
+        }
+        .funding-banner.funded {
+            background: linear-gradient(90deg, rgba(57,211,83,0.1) 0%, rgba(57,211,83,0.05) 100%);
+            border-left: 4px solid var(--success);
+        }
+        
+        /* Navigation items */
+        .nav-link {
+            border-radius: 8px;
+            margin: 2px 8px;
+            transition: all 0.2s;
+        }
+        .nav-link:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .nav-link.active {
+            background: rgba(57,211,83,0.2);
+            color: var(--success) !important;
+        }
+        .nav-link.locked {
+            opacity: 0.5;
+        }
+        
         /* Mobile Styles */
         @media (max-width: 991px) {
             .sidebar { display: none; }
             .main-content { margin-left: 0; padding: 15px; }
             .topbar { margin: -15px -15px 15px -15px; padding: 12px 15px; }
+            .funding-banner { margin: -15px -15px 15px -15px; }
             .kpi-value { font-size: 1.5rem; }
-            h2 { font-size: 1.25rem; }
-            .card-body { padding: 15px; }
-            .table { font-size: 0.875rem; }
-            .table td, .table th { padding: 8px; }
-            .btn-group { display: flex; flex-direction: column; width: 100%; }
-            .btn-group .btn { width: 100%; margin-bottom: 5px; }
         }
         
         /* Table scrolling */
@@ -91,13 +120,26 @@
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
-        .table-wrapper::-webkit-scrollbar {
-            height: 6px;
+        
+        /* Loading spinner */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10,14,20,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
         }
-        .table-wrapper::-webkit-scrollbar-thumb {
-            background: #30363d;
-            border-radius: 3px;
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border);
+            border-top-color: var(--success);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -122,27 +164,16 @@
         </div>
         <div class="offcanvas-body p-0">
             <nav class="nav flex-column">
-                <a class="nav-link text-light py-3 px-4 border-bottom border-secondary" href="/">
-                    <i class="bi bi-speedometer2 me-2"></i>Overview
+                {% for item in nav %}
+                <a class="nav-link text-light py-3 px-4 border-bottom border-secondary 
+                          {% if item.requires_funding and not wallet.funded %}locked{% endif %}
+                          {% if request.path == item.url %}active{% endif %}"
+                   href="{{ item.url }}"
+                   {% if item.requires_funding and not wallet.funded %}title="Requires funded wallet"{% endif %}>
+                    <i class="bi bi-{{ item.icon }} me-2"></i>{{ item.name }}
+                    {% if item.requires_funding and not wallet.funded %}<span class="float-end">🔒</span>{% endif %}
                 </a>
-                <a class="nav-link text-light py-3 px-4 border-bottom border-secondary" href="/prices">
-                    <i class="bi bi-graph-up-arrow me-2"></i>Live Prices
-                </a>
-                <a class="nav-link text-light py-3 px-4 border-bottom border-secondary" href="/positions">
-                    <i class="bi bi-wallet2 me-2"></i>Positions
-                </a>
-                <a class="nav-link text-light py-3 px-4 border-bottom border-secondary" href="/trades">
-                    <i class="bi bi-list-ul me-2"></i>Trade History
-                </a>
-                <a class="nav-link text-light py-3 px-4 border-bottom border-secondary" href="/solana">
-                    <i class="bi bi-currency-bitcoin me-2"></i>Solana DEX
-                </a>
-                <a class="nav-link text-light py-3 px-4 border-bottom border-secondary" href="/config">
-                    <i class="bi bi-sliders2 me-2"></i>Config
-                </a>
-                <a class="nav-link text-light py-3 px-4" href="/alerts">
-                    <i class="bi bi-bell-fill me-2"></i>Alerts
-                </a>
+                {% endfor %}
             </nav>
         </div>
     </div>
@@ -152,45 +183,103 @@
         <div class="p-4">
             <h4 class="text-success mb-4"><i class="bi bi-robot"></i> 211Skilli</h4>
             <nav class="nav flex-column">
-                <a class="nav-link text-light py-2" href="/"><i class="bi bi-speedometer2 me-2"></i>Overview</a>
-                <a class="nav-link text-light py-2" href="/prices"><i class="bi bi-graph-up-arrow me-2"></i>Live Prices</a>
-                <a class="nav-link text-light py-2" href="/positions"><i class="bi bi-wallet2 me-2"></i>Positions</a>
-                <a class="nav-link text-light py-2" href="/trades"><i class="bi bi-list-ul me-2"></i>Trade History</a>
-                <a class="nav-link text-light py-2" href="/solana"><i class="bi bi-currency-bitcoin me-2"></i>Solana DEX</a>
-                <a class="nav-link text-light py-2" href="/config"><i class="bi bi-sliders2 me-2"></i>Config</a>
-                <a class="nav-link text-light py-2" href="/alerts"><i class="bi bi-bell-fill me-2"></i>Alerts</a>
+                {% for item in nav %}
+                <a class="nav-link text-light py-2 {% if item.requires_funding and not wallet.funded %}locked{% endif %} {% if request.path == item.url %}active{% endif %}"
+                   href="{{ item.url }}"
+                   {% if item.requires_funding and not wallet.funded %}title="Requires funded wallet"{% endif %}>
+                    <i class="bi bi-{{ item.icon }} me-2"></i>{{ item.name }}
+                    {% if item.requires_funding and not wallet.funded %}<span class="float-end">🔒</span>{% endif %}
+                </a>
+                {% endfor %}
             </nav>
         </div>
     </nav>
 
     <!-- Main Content -->
     <div class="main-content">
+        <!-- Topbar -->
         <div class="topbar d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center gap-3">
                 <span class="badge {% if data.mode == 'LIVE' %}badge-live{% else %}badge-paper{% endif %} fs-6">
                     ● {{ data.mode }}
                 </span>
-                <span class="d-none d-sm-inline"><i class="bi bi-wallet2 text-muted"></i> <strong class="text-success">{{ "%.2f"|format(data.balance|default(0)) }} USDT</strong></span>
-                <span class="text-muted small d-none d-md-inline"><i class="bi bi-clock"></i> {{ data.uptime|default('0h 0m') }}</span>
+                <span class="d-none d-sm-inline">
+                    <i class="bi bi-wallet2 text-muted"></i> 
+                    <strong class="{% if wallet.connected %}text-success{% else %}text-warning{% endif %}">
+                        {% if wallet.connected %}Connected{% else %}Paper Mode{% endif %}
+                    </strong>
+                </span>
             </div>
-            <div>
+            <div class="d-flex gap-2">
+                <button onclick="toggleMode()" class="btn btn-outline-light btn-sm" title="Toggle Mode">
+                    <i class="bi bi-toggle-{% if data.mode == 'LIVE' %}on{% else %}off{% endif %}"></i>
+                </button>
                 <button onclick="location.reload()" class="btn btn-outline-light btn-sm">
                     <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Refresh</span>
                 </button>
             </div>
         </div>
 
+        <!-- Funding Status Banner -->
+        {% if not wallet.connected %}
+        <div class="funding-banner unfunded">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <i class="bi bi-info-circle"></i> <strong>Paper Mode Active</strong>
+                    <small class="d-block">Connect wallet to enable live trading</small>
+                </div>
+                <button class="btn btn-warning btn-sm" onclick="alert('Use Config page to connect wallet')">
+                    <i class="bi bi-wallet2"></i> Connect
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div class="funding-banner funded">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <i class="bi bi-check-circle"></i> <strong>Wallet Connected</strong>
+                    <small class="d-block">{{ wallet.primary_address|default('Ready') }}</small>
+                </div>
+                <span class="badge bg-success">Funded</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/coinData.js"></script>
     <script>
-        // Auto refresh every 10 seconds
-        setInterval(() => {
-            if (!document.querySelector('input:focus, select:focus, textarea:focus')) {
-                location.reload();
+        // Initialize coin icons on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof loadCoinIcons === 'function') {
+                loadCoinIcons();
             }
-        }, 10000);
+        });
+        
+        // Toggle mode
+        function toggleMode() {
+            fetch('/api/toggle_mode', {method: 'POST'})
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) location.reload();
+                    else alert('Error: ' + (data.error || 'Unknown'));
+                })
+                .catch(e => alert('Error: ' + e));
+        }
     </script>
     {% block scripts %}{% endblock %}
 </body>

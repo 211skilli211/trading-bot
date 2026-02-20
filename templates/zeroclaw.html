@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="bi bi-robot text-info"></i> ZeroClaw AI</h4>
+    <span id="ai-status" class="badge bg-secondary">Checking...</span>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-8">
+        <div class="card" style="height: 500px;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-chat-dots"></i> AI Trading Assistant</span>
+                <button class="btn btn-sm btn-outline-light" onclick="clearChat()">
+                    <i class="bi bi-trash"></i> Clear
+                </button>
+            </div>
+            <div class="card-body d-flex flex-column" style="height: calc(100% - 60px);">
+                <div id="chat-messages" class="flex-grow-1 overflow-auto mb-3" style="max-height: 380px;">
+                    <div class="mb-3">
+                        <div class="d-flex">
+                            <span class="badge bg-info me-2">AI</span>
+                            <div class="bg-secondary bg-opacity-25 p-2 rounded" style="max-width: 80%;">
+                                Hello! I'm ZeroClaw, your AI trading assistant. I can help you with:
+                                <ul class="mb-0 mt-1">
+                                    <li>Price checks and market analysis</li>
+                                    <li>Arbitrage opportunity scanning</li>
+                                    <li>Portfolio insights</li>
+                                    <li>Trade execution assistance</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="chat-input" class="form-control bg-dark text-light" 
+                           placeholder="Ask about prices, arbitrage, or trading..."
+                           onkeypress="if(event.key==='Enter')sendMessage()">
+                    <button class="btn btn-info" onclick="sendMessage()">
+                        <i class="bi bi-send"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-lightning"></i> Quick Actions</div>
+            <div class="card-body">
+                <button onclick="quickAsk('Check SOL price')" class="btn btn-outline-info btn-sm w-100 mb-2">
+                    <i class="bi bi-currency-dollar"></i> Check SOL Price
+                </button>
+                <button onclick="quickAsk('Scan for arbitrage')" class="btn btn-outline-info btn-sm w-100 mb-2">
+                    <i class="bi bi-arrow-left-right"></i> Scan Arbitrage
+                </button>
+                <button onclick="quickAsk('Show my portfolio')" class="btn btn-outline-info btn-sm w-100 mb-2">
+                    <i class="bi bi-pie-chart"></i> Portfolio Check
+                </button>
+                <button onclick="quickAsk('Analyze market trends')" class="btn btn-outline-info btn-sm w-100">
+                    <i class="bi bi-graph-up"></i> Market Analysis
+                </button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><i class="bi bi-cpu"></i> AI Stats</div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Status:</span>
+                    <span id="stats-status" class="text-warning">Unknown</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Skills:</span>
+                    <span class="text-info">4 Active</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Gateway:</span>
+                    <span class="text-muted">127.0.0.1:3000</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let isProcessing = false;
+
+// Check AI status on load
+checkAIStatus();
+
+function checkAIStatus() {
+    fetch('/api/zeroclaw/status')
+        .then(r => r.json())
+        .then(data => {
+            const statusEl = document.getElementById('ai-status');
+            const statsEl = document.getElementById('stats-status');
+            if (data.running) {
+                statusEl.className = 'badge bg-success';
+                statusEl.textContent = '● Online';
+                statsEl.className = 'text-success';
+                statsEl.textContent = 'Online';
+            } else {
+                statusEl.className = 'badge bg-danger';
+                statusEl.textContent = '● Offline';
+                statsEl.className = 'text-danger';
+                statsEl.textContent = 'Offline';
+            }
+        })
+        .catch(() => {
+            document.getElementById('ai-status').className = 'badge bg-danger';
+            document.getElementById('ai-status').textContent = '● Offline';
+        });
+}
+
+function quickAsk(message) {
+    document.getElementById('chat-input').value = message;
+    sendMessage();
+}
+
+function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message || isProcessing) return;
+    
+    // Add user message
+    addMessage(message, 'user');
+    input.value = '';
+    isProcessing = true;
+    
+    // Show typing indicator
+    const typingId = 'typing-' + Date.now();
+    addTypingIndicator(typingId);
+    
+    // Call API
+    fetch('/api/zeroclaw/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: message})
+    })
+    .then(r => r.json())
+    .then(data => {
+        removeTypingIndicator(typingId);
+        addMessage(data.response || data.error || 'No response from AI', 'ai');
+        isProcessing = false;
+    })
+    .catch(e => {
+        removeTypingIndicator(typingId);
+        addMessage('Error: ' + e.message, 'ai');
+        isProcessing = false;
+    });
+}
+
+function addMessage(text, sender) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'mb-3';
+    div.innerHTML = `
+        <div class="d-flex ${sender === 'user' ? 'justify-content-end' : ''}">
+            ${sender === 'ai' ? '<span class="badge bg-info me-2">AI</span>' : ''}
+            <div class="${sender === 'user' ? 'bg-primary' : 'bg-secondary bg-opacity-25'} p-2 rounded" style="max-width: 80%; white-space: pre-wrap;">${escapeHtml(text)}</div>
+            ${sender === 'user' ? '<span class="badge bg-primary ms-2">You</span>' : ''}
+        </div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function addTypingIndicator(id) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.id = id;
+    div.className = 'mb-3';
+    div.innerHTML = `
+        <div class="d-flex">
+            <span class="badge bg-info me-2">AI</span>
+            <div class="bg-secondary bg-opacity-25 p-2 rounded">
+                <span class="spinner-border spinner-border-sm"></span> Thinking...
+            </div>
+        </div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function removeTypingIndicator(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+}
+
+function clearChat() {
+    document.getElementById('chat-messages').innerHTML = `
+        <div class="mb-3">
+            <div class="d-flex">
+                <span class="badge bg-info me-2">AI</span>
+                <div class="bg-secondary bg-opacity-25 p-2 rounded" style="max-width: 80%;">
+                    Chat cleared. How can I help you today?
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

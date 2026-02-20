@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-search text-primary"></i> Token Discovery</h4>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="input-group">
+            <span class="input-group-text bg-dark text-light"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control bg-dark text-light" placeholder="Search tokens, symbols, or addresses...">
+            <button class="btn btn-primary"><i class="bi bi-funnel"></i> Filter</button>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 mb-2">🔥</div>
+                <h6>Trending</h6>
+                <small class="text-muted">Top movers in 24h</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 mb-2">🆕</div>
+                <h6>New Listings</h6>
+                <small class="text-muted">Recently added tokens</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 mb-2">📊</div>
+                <h6>High Volume</h6>
+                <small class="text-muted">Most traded today</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 mb-2">💎</div>
+                <h6>Undervalued</h6>
+                <small class="text-muted">Potential opportunities</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between">
+        <span><i class="bi bi-fire"></i> Trending Tokens</span>
+        <span class="badge bg-danger">24h</span>
+    </div>
+    <div class="card-body table-wrapper">
+        <table class="table table-dark table-hover">
+            <thead>
+                <tr><th>#</th><th>Token</th><th>Price</th><th>24h Change</th><th>Volume</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td><strong>BONK</strong> <small class="text-muted">Bonk</small></td>
+                    <td>$0.00001245</td>
+                    <td class="text-success">+15.2%</td>
+                    <td>$45.2M</td>
+                    <td><button class="btn btn-sm btn-outline-success">Trade</button></td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td><strong>PYTH</strong> <small class="text-muted">Pyth Network</small></td>
+                    <td>$0.45</td>
+                    <td class="text-success">+8.7%</td>
+                    <td>$12.1M</td>
+                    <td><button class="btn btn-sm btn-outline-success">Trade</button></td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td><strong>JTO</strong> <small class="text-muted">Jito</small></td>
+                    <td>$2.15</td>
+                    <td class="text-danger">-3.2%</td>
+                    <td>$8.5M</td>
+                    <td><button class="btn btn-sm btn-outline-success">Trade</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
