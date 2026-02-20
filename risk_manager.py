@@ -17,6 +17,27 @@ from datetime import datetime, timezone
 from dataclasses import dataclass, asdict
 from typing import Dict, Any, Optional, List
 from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Macro/Regime integration
+try:
+    from core.regime import RegimeDetector, MarketRegime
+    REGIME_AVAILABLE = True
+except ImportError:
+    REGIME_AVAILABLE = False
+
+try:
+    from utils.event_calendar import should_pause_trading
+    CALENDAR_AVAILABLE = True
+except ImportError:
+    CALENDAR_AVAILABLE = False
+try:
+    from core.accumulation import AccumulationMonitor
+    ACCUMULATION_AVAILABLE = True
+except ImportError:
+    ACCUMULATION_AVAILABLE = False
 
 
 class RiskDecision(Enum):
@@ -79,7 +100,10 @@ class RiskManager:
         capital_pct_per_trade: float = 0.05,  # Risk 5% of balance per trade
         max_total_exposure_pct: float = 0.30, # Max 30% of balance in open positions
         initial_balance: float = 10000.0,     # Starting balance in USD
-        daily_loss_limit_pct: float = 0.05    # Stop trading after 5% daily loss
+        daily_loss_limit_pct: float = 0.05,   # Stop trading after 5% daily loss
+        use_regime_detection: bool = True,     # Enable macro regime detection
+        use_macro_calendar: bool = True,       # Enable macro event calendar
+        use_accumulation_zones: bool = True    # Enable accumulation zone filtering
     ):
         """
         Initialize Risk Manager.
@@ -92,7 +116,17 @@ class RiskManager:
             max_total_exposure_pct: Maximum total exposure as % of balance
             initial_balance: Starting account balance in USD
             daily_loss_limit_pct: Daily loss limit before halting
+            use_regime_detection: Enable macro regime-based risk adjustment
+            use_macro_calendar: Enable macro event pause
+            use_accumulation_zones: Only allow trades in accumulation zones
         """
+        # Store base parameters (will be overridden by regime if enabled)
+        self._base_max_position_btc = max_position_btc
+        self._base_stop_loss_pct = stop_loss_pct
+        self._base_take_profit_pct = take_profit_pct
+        self._base_capital_pct = capital_pct_per_trade
+        
+        # Initialize with base values
         self.max_position_btc = Decimal(str(max_position_btc))
         self.stop_loss_pct = Decimal(str(stop_loss_pct))
         self.take_profit_pct = Decimal(str(take_profit_pct)) if take_profit_pct else None
@@ -101,6 +135,35 @@ class RiskManager:
         self.balance = Decimal(str(initial_balance))
         self.initial_balance = Decimal(str(initial_balance))
         self.daily_loss_limit_pct = Decimal(str(daily_loss_limit_pct))
+        
+        # Macro/Regime settings
+        self.use_regime_detection = use_regime_detection and REGIME_AVAILABLE
+        self.use_macro_calendar = use_macro_calendar and CALENDAR_AVAILABLE
+        self.use_accumulation_zones = use_accumulation_zones and ACCUMULATION_AVAILABLE
+        
+        # Initialize regime detector
+        self.regime_detector = None
+        self.current_regime = None
+        self.regime_config = None
+        
+        if self.use_regime_detection:
+            try:
+                self.regime_detector = RegimeDetector()
+                self._refresh_regime()
+                print(f"[RiskManager] ✅ Regime detection enabled")
+            except Exception as e:
+                print(f"[RiskManager] ⚠️ Regime detection failed: {e}")
+                self.use_regime_detection = False
+        
+        # Initialize accumulation monitor
+        self.accumulation_monitor = None
+        if self.use_accumulation_zones:
+            try:
+                self.accumulation_monitor = AccumulationMonitor()
+                print(f"[RiskManager] ✅ Accumulation zones enabled")
+            except Exception as e:
+                print(f"[RiskManager] ⚠️ Accumulation zones failed: {e}")
+                self.use_accumulation_zones = False
         
         # Position tracking
         self.positions: List[Position] = []
@@ -117,17 +180,64 @@ class RiskManager:
         self.stop_losses_triggered = 0
         
         print(f"[RiskManager] Initialized")
+        if self.current_regime:
+            print(f"  Current Regime: {self.current_regime}")
         print(f"  Max Position: {float(self.max_position_btc):.4f} BTC")
         print(f"  Stop Loss: {float(self.stop_loss_pct):.2%}")
         print(f"  Capital per Trade: {float(self.capital_pct_per_trade):.2%}")
         print(f"  Max Exposure: {float(self.max_total_exposure_pct):.2%}")
         print(f"  Daily Loss Limit: {float(self.daily_loss_limit_pct):.2%}")
     
+    def _refresh_regime(self):
+        """Refresh current market regime"""
+        if not self.regime_detector:
+            return
+        
+        new_regime = self.regime_detector.detect_regime()
+        new_config = self.regime_detector.get_regime_config(new_regime)
+        
+        # Check if regime changed
+        if new_regime != self.current_regime:
+            self.current_regime = new_regime
+            self.regime_config = new_config
+            
+            # Apply regime-based parameters
+            self._apply_regime_config()
+            
+            logger.info(f"[RiskManager] Regime changed to {new_regime}")
+    
+    def _apply_regime_config(self):
+        """Apply regime-based risk parameters"""
+        if not self.regime_config:
+            return
+        
+        # Override base parameters with regime values
+        self.max_position_btc = Decimal(str(self.regime_config.get(
+            'max_position_pct', self._base_max_position_btc
+        )))
+        self.stop_loss_pct = Decimal(str(self.regime_config.get(
+            'stop_loss_pct', self._base_stop_loss_pct
+        )))
+        self.take_profit_pct = Decimal(str(self.regime_config.get(
+            'take_profit_pct', self._base_take_profit_pct
+        ))) if self.regime_config.get('take_profit_pct') else None
+        self.capital_pct_per_trade = Decimal(str(self.regime_config.get(
+            'max_position_pct', self._base_capital_pct  # Use same as max_position
+        )))
+        
+        # Check if should pause trading
+        if self.regime_config.get('avoid_new_positions'):
+            self.trading_halted = True
+            logger.warning(f"[RiskManager] Trading halted due to {self.current_regime} regime")
+        else:
+            self.trading_halted = False
+    
     def assess_trade(
         self,
         trade_signal: Dict[str, Any],
         current_price: float,
-        current_positions: Optional[List[Position]] = None
+        current_positions: Optional[List[Position]] = None,
+        symbol: Optional[str] = None
     ) -> RiskCheck:
         """
         Assess trade against risk rules.
@@ -136,18 +246,61 @@ class RiskManager:
             trade_signal: Strategy engine trade signal
             current_price: Current market price
             current_positions: List of current open positions
+            symbol: Trading pair symbol (e.g., 'BTC/USDT')
         
         Returns:
             RiskCheck with decision and details
         """
         timestamp = datetime.now(timezone.utc).isoformat()
         
+        # Refresh regime if using regime detection
+        if self.use_regime_detection:
+            self._refresh_regime()
+        
+        # Check macro event calendar
+        if self.use_macro_calendar:
+            should_pause, pause_reason = should_pause_trading()
+            if should_pause:
+                return RiskCheck(
+                    timestamp=timestamp,
+                    decision=RiskDecision.REJECT.value,
+                    reason=f"Macro event pause: {pause_reason}",
+                    allocation_usd=0.0,
+                    position_size_btc=0.0,
+                    stop_loss_price=None,
+                    take_profit_price=None,
+                    max_position=float(self.max_position_btc),
+                    current_exposure=self._calculate_exposure(),
+                    risk_level="CRITICAL"
+                )
+        
+        # Check accumulation zones
+        if self.use_accumulation_zones and symbol and self.regime_config:
+            if self.regime_config.get('accumulation_only', False):
+                base_symbol = symbol.split('/')[0] if '/' in symbol else symbol
+                if not self.accumulation_monitor.should_accumulate(base_symbol, current_price):
+                    zone_status = self.accumulation_monitor.get_status(base_symbol, current_price)
+                    if zone_status:
+                        return RiskCheck(
+                            timestamp=timestamp,
+                            decision=RiskDecision.REJECT.value,
+                            reason=f"Price ${current_price:,.2f} not in accumulation zone for {base_symbol} (${zone_status.zone_min:,.2f} - ${zone_status.zone_max:,.2f})",
+                            allocation_usd=0.0,
+                            position_size_btc=0.0,
+                            stop_loss_price=None,
+                            take_profit_price=None,
+                            max_position=float(self.max_position_btc),
+                            current_exposure=self._calculate_exposure(),
+                            risk_level="MEDIUM"
+                        )
+        
         # Check if trading is halted
         if self.trading_halted:
+            reason = f"Trading halted - {self.current_regime} regime" if self.current_regime else "Trading halted - daily loss limit exceeded"
             return RiskCheck(
                 timestamp=timestamp,
                 decision=RiskDecision.REJECT.value,
-                reason="Trading halted - daily loss limit exceeded",
+                reason=reason,
                 allocation_usd=0.0,
                 position_size_btc=0.0,
                 stop_loss_price=None,

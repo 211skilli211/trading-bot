@@ -23,6 +23,14 @@ from dataclasses import dataclass, asdict
 from typing import Dict, Any, Optional, List, Callable
 from enum import Enum
 import random  # For simulating latency in paper mode
+import os
+
+# CCXT import for live trading
+try:
+    import ccxt
+    CCXT_AVAILABLE = True
+except ImportError:
+    CCXT_AVAILABLE = False
 
 
 class ExecutionMode(Enum):
@@ -101,7 +109,9 @@ class ExecutionLayer:
         binance_api_key: Optional[str] = None,
         binance_secret: Optional[str] = None,
         coinbase_api_key: Optional[str] = None,
-        coinbase_secret: Optional[str] = None
+        coinbase_secret: Optional[str] = None,
+        kraken_api_key: Optional[str] = None,
+        kraken_secret: Optional[str] = None
     ):
         """
         Initialize Execution Layer.
@@ -114,6 +124,8 @@ class ExecutionLayer:
             binance_secret: Binance API secret (required for LIVE)
             coinbase_api_key: Coinbase API key (required for LIVE)
             coinbase_secret: Coinbase API secret (required for LIVE)
+            kraken_api_key: Kraken API key (required for LIVE)
+            kraken_secret: Kraken API secret (required for LIVE)
         """
         self.mode = mode
         self.max_retries = max_retries
@@ -124,6 +136,8 @@ class ExecutionLayer:
         self.binance_secret = binance_secret
         self.coinbase_api_key = coinbase_api_key
         self.coinbase_secret = coinbase_secret
+        self.kraken_api_key = kraken_api_key
+        self.kraken_secret = kraken_secret
         
         # Trade tracking
         self.trade_counter = 0
@@ -139,14 +153,79 @@ class ExecutionLayer:
         print(f"  Mode: {mode.value}")
         print(f"  Max Retries: {max_retries}")
         
+        # Initialize CCXT exchanges for live trading
+        self.exchanges = {}
+        if mode == ExecutionMode.LIVE and CCXT_AVAILABLE:
+            self._init_ccxt_exchanges(
+                binance_api_key, binance_secret, 
+                coinbase_api_key, coinbase_secret,
+                kraken_api_key, kraken_secret
+            )
+        
         if mode == ExecutionMode.LIVE:
             if not all([binance_api_key, binance_secret]):
                 print("  ⚠️  WARNING: Binance credentials not provided")
             if not all([coinbase_api_key, coinbase_secret]):
                 print("  ⚠️  WARNING: Coinbase credentials not provided")
+            if not all([kraken_api_key, kraken_secret]):
+                print("  ⚠️  WARNING: Kraken credentials not provided")
+            if not CCXT_AVAILABLE:
+                print("  ⚠️  WARNING: CCXT not installed - live trading disabled")
+                print("     Run: pip install ccxt")
             print("  🔴 LIVE TRADING ENABLED - Real orders will be placed!")
         else:
             print("  📊 PAPER TRADING MODE - No real orders will be placed")
+    
+    def _init_ccxt_exchanges(self, binance_key, binance_secret, coinbase_key, coinbase_secret, 
+                              kraken_key=None, kraken_secret=None):
+        """Initialize CCXT exchange connections for live trading."""
+        # Binance
+        if binance_key and binance_secret:
+            try:
+                self.exchanges['binance'] = ccxt.binance({
+                    'apiKey': binance_key,
+                    'secret': binance_secret,
+                    'enableRateLimit': True,
+                    'options': {'defaultType': 'spot'}
+                })
+                print("  ✅ Binance: Connected")
+            except Exception as e:
+                print(f"  ❌ Binance: {e}")
+        
+        # Coinbase
+        if coinbase_key and coinbase_secret:
+            try:
+                self.exchanges['coinbase'] = ccxt.coinbase({
+                    'apiKey': coinbase_key,
+                    'secret': coinbase_secret,
+                    'enableRateLimit': True,
+                })
+                print("  ✅ Coinbase: Connected")
+            except Exception as e:
+                print(f"  ❌ Coinbase: {e}")
+        
+        # Kraken
+        if kraken_key and kraken_secret:
+            try:
+                self.exchanges['kraken'] = ccxt.kraken({
+                    'apiKey': kraken_key,
+                    'secret': kraken_secret,
+                    'enableRateLimit': True,
+                })
+                print("  ✅ Kraken: Connected")
+            except Exception as e:
+                print(f"  ❌ Kraken: {e}")
+    
+    def _normalize_symbol(self, symbol: str, exchange: str) -> str:
+        """Normalize symbol for CCXT format (BTC/USDT)."""
+        symbol = symbol.replace("-", "/").upper()
+        # Handle common variations
+        if "/" not in symbol:
+            if symbol.endswith("USDT"):
+                symbol = symbol.replace("USDT", "/USDT")
+            elif symbol.endswith("USD"):
+                symbol = symbol.replace("USD", "/USD")
+        return symbol
     
     def execute_trade(
         self,
@@ -373,8 +452,7 @@ class ExecutionLayer:
         execution_start: float
     ) -> TradeExecution:
         """
-        Execute a live trade on exchanges.
-        NOTE: This is a skeleton - requires proper implementation with API keys.
+        Execute a live trade on exchanges using CCXT.
         """
         execution = TradeExecution(
             trade_id=trade_id,
@@ -396,15 +474,92 @@ class ExecutionLayer:
             risk_latency_ms=risk_latency_ms,
             execution_latency_ms=0.0,
             total_latency_ms=0.0,
-            error_message="LIVE mode not fully implemented - use PAPER mode"
+            error_message=None
         )
         
-        print(f"\n⚠️  LIVE TRADE NOT EXECUTED: {trade_id}")
-        print("   Live trading requires proper API implementation")
-        print("   Switch to PAPER mode for testing")
+        if not CCXT_AVAILABLE:
+            execution.status = OrderStatus.FAILED.value
+            execution.error_message = "CCXT not installed (pip install ccxt)"
+            return execution
         
-        execution.status = OrderStatus.FAILED.value
-        execution.error_message = "LIVE mode not implemented"
+        # Determine symbol (e.g., BTC/USDT)
+        symbol = strategy_signal.get("symbol", "BTC/USDT")
+        
+        print(f"\n🔴 EXECUTING LIVE TRADE: {trade_id}")
+        print(f"   Buy: {buy_exchange} @ ${buy_price:,.2f}")
+        print(f"   Sell: {sell_exchange} @ ${sell_price:,.2f}")
+        print(f"   Amount: {quantity:.6f} {symbol.split('/')[0]}")
+        
+        buy_order_id = None
+        sell_order_id = None
+        actual_buy_price = None
+        actual_sell_price = None
+        total_fees = 0.0
+        
+        try:
+            # Execute BUY order
+            buy_ex = self.exchanges.get(buy_exchange.lower())
+            if buy_ex:
+                buy_symbol = self._normalize_symbol(symbol, buy_exchange)
+                print(f"   Placing BUY order on {buy_exchange}...")
+                
+                buy_order = buy_ex.create_market_buy_order(buy_symbol, quantity)
+                buy_order_id = buy_order.get('id')
+                actual_buy_price = buy_order.get('average', buy_order.get('price', buy_price))
+                fee = buy_order.get('fee', {})
+                if fee:
+                    total_fees += fee.get('cost', 0)
+                
+                print(f"   ✅ BUY executed: {buy_order_id}")
+                print(f"      Filled @ ${actual_buy_price:,.2f}")
+            else:
+                raise Exception(f"Buy exchange {buy_exchange} not connected")
+            
+            # Execute SELL order
+            sell_ex = self.exchanges.get(sell_exchange.lower())
+            if sell_ex:
+                sell_symbol = self._normalize_symbol(symbol, sell_exchange)
+                print(f"   Placing SELL order on {sell_exchange}...")
+                
+                sell_order = sell_ex.create_market_sell_order(sell_symbol, quantity)
+                sell_order_id = sell_order.get('id')
+                actual_sell_price = sell_order.get('average', sell_order.get('price', sell_price))
+                fee = sell_order.get('fee', {})
+                if fee:
+                    total_fees += fee.get('cost', 0)
+                
+                print(f"   ✅ SELL executed: {sell_order_id}")
+                print(f"      Filled @ ${actual_sell_price:,.2f}")
+            else:
+                raise Exception(f"Sell exchange {sell_exchange} not connected")
+            
+            # Calculate P&L
+            gross_pnl = (actual_sell_price - actual_buy_price) * quantity
+            net_pnl = gross_pnl - total_fees
+            
+            execution_latency_ms = (time.time() - execution_start) * 1000
+            total_latency_ms = signal_latency_ms + risk_latency_ms + execution_latency_ms
+            
+            execution.status = OrderStatus.FILLED.value
+            execution.buy_order_id = buy_order_id
+            execution.sell_order_id = sell_order_id
+            execution.actual_buy_price = actual_buy_price
+            execution.actual_sell_price = actual_sell_price
+            execution.fees_paid = total_fees
+            execution.net_pnl = net_pnl
+            execution.execution_latency_ms = execution_latency_ms
+            execution.total_latency_ms = total_latency_ms
+            
+            print(f"\n   💰 Trade Complete!")
+            print(f"      Gross P&L: ${gross_pnl:,.2f}")
+            print(f"      Fees: ${total_fees:,.2f}")
+            print(f"      Net P&L: ${net_pnl:,.2f}")
+            
+        except Exception as e:
+            error_msg = str(e)
+            print(f"\n   ❌ Trade Failed: {error_msg}")
+            execution.status = OrderStatus.FAILED.value
+            execution.error_message = error_msg
         
         return execution
     
@@ -448,6 +603,198 @@ class ExecutionLayer:
         print(f"Success Rate:     {summary['success_rate']:.1f}%")
         print(f"Avg Latency:      {summary['avg_latency_ms']:.1f}ms")
         print("=" * 60)
+
+    def get_exchange_balance(self, exchange_name: str, currency: str = 'USDT') -> Dict[str, Any]:
+        """
+        Get balance for a specific currency from a specific exchange.
+        
+        Args:
+            exchange_name: Name of the exchange (binance, coinbase, kraken)
+            currency: Currency to get balance for (e.g., 'USDT', 'BTC', 'USD')
+            
+        Returns:
+            Dict with balance info or error message
+        """
+        if self.mode == ExecutionMode.PAPER:
+            return {
+                'exchange': exchange_name,
+                'currency': currency,
+                'free': 10000.0,  # Simulated paper balance
+                'used': 0.0,
+                'total': 10000.0,
+                'mode': 'PAPER'
+            }
+        
+        if not CCXT_AVAILABLE:
+            return {'error': 'CCXT not installed', 'exchange': exchange_name}
+        
+        exchange = self.exchanges.get(exchange_name.lower())
+        if not exchange:
+            return {'error': f'Exchange {exchange_name} not connected', 'exchange': exchange_name}
+        
+        try:
+            balance = exchange.fetch_balance()
+            currency_balance = balance.get(currency.upper(), {})
+            return {
+                'exchange': exchange_name,
+                'currency': currency,
+                'free': currency_balance.get('free', 0),
+                'used': currency_balance.get('used', 0),
+                'total': currency_balance.get('total', 0),
+                'mode': 'LIVE'
+            }
+        except Exception as e:
+            return {'error': str(e), 'exchange': exchange_name, 'currency': currency}
+
+    def get_all_balances(self, currency: str = 'USDT') -> Dict[str, Any]:
+        """
+        Get balances from all connected exchanges.
+        
+        Args:
+            currency: Currency to get balance for
+            
+        Returns:
+            Dict with balances from all exchanges
+        """
+        balances = {}
+        
+        for exchange_name in ['binance', 'coinbase', 'kraken']:
+            balance = self.get_exchange_balance(exchange_name, currency)
+            balances[exchange_name] = balance
+        
+        # Calculate totals
+        total_free = sum(b.get('free', 0) for b in balances.values() if 'free' in b)
+        total_used = sum(b.get('used', 0) for b in balances.values() if 'used' in b)
+        
+        return {
+            'currency': currency,
+            'exchanges': balances,
+            'total_free': total_free,
+            'total_used': total_used,
+            'total': total_free + total_used,
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        }
+
+    def get_exchange_price(self, exchange_name: str, symbol: str = 'BTC/USDT') -> Optional[Dict[str, Any]]:
+        """
+        Get current price from a specific exchange.
+        
+        Args:
+            exchange_name: Name of the exchange
+            symbol: Trading pair symbol
+            
+        Returns:
+            Price data dict or None
+        """
+        if not CCXT_AVAILABLE:
+            return None
+        
+        exchange = self.exchanges.get(exchange_name.lower())
+        if not exchange:
+            return None
+        
+        try:
+            normalized_symbol = self._normalize_symbol(symbol, exchange_name)
+            ticker = exchange.fetch_ticker(normalized_symbol)
+            return {
+                'exchange': exchange_name,
+                'symbol': symbol,
+                'price': ticker.get('last'),
+                'bid': ticker.get('bid'),
+                'ask': ticker.get('ask'),
+                'timestamp': ticker.get('timestamp'),
+                'datetime': datetime.now(timezone.utc).isoformat()
+            }
+        except Exception as e:
+            print(f"[ExecutionLayer] Error fetching price from {exchange_name}: {e}")
+            return None
+
+    def find_arbitrage_opportunities(
+        self, 
+        symbol: str = 'BTC/USDT',
+        min_spread_pct: float = 0.002
+    ) -> List[Dict[str, Any]]:
+        """
+        Find arbitrage opportunities between connected exchanges.
+        
+        Args:
+            symbol: Trading pair to check (e.g., 'BTC/USDT')
+            min_spread_pct: Minimum spread percentage to consider (0.002 = 0.2%)
+            
+        Returns:
+            List of arbitrage opportunities
+        """
+        opportunities = []
+        prices = {}
+        
+        # Fetch prices from all connected exchanges
+        for exchange_name in ['binance', 'coinbase', 'kraken']:
+            price_data = self.get_exchange_price(exchange_name, symbol)
+            if price_data and price_data.get('price'):
+                prices[exchange_name] = price_data
+        
+        if len(prices) < 2:
+            print(f"[ExecutionLayer] Not enough exchanges have prices for {symbol}")
+            return opportunities
+        
+        # Find arbitrage opportunities (buy low, sell high)
+        for buy_exchange, buy_data in prices.items():
+            for sell_exchange, sell_data in prices.items():
+                if buy_exchange == sell_exchange:
+                    continue
+                
+                buy_price = buy_data.get('ask', buy_data.get('price', 0))
+                sell_price = sell_data.get('bid', sell_data.get('price', 0))
+                
+                if buy_price <= 0 or sell_price <= 0:
+                    continue
+                
+                spread = sell_price - buy_price
+                spread_pct = spread / buy_price if buy_price > 0 else 0
+                
+                if spread_pct >= min_spread_pct:
+                    opportunities.append({
+                        'symbol': symbol,
+                        'buy_exchange': buy_exchange,
+                        'sell_exchange': sell_exchange,
+                        'buy_price': buy_price,
+                        'sell_price': sell_price,
+                        'spread': spread,
+                        'spread_pct': spread_pct,
+                        'potential_profit_pct': spread_pct - 0.002,  # Approximate fees
+                        'timestamp': datetime.now(timezone.utc).isoformat()
+                    })
+        
+        # Sort by spread percentage (highest first)
+        opportunities.sort(key=lambda x: x['spread_pct'], reverse=True)
+        
+        return opportunities
+
+    def print_arbitrage_opportunities(self, symbol: str = 'BTC/USDT', min_spread_pct: float = 0.002):
+        """
+        Print arbitrage opportunities between exchanges.
+        
+        Args:
+            symbol: Trading pair to check
+            min_spread_pct: Minimum spread percentage
+        """
+        print(f"\n[ExecutionLayer] Scanning for arbitrage opportunities on {symbol}...")
+        
+        opportunities = self.find_arbitrage_opportunities(symbol, min_spread_pct)
+        
+        if not opportunities:
+            print("  No arbitrage opportunities found.")
+            return
+        
+        print(f"\n  Found {len(opportunities)} arbitrage opportunity(s):")
+        print("  " + "-" * 70)
+        
+        for i, opp in enumerate(opportunities[:5], 1):  # Show top 5
+            print(f"  {i}. Buy on {opp['buy_exchange'].upper()} @ ${opp['buy_price']:,.2f}")
+            print(f"     Sell on {opp['sell_exchange'].upper()} @ ${opp['sell_price']:,.2f}")
+            print(f"     Spread: {opp['spread_pct']:.4%} (${opp['spread']:,.2f})")
+            print(f"     Est. Profit: {opp['potential_profit_pct']:.4%} after fees")
+            print()
 
 
 # Example usage and testing
