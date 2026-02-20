@@ -4,6 +4,7 @@ Alert Module - Telegram & Discord Notifications
 Sends alerts for trade events, stop-losses, and errors
 """
 
+import os
 import requests
 import json
 from datetime import datetime, timezone
@@ -20,14 +21,34 @@ class AlertManager:
         Args:
             config: Alert configuration dictionary
         """
+        import os
         self.config = config
         self.enabled = config.get("enabled", False)
         
-        # Telegram
+        # Telegram - check config first, then env vars
         self.telegram_config = config.get("telegram", {})
         self.telegram_enabled = self.telegram_config.get("enabled", False)
-        self.telegram_token = self.telegram_config.get("bot_token")
-        self.telegram_chat_id = self.telegram_config.get("chat_id")
+        
+        # Get from config or environment
+        self.telegram_token = self.telegram_config.get("bot_token") or os.getenv("TELEGRAM_BOT_TOKEN", "")
+        self.telegram_chat_id = self.telegram_config.get("chat_id") or os.getenv("TELEGRAM_CHAT_ID", "")
+        
+        # Validate token
+        if self.telegram_token and self.telegram_token.startswith("$"):
+            # Handle ${VAR} syntax
+            env_var = self.telegram_token.strip("${}")
+            self.telegram_token = os.getenv(env_var, "")
+        if self.telegram_chat_id and self.telegram_chat_id.startswith("$"):
+            env_var = self.telegram_chat_id.strip("${}")
+            self.telegram_chat_id = os.getenv(env_var, "")
+        
+        # Disable if token is placeholder
+        if self.telegram_token in ["", "YOUR_BOT_TOKEN", "your_telegram_bot_token"]:
+            self.telegram_enabled = False
+            self.telegram_token = None
+        if self.telegram_chat_id in ["", "YOUR_CHAT_ID", "your_chat_id"]:
+            self.telegram_enabled = False
+            self.telegram_chat_id = None
         
         # Discord
         self.discord_config = config.get("discord", {})
@@ -122,6 +143,30 @@ Timestamp: {datetime.now(timezone.utc).isoformat()}
         
         self._send_telegram(title, message)
         self._send_discord(title, message, color=0xff0000)
+    
+    def send_test(self) -> bool:
+        """Send test alert to verify configuration."""
+        if not self.enabled:
+            print("[AlertManager] Alerts not enabled")
+            return False
+        
+        title = "🧪 Test Alert"
+        message = f"""
+<b>Trading Bot Test</b>
+
+This is a test alert to verify your notification setup.
+
+Configuration:
+- Telegram: {'✅ Enabled' if self.telegram_enabled else '❌ Disabled'}
+- Discord: {'✅ Enabled' if self.discord_enabled else '❌ Disabled'}
+
+Timestamp: {datetime.now(timezone.utc).isoformat()}
+        """.strip()
+        
+        self._send_telegram(title, message)
+        self._send_discord(title, message, color=0x00aaff)
+        
+        return True
     
     def _send_telegram(self, title: str, message: str):
         """Send Telegram notification."""

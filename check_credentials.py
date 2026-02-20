@@ -8,6 +8,13 @@ import re
 import json
 from datetime import datetime
 
+# Import security module for encryption checking
+try:
+    from security import is_encrypted, CRYPTO_AVAILABLE
+except ImportError:
+    CRYPTO_AVAILABLE = False
+    is_encrypted = lambda x: False
+
 def check_env():
     """Load and check .env file"""
     env_vars = {}
@@ -29,12 +36,55 @@ def is_configured(value):
         return False
     return True
 
+def check_encryption_status(env_vars):
+    """Check which credentials are encrypted"""
+    sensitive_keys = [
+        'BINANCE_API_KEY', 'BINANCE_SECRET',
+        'COINBASE_API_KEY', 'COINBASE_SECRET',
+        'KRAKEN_API_KEY', 'KRAKEN_SECRET',
+        'BYBIT_API_KEY', 'BYBIT_SECRET',
+        'KUCOIN_API_KEY', 'KUCOIN_SECRET', 'KUCOIN_PASSPHRASE',
+        'SOLANA_PRIVATE_KEY',
+        'TELEGRAM_BOT_TOKEN', 'BIRDEYE_API_KEY'
+    ]
+    
+    encrypted = []
+    plaintext = []
+    
+    for key in sensitive_keys:
+        value = env_vars.get(key, '')
+        if is_configured(value):
+            if is_encrypted(value):
+                encrypted.append(key)
+            else:
+                plaintext.append(key)
+    
+    return encrypted, plaintext
+
 def main():
     print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║           🔐 CREDENTIAL STATUS CHECK                              ║
 ╚══════════════════════════════════════════════════════════════════╝
 """)
+    
+    # Check encryption status
+    encrypted_keys, plaintext_keys = check_encryption_status(check_env())
+    
+    print("🔒 ENCRYPTION STATUS:")
+    print('-' * 60)
+    if CRYPTO_AVAILABLE:
+        if encrypted_keys:
+            print(f"  ✅ {len(encrypted_keys)} encrypted")
+        else:
+            print(f"  ⚠️  No encrypted keys found")
+        if plaintext_keys:
+            print(f"  ⚠️  {len(plaintext_keys)} plaintext keys")
+            print(f"\n  💡 To encrypt: python security.py encrypt -k {' '.join(plaintext_keys[:3])}")
+    else:
+        print("  ⚠️  cryptography library not installed")
+        print("  💡 Install: pip install cryptography")
+    print('-' * 60)
     
     env = check_env()
     
@@ -164,6 +214,12 @@ def main():
         print("\n3️⃣  To enable Telegram alerts:")
         print("   → Run: python setup_telegram.py")
         print("   → Message @BotFather to create a bot")
+    
+    if plaintext_keys and CRYPTO_AVAILABLE:
+        print("\n🔐 SECURITY RECOMMENDATION:")
+        print("   → Encrypt your API keys to protect them at rest")
+        print(f"   → Run: python security.py encrypt -k {' '.join(plaintext_keys[:3])}")
+        print("   → Set ENCRYPTION_PASSWORD environment variable")
     
     print("\n" + "="*60)
     print(f"Last checked: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
