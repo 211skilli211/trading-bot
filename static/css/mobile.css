@@ -1,0 +1,352 @@
+/* Mobile-First Trading Bot Dashboard CSS */
+
+/* Base mobile styles */
+:root {
+    --mobile-nav-height: 60px;
+    --mobile-header-height: 50px;
+    --touch-target-size: 44px;
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile navigation - Bottom bar */
+@media (max-width: 768px) {
+    body {
+        padding-bottom: calc(var(--mobile-nav-height) + var(--safe-area-inset-bottom));
+    }
+    
+    /* Sidebar becomes bottom nav */
+    .sidebar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        width: 100%;
+        height: var(--mobile-nav-height);
+        flex-direction: row;
+        padding: 0;
+        z-index: 1030;
+        background: var(--bg-card);
+        border-top: 1px solid var(--border);
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    
+    .sidebar-header {
+        display: none;
+    }
+    
+    .sidebar .nav {
+        flex-direction: row;
+        width: 100%;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        justify-content: space-around;
+    }
+    
+    .sidebar .nav-item {
+        flex: 1;
+        text-align: center;
+    }
+    
+    .sidebar .nav-link {
+        padding: 8px 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: var(--mobile-nav-height);
+        font-size: 0.7rem;
+        gap: 4px;
+    }
+    
+    .sidebar .nav-link i {
+        font-size: 1.3rem;
+        margin: 0;
+    }
+    
+    /* Main content adjustments */
+    main {
+        margin-left: 0 !important;
+        padding: 10px;
+        padding-bottom: calc(var(--mobile-nav-height) + 20px);
+    }
+    
+    /* Top header */
+    .top-header {
+        position: sticky;
+        top: 0;
+        z-index: 1020;
+        background: var(--bg-primary);
+        padding: 10px;
+        margin: -10px -10px 10px -10px;
+    }
+    
+    /* Cards */
+    .card {
+        margin-bottom: 10px;
+    }
+    
+    .card-body {
+        padding: 12px;
+    }
+    
+    /* Tables - horizontal scroll */
+    .table-responsive {
+        border: none;
+    }
+    
+    /* Touch-friendly buttons */
+    .btn {
+        min-height: var(--touch-target-size);
+        padding: 12px 20px;
+        font-size: 1rem;
+    }
+    
+    .btn-sm {
+        min-height: 36px;
+        padding: 8px 16px;
+    }
+    
+    /* Form controls */
+    .form-control, .form-select {
+        min-height: var(--touch-target-size);
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    /* Range sliders */
+    .form-range {
+        min-height: var(--touch-target-size);
+    }
+    
+    /* Switches */
+    .form-check-input {
+        width: 50px;
+        height: 28px;
+    }
+    
+    /* Grid adjustments */
+    .row.g-3 {
+        --bs-gutter-x: 8px;
+        --bs-gutter-y: 8px;
+    }
+    
+    /* Stats cards */
+    .stats-card {
+        text-align: center;
+        padding: 15px 10px;
+    }
+    
+    .stats-card .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    /* Trade cards */
+    .trade-card {
+        border-left: 3px solid var(--border);
+    }
+    
+    .trade-card.profit {
+        border-left-color: var(--success);
+    }
+    
+    .trade-card.loss {
+        border-left-color: var(--danger);
+    }
+    
+    /* Modals */
+    .modal-dialog {
+        margin: 10px;
+        max-width: calc(100% - 20px);
+    }
+    
+    .modal-content {
+        max-height: calc(100vh - 20px);
+        overflow-y: auto;
+    }
+    
+    /* Toast notifications */
+    .toast-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+    }
+    
+    .toast {
+        width: 100%;
+    }
+    
+    /* Charts */
+    .chart-container {
+        height: 250px;
+    }
+    
+    /* Quick actions floating button */
+    .fab-container {
+        position: fixed;
+        bottom: calc(var(--mobile-nav-height) + 20px);
+        right: 20px;
+        z-index: 1040;
+    }
+    
+    .fab {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        font-size: 1.5rem;
+    }
+    
+    /* Pull to refresh indicator */
+    .pull-to-refresh {
+        text-align: center;
+        padding: 20px;
+        color: var(--text-muted);
+    }
+    
+    /* Swipe actions for list items */
+    .swipe-item {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .swipe-actions {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        display: flex;
+    }
+    
+    .swipe-action {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 80px;
+        color: white;
+    }
+    
+    /* Collapsible sections */
+    .mobile-section {
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .mobile-section-header {
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+    }
+    
+    .mobile-section-content {
+        padding: 0 15px 15px;
+    }
+    
+    /* Loading skeleton */
+    .skeleton {
+        background: linear-gradient(90deg, var(--bg-card) 25%, var(--border) 50%, var(--bg-card) 75%);
+        background-size: 200% 100%;
+        animation: skeleton-loading 1.5s infinite;
+        border-radius: 4px;
+    }
+    
+    @keyframes skeleton-loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    
+    /* Hide desktop elements */
+    .desktop-only {
+        display: none !important;
+    }
+    
+    /* Show mobile elements */
+    .mobile-only {
+        display: block !important;
+    }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .sidebar {
+        width: 200px;
+    }
+    
+    main {
+        margin-left: 200px;
+    }
+    
+    .card {
+        margin-bottom: 15px;
+    }
+}
+
+/* Desktop styles */
+@media (min-width: 1025px) {
+    .mobile-only {
+        display: none !important;
+    }
+    
+    .fab-container {
+        display: none;
+    }
+}
+
+/* Dark mode optimizations for mobile */
+@media (max-width: 768px) and (prefers-color-scheme: dark) {
+    body {
+        background: #000;
+    }
+    
+    .card {
+        background: #1a1a1a;
+        border-color: #333;
+    }
+}
+
+/* Landscape mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    .sidebar {
+        height: 50px;
+    }
+    
+    .sidebar .nav-link {
+        flex-direction: row;
+        gap: 8px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    .skeleton {
+        animation: none;
+    }
+    
+    * {
+        transition: none !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    .sidebar,
+    .fab-container,
+    .btn {
+        display: none !important;
+    }
+    
+    main {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .card {
+        break-inside: avoid;
+    }
+}
