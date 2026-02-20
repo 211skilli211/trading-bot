@@ -171,17 +171,22 @@ class TradingDatabase:
     def save_price(self, exchange: str, symbol: str, price_data: Dict):
         """Save price snapshot."""
         with self._get_connection() as conn:
+            # Calculate mid price and spread
+            bid = price_data.get('bid', 0)
+            ask = price_data.get('ask', 0)
+            mid_price = (bid + ask) / 2 if bid and ask else price_data.get('price', 0)
+            spread_pct = ((ask - bid) / mid_price * 100) if mid_price else 0
+            
             conn.execute("""
-                INSERT INTO price_history (timestamp, exchange, symbol, price, bid, ask, volume_24h)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO price_history (timestamp, exchange, symbol, bid, ask, spread_percent)
+                VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 datetime.now(timezone.utc).isoformat(),
                 exchange,
                 symbol,
-                price_data.get('price'),
-                price_data.get('bid'),
-                price_data.get('ask'),
-                price_data.get('volume_24h')
+                bid,
+                ask,
+                spread_pct
             ))
     
     def get_trades(self, limit: int = 100) -> List[Dict]:

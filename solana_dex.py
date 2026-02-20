@@ -88,7 +88,16 @@ class SolanaDEX:
         key_str = private_key or os.getenv('SOLANA_PRIVATE_KEY')
         if key_str:
             try:
-                self.keypair = Keypair.from_base58_string(key_str)
+                # Support both hex and base58 formats
+                if len(key_str) == 128:  # Hex format (64 bytes)
+                    import codecs
+                    private_key_bytes = codecs.decode(key_str, 'hex')
+                    self.keypair = Keypair.from_private_key(private_key_bytes[:32])
+                else:  # Assume base58 format
+                    import base58
+                    private_key_bytes = base58.b58decode(key_str)
+                    self.keypair = Keypair.from_private_key(private_key_bytes[:32])
+                
                 self.wallet_address = str(self.keypair.public_key)
                 print(f"[SolanaDEX] Wallet loaded: {self.wallet_address}")
             except Exception as e:
