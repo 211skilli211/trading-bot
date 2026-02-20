@@ -1,16 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container-fluid px-0 px-lg-3">
-    <h2 class="h4 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2 class="h4 mb-0">
         <i class="bi bi-graph-up-arrow text-success"></i> Live Crypto Prices
         <span class="badge bg-info ms-2" id="price-count">{{ data.prices|length }} pairs</span>
         <span class="badge bg-success ms-1" style="font-size: 0.6em;">
             <i class="bi bi-broadcast"></i> LIVE
         </span>
-        <button class="btn btn-sm btn-outline-light float-end" onclick="refreshPrices()">
+    </h2>
+    <div class="d-flex gap-2">
+        <!-- View Toggle -->
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-light active" id="view-grid" onclick="toggleView('grid')">
+                <i class="bi bi-grid"></i> Grid
+            </button>
+            <button class="btn btn-sm btn-outline-light" id="view-table" onclick="toggleView('table')">
+                <i class="bi bi-table"></i> Table
+            </button>
+        </div>
+        <!-- Sort Dropdown -->
+        <select class="form-select form-select-sm" id="sort-select" onchange="sortPrices()" style="width: auto;">
+            <option value="symbol">Sort: Symbol A-Z</option>
+            <option value="price-desc">Price: High-Low</option>
+            <option value="price-asc">Price: Low-High</option>
+            <option value="change-desc">Change: High-Low</option>
+            <option value="change-asc">Change: Low-High</option>
+            <option value="volume-desc">Volume: High-Low</option>
+        </select>
+        <button class="btn btn-sm btn-outline-light" onclick="refreshPrices()">
             <i class="bi bi-arrow-clockwise"></i> Refresh
         </button>
-    </h2>
+    </div>
+</div>
     
     {% if not data.prices %}
     <div class="card">
@@ -63,7 +85,7 @@
     </div>
     
     <!-- Detailed Table -->
-    <div class="card mt-3">
+    <div class="card mt-3" id="prices-table-container">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="bi bi-table"></i> Detailed View</span>
             <div>
@@ -277,6 +299,91 @@ function loadCoinIcons() {
 function refreshPrices() {
     location.reload();
 }
+
+// Toggle between grid and table views
+function toggleView(view) {
+    const grid = document.getElementById('prices-grid');
+    const table = document.getElementById('prices-table-container');
+    const gridBtn = document.getElementById('view-grid');
+    const tableBtn = document.getElementById('view-table');
+    
+    if (view === 'grid') {
+        grid.style.display = '';
+        if (table) table.style.display = 'none';
+        gridBtn.classList.add('active');
+        tableBtn.classList.remove('active');
+        localStorage.setItem('prices-view', 'grid');
+    } else {
+        grid.style.display = 'none';
+        if (table) table.style.display = '';
+        gridBtn.classList.remove('active');
+        tableBtn.classList.add('active');
+        localStorage.setItem('prices-view', 'table');
+    }
+}
+
+// Sort prices
+function sortPrices() {
+    const sortValue = document.getElementById('sort-select').value;
+    const grid = document.getElementById('prices-grid');
+    const cards = Array.from(grid.children);
+    
+    cards.sort((a, b) => {
+        const getValue = (card, type) => {
+            if (type === 'symbol') {
+                return card.querySelector('.fw-bold').textContent;
+            }
+            if (type === 'price') {
+                const priceText = card.querySelector('.h4').textContent.replace('$', '').replace(',', '');
+                return parseFloat(priceText);
+            }
+            if (type === 'change') {
+                const badge = card.querySelector('.badge.bg-success, .badge.bg-danger');
+                if (!badge) return 0;
+                return parseFloat(badge.textContent);
+            }
+            return 0;
+        };
+        
+        let valA, valB;
+        
+        switch(sortValue) {
+            case 'symbol':
+                valA = getValue(a, 'symbol');
+                valB = getValue(b, 'symbol');
+                return valA.localeCompare(valB);
+            case 'price-desc':
+                valA = getValue(a, 'price');
+                valB = getValue(b, 'price');
+                return valB - valA;
+            case 'price-asc':
+                valA = getValue(a, 'price');
+                valB = getValue(b, 'price');
+                return valA - valB;
+            case 'change-desc':
+                valA = getValue(a, 'change');
+                valB = getValue(b, 'change');
+                return valB - valA;
+            case 'change-asc':
+                valA = getValue(a, 'change');
+                valB = getValue(b, 'change');
+                return valA - valB;
+            default:
+                return 0;
+        }
+    });
+    
+    // Re-append in sorted order
+    cards.forEach(card => grid.appendChild(card));
+}
+
+// Initialize view preference
+document.addEventListener('DOMContentLoaded', () => {
+    const savedView = localStorage.getItem('prices-view') || 'grid';
+    if (savedView === 'table') {
+        toggleView('table');
+    }
+});
 
 function showChart(symbol) {
     currentSymbol = symbol;

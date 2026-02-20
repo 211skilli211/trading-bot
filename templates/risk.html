@@ -2,85 +2,403 @@
 {% block content %}
 <h4 class="mb-3"><i class="bi bi-shield-check text-success"></i> Risk Management</h4>
 
-<div class="row g-3">
-    <div class="col-md-4">
-        <div class="card border-success">
-            <div class="card-header bg-success bg-opacity-10">Position Limits</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label d-flex justify-content-between">
-                        <span>Max Position Size</span>
-                        <span class="text-success">25%</span>
-                    </label>
-                    <input type="range" class="form-range" min="1" max="100" value="25">
+<!-- Regime-Based Risk Status -->
+<div class="card mb-3 border-info">
+    <div class="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-globe"></i> Current Market Regime</span>
+        <span id="regime-badge" class="badge bg-secondary">Checking...</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="text-center p-2 bg-dark rounded">
+                    <small class="text-muted d-block">Position Size</small>
+                    <strong id="regime-position" class="text-info">--</strong>
                 </div>
-                <div class="mb-3">
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-2 bg-dark rounded">
+                    <small class="text-muted d-block">Stop Loss</small>
+                    <strong id="regime-stop" class="text-danger">--</strong>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-2 bg-dark rounded">
+                    <small class="text-muted d-block">Daily Trades</small>
+                    <strong id="regime-trades" class="text-warning">--</strong>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-2 bg-dark rounded">
+                    <small class="text-muted d-block">Max Leverage</small>
+                    <strong id="regime-leverage" class="text-success">--</strong>
+                </div>
+            </div>
+        </div>
+        <div class="mt-2 text-muted small" id="regime-description">
+            Loading regime data...
+        </div>
+    </div>
+</div>
+
+<!-- Real-Time Risk Controls -->
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card border-success h-100">
+            <div class="card-header bg-success bg-opacity-10">
+                <i class="bi bi-sliders"></i> Position Limits
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>Max Position per Trade</span>
+                        <span class="text-success" id="position-display">1.0%</span>
+                    </label>
+                    <input type="range" class="form-range" id="position-slider" min="0.1" max="5.0" step="0.1" value="1.0"
+                           oninput="updateRiskValue('position', this.value)">
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>0.1%</span>
+                        <span>5.0%</span>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
                     <label class="form-label d-flex justify-content-between">
                         <span>Max Daily Loss</span>
-                        <span class="text-danger">$500</span>
+                        <span class="text-danger" id="dailyloss-display">3.0%</span>
                     </label>
-                    <input type="range" class="form-range" min="100" max="5000" value="500">
+                    <input type="range" class="form-range" id="dailyloss-slider" min="1" max="10" step="0.5" value="3.0"
+                           oninput="updateRiskValue('dailyloss', this.value)">
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>1%</span>
+                        <span>10%</span>
+                    </div>
                 </div>
+                
+                <div class="mb-2">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>Max Total Exposure</span>
+                        <span class="text-warning" id="exposure-display">30%</span>
+                    </label>
+                    <input type="range" class="form-range" id="exposure-slider" min="10" max="100" step="5" value="30"
+                           oninput="updateRiskValue('exposure', this.value)">
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>10%</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+                
+                <button class="btn btn-sm btn-outline-success w-100" onclick="applyRiskChanges()">
+                    <i class="bi bi-check"></i> Apply Changes
+                </button>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card border-warning">
-            <div class="card-header bg-warning bg-opacity-10">Stop Losses</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">Default Stop Loss</label>
-                    <div class="input-group input-group-sm">
-                        <input type="number" class="form-control bg-dark text-light" value="2">
-                        <span class="input-group-text">%</span>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Trailing Stop</label>
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" checked>
-                    </div>
-                </div>
+    
+    <div class="col-md-6">
+        <div class="card border-warning h-100">
+            <div class="card-header bg-warning bg-opacity-10">
+                <i class="bi bi-stop-circle"></i> Stop Loss Settings
             </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-info">
-            <div class="card-header bg-info bg-opacity-10">Risk Status</div>
             <div class="card-body">
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Risk Level:</span>
-                    <span class="badge bg-success">LOW</span>
+                <div class="mb-4">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>Default Stop Loss</span>
+                        <span class="text-danger" id="stoploss-display">2.0%</span>
+                    </label>
+                    <input type="range" class="form-range" id="stoploss-slider" min="0.5" max="10" step="0.5" value="2.0"
+                           oninput="updateRiskValue('stoploss', this.value)">
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>0.5%</span>
+                        <span>10%</span>
+                    </div>
                 </div>
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Exposure:</span>
-                    <span>45%</span>
+                
+                <div class="mb-4">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>Take Profit</span>
+                        <span class="text-success" id="takeprofit-display">6.0%</span>
+                    </label>
+                    <input type="range" class="form-range" id="takeprofit-slider" min="1" max="20" step="0.5" value="6.0"
+                           oninput="updateRiskValue('takeprofit', this.value)">
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>1%</span>
+                        <span>20%</span>
+                    </div>
                 </div>
-                <div class="d-flex justify-content-between">
-                    <span>Margin Health:</span>
-                    <span class="text-success">Good</span>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="trailingStop" checked>
+                    <label class="form-check-label" for="trailingStop">
+                        Enable Trailing Stop
+                    </label>
+                </div>
+                
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoClose">
+                    <label class="form-check-label" for="autoClose">
+                        Auto-Close on Regime Change
+                    </label>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Risk Status Dashboard -->
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-activity"></i> Live Risk Status</span>
+        <button class="btn btn-sm btn-outline-light" onclick="refreshRiskStatus()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="card bg-dark">
+                    <div class="card-body text-center">
+                        <small class="text-muted d-block">Risk Level</small>
+                        <span id="risk-level" class="badge bg-success fs-6">LOW</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-dark">
+                    <div class="card-body text-center">
+                        <small class="text-muted d-block">Current Exposure</small>
+                        <strong id="current-exposure" class="text-info">0%</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-dark">
+                    <div class="card-body text-center">
+                        <small class="text-muted d-block">Daily P&L</small>
+                        <strong id="daily-pnl" class="text-muted">$0.00</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-dark">
+                    <div class="card-body text-center">
+                        <small class="text-muted d-block">Open Positions</small>
+                        <strong id="open-positions" class="text-warning">0</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-dark table-hover table-sm" id="risk-table">
+                <thead>
+                    <tr>
+                        <th>Rule</th>
+                        <th>Current</th>
+                        <th>Limit</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Max Position Size</td>
+                        <td id="current-position">0%</td>
+                        <td id="limit-position">1%</td>
+                        <td><span class="badge bg-success">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>Daily Loss</td>
+                        <td id="current-daily">$0</td>
+                        <td id="limit-daily">3%</td>
+                        <td><span class="badge bg-success">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>Total Exposure</td>
+                        <td id="current-exposure-row">0%</td>
+                        <td id="limit-exposure">30%</td>
+                        <td><span class="badge bg-success">OK</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Risk Alerts -->
 <div class="card mt-3">
     <div class="card-header"><i class="bi bi-exclamation-triangle"></i> Risk Alerts</div>
-    <div class="card-body">
+    <div class="card-body" id="risk-alerts">
         <div class="alert alert-success">
             <i class="bi bi-check-circle"></i> All risk parameters within normal limits
         </div>
-        <table class="table table-dark table-sm">
-            <thead>
-                <tr><th>Rule</th><th>Limit</th><th>Current</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-                <tr><td>Max Position</td><td>25%</td><td>15%</td><td><span class="badge bg-success">OK</span></td></tr>
-                <tr><td>Daily Loss</td><td>$500</td><td>-$45</td><td><span class="badge bg-success">OK</span></td></tr>
-                <tr><td>Drawdown</td><td>10%</td><td>3.2%</td><td><span class="badge bg-success">OK</span></td></tr>
-            </tbody>
-        </table>
     </div>
 </div>
+
+<script>
+// Update slider display values
+function updateRiskValue(type, value) {
+    const display = document.getElementById(type + '-display');
+    if (display) {
+        display.textContent = value + '%';
+    }
+}
+
+// Apply risk changes to backend
+async function applyRiskChanges() {
+    const btn = event.target;
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+    
+    const config = {
+        risk: {
+            max_position_pct: parseFloat(document.getElementById('position-slider').value) / 100,
+            stop_loss_pct: parseFloat(document.getElementById('stoploss-slider').value) / 100,
+            daily_loss_limit_pct: parseFloat(document.getElementById('dailyloss-slider').value) / 100,
+            max_total_exposure_pct: parseFloat(document.getElementById('exposure-slider').value) / 100
+        }
+    };
+    
+    try {
+        const resp = await fetch('/api/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(config)
+        });
+        const result = await resp.json();
+        
+        if (result.success) {
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> Applied!';
+            btn.classList.remove('btn-outline-success');
+            btn.classList.add('btn-success');
+            updateRiskTable();
+        } else {
+            throw new Error(result.error);
+        }
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+            btn.disabled = false;
+        }, 2000);
+    } catch (e) {
+        btn.innerHTML = '<i class="bi bi-x-circle"></i> Failed';
+        btn.classList.remove('btn-outline-success');
+        btn.classList.add('btn-danger');
+        console.error('Error:', e);
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-outline-success');
+            btn.disabled = false;
+        }, 2000);
+    }
+}
+
+// Update risk table values
+function updateRiskTable() {
+    document.getElementById('limit-position').textContent = document.getElementById('position-slider').value + '%';
+    document.getElementById('limit-daily').textContent = document.getElementById('dailyloss-slider').value + '%';
+    document.getElementById('limit-exposure').textContent = document.getElementById('exposure-slider').value + '%';
+}
+
+// Load regime status
+async function loadRegimeStatus() {
+    try {
+        const resp = await fetch('/api/regime/status');
+        const data = await resp.json();
+        
+        if (data.success) {
+            const regime = data.data.regime;
+            const config = data.data.config;
+            
+            // Update badge
+            const badge = document.getElementById('regime-badge');
+            badge.textContent = regime;
+            badge.className = 'badge ' + (regime === 'RISK_ON' ? 'bg-success' : regime === 'DEFENSIVE' ? 'bg-danger' : 'bg-warning text-dark');
+            
+            // Update values
+            document.getElementById('regime-position').textContent = (config.max_position_pct * 100).toFixed(1) + '%';
+            document.getElementById('regime-stop').textContent = (config.stop_loss_pct * 100).toFixed(0) + '%';
+            document.getElementById('regime-trades').textContent = config.max_daily_trades;
+            document.getElementById('regime-leverage').textContent = config.leverage_max + 'x';
+            document.getElementById('regime-description').textContent = config.description;
+            
+            // Update sliders to match regime
+            document.getElementById('position-slider').value = config.max_position_pct * 100;
+            document.getElementById('position-display').textContent = (config.max_position_pct * 100).toFixed(1) + '%';
+            document.getElementById('stoploss-slider').value = config.stop_loss_pct * 100;
+            document.getElementById('stoploss-display').textContent = (config.stop_loss_pct * 100).toFixed(0) + '%';
+        }
+    } catch (e) {
+        console.error('Failed to load regime:', e);
+    }
+}
+
+// Refresh risk status from backend
+async function refreshRiskStatus() {
+    try {
+        const resp = await fetch('/api/data');
+        const data = await resp.json();
+        
+        // Update exposure and P&L
+        if (data.positions) {
+            document.getElementById('open-positions').textContent = data.positions.length;
+            document.getElementById('current-exposure').textContent = data.positions.length + '%'; // Simplified
+            document.getElementById('current-exposure-row').textContent = data.positions.length + '%';
+        }
+        
+        if (data.trades) {
+            const totalPnl = data.trades.reduce((sum, t) => sum + (t.net_pnl || 0), 0);
+            document.getElementById('daily-pnl').textContent = '$' + totalPnl.toFixed(2);
+            document.getElementById('daily-pnl').className = totalPnl >= 0 ? 'text-success' : 'text-danger';
+        }
+    } catch (e) {
+        console.error('Failed to refresh:', e);
+    }
+}
+
+// Load saved config values
+async function loadRiskConfig() {
+    try {
+        const resp = await fetch('/api/config');
+        const data = await resp.json();
+        
+        if (data.success && data.config.risk) {
+            const risk = data.config.risk;
+            
+            // Update sliders
+            const pos = (risk.max_position_pct || 0.01) * 100;
+            const stop = (risk.stop_loss_pct || 0.02) * 100;
+            const daily = (risk.daily_loss_limit_pct || 0.03) * 100;
+            const exp = (risk.max_total_exposure_pct || 0.30) * 100;
+            
+            document.getElementById('position-slider').value = pos;
+            document.getElementById('position-display').textContent = pos.toFixed(1) + '%';
+            
+            document.getElementById('stoploss-slider').value = stop;
+            document.getElementById('stoploss-display').textContent = stop.toFixed(1) + '%';
+            
+            document.getElementById('dailyloss-slider').value = daily;
+            document.getElementById('dailyloss-display').textContent = daily.toFixed(1) + '%';
+            
+            document.getElementById('exposure-slider').value = exp;
+            document.getElementById('exposure-display').textContent = exp.toFixed(0) + '%';
+            
+            updateRiskTable();
+        }
+    } catch (e) {
+        console.error('Failed to load risk config:', e);
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    loadRiskConfig();
+    loadRegimeStatus();
+    refreshRiskStatus();
+});
+</script>
 {% endblock %}

@@ -8,6 +8,10 @@
 # Testing
 # Trading Bot Dependencies
 # Type hints
+# Encryption for API keys
+cryptography>=42.0.0
+# System monitoring (optional but recommended)
+psutil>=5.9.0
 # Web dashboard
 # WebSocket support
 # solana>=0.30.0   # Commented out - depends on solders

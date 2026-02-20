@@ -187,7 +187,10 @@ class Backtester:
         
         # Sharpe ratio (simplified)
         returns = np.diff(equity_curve) / equity_curve[:-1]
-        sharpe = np.mean(returns) / np.std(returns) * np.sqrt(365 * 24) if len(returns) > 1 else 0
+        if len(returns) > 1 and np.std(returns) > 0:
+            sharpe = np.mean(returns) / np.std(returns) * np.sqrt(365 * 24)
+        else:
+            sharpe = 0.0
         
         # Max drawdown
         peak = equity_curve[0]

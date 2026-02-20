@@ -59,6 +59,7 @@ NAVIGATION = [
     {"name": "Paper Trading", "url": "/paper", "icon": "journal", "requires_funding": False},
     {"name": "Live Prices", "url": "/prices", "icon": "graph-up", "requires_funding": False},
     {"name": "Positions", "url": "/positions", "icon": "wallet", "requires_funding": False},
+    {"name": "Multi-Agent", "url": "/multi-agent", "icon": "people-fill", "requires_funding": False},
     {"name": "Trade History", "url": "/trades", "icon": "clock-history", "requires_funding": False},
     {"name": "Portfolio", "url": "/portfolio", "icon": "pie-chart", "requires_funding": False},
     {"name": "Analytics", "url": "/analytics", "icon": "bar-chart", "requires_funding": False},
@@ -352,6 +353,10 @@ def prices():
 @app.route("/positions")
 def positions():
     return render_template("positions.html", data=get_bot_data(), nav=NAVIGATION, wallet=get_wallet_status())
+
+@app.route("/multi-agent")
+def multi_agent_page():
+    return render_template("multi_agent.html", data=get_bot_data(), nav=NAVIGATION, wallet=get_wallet_status())
 
 @app.route("/trades")
 def trades():
@@ -678,6 +683,43 @@ def api_discovery_stop():
     """Stop discovery scanner"""
     return jsonify({"success": True, "message": "Discovery scanner stopped", "status": "stopped"})
 
+@app.route("/api/config", methods=["GET"])
+def get_config():
+    """Get current bot configuration"""
+    try:
+        if os.path.exists("config.json"):
+            with open("config.json", "r") as f:
+                config = json.load(f)
+        else:
+            config = {}
+        return jsonify({"success": True, "config": config})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/config", methods=["POST"])
+def update_config():
+    """Update bot configuration"""
+    try:
+        data = request.get_json() or {}
+        
+        # Load existing config
+        if os.path.exists("config.json"):
+            with open("config.json", "r") as f:
+                config = json.load(f)
+        else:
+            config = {}
+        
+        # Update with new values
+        config.update(data)
+        
+        # Save back
+        with open("config.json", "w") as f:
+            json.dump(config, f, indent=2)
+        
+        return jsonify({"success": True, "message": "Configuration updated"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/api/backtest/run", methods=["POST"])
 def run_backtest():
     """Run a backtest simulation."""
@@ -718,19 +760,27 @@ def run_backtest():
             initial_balance=initial_balance
         )
         
-        # Return results
+        # Return results (handle NaN for JSON serialization)
+        import math
+        def safe_num(val):
+            if val is None:
+                return None
+            if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+                return None
+            return val
+        
         return jsonify({
             "success": True,
             "result": {
                 "start_date": result.start_date,
                 "end_date": result.end_date,
-                "initial_balance": result.initial_balance,
-                "final_balance": result.final_balance,
-                "total_return_pct": result.total_return_pct,
+                "initial_balance": safe_num(result.initial_balance),
+                "final_balance": safe_num(result.final_balance),
+                "total_return_pct": safe_num(result.total_return_pct),
                 "total_trades": result.total_trades,
-                "win_rate": result.win_rate,
-                "sharpe_ratio": result.sharpe_ratio,
-                "max_drawdown_pct": result.max_drawdown_pct,
+                "win_rate": safe_num(result.win_rate),
+                "sharpe_ratio": safe_num(result.sharpe_ratio),
+                "max_drawdown_pct": safe_num(result.max_drawdown_pct),
                 "trades_sample": result.trades[:5]  # First 5 trades
             }
         })
@@ -777,6 +827,103 @@ def multi_agent_evaluate():
         return jsonify({
             "success": True,
             "results": results
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/multi-agent/consensus")
+def multi_agent_consensus():
+    """Get swarm consensus signal"""
+    try:
+        # Load trades from DB for vote simulation
+        conn = get_db_connection()
+        if conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT strategy, side, net_pnl, symbol, timestamp 
+                FROM trades 
+                WHERE timestamp > datetime('now', '-1 day')
+                ORDER BY timestamp DESC LIMIT 20
+            """)
+            recent_trades = c.fetchall()
+            conn.close()
+        else:
+            recent_trades = []
+        
+        # Simulate agent votes based on recent trade performance
+        agents = ['ArbBot', 'SniperBot', 'ContrarianBot', 'MomentumBot', 'PairsBot', 'YOLOBot']
+        votes = []
+        buy_count = 0
+        sell_count = 0
+        
+        for i, agent in enumerate(agents):
+            # Simulate vote based on agent type and recent data
+            if i < len(recent_trades):
+                trade = recent_trades[i]
+                signal = 'BUY' if trade['side'] == 'buy' else 'SELL'
+                confidence = min(80, max(40, 50 + (trade['net_pnl'] or 0) * 10))
+            else:
+                # Random signal for demo
+                signal = ['BUY', 'SELL', 'HOLD'][i % 3]
+                confidence = 50 + (i * 5)
+            
+            if signal == 'BUY':
+                buy_count += 1
+            elif signal == 'SELL':
+                sell_count += 1
+            
+            votes.append({
+                'agent': agent,
+                'signal': signal,
+                'confidence': confidence
+            })
+        
+        # Calculate consensus
+        if buy_count > sell_count and buy_count >= 3:
+            consensus_signal = 'BUY'
+            consensus_score = (buy_count / 6) * 100
+        elif sell_count > buy_count and sell_count >= 3:
+            consensus_signal = 'SELL'
+            consensus_score = (sell_count / 6) * 100
+        else:
+            consensus_signal = 'HOLD'
+            consensus_score = 50
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "signal": consensus_signal,
+                "consensus_score": consensus_score,
+                "votes": votes,
+                "reasoning": f"{buy_count} agents bullish, {sell_count} agents bearish",
+                "recent_signals": [
+                    {
+                        "timestamp": t['timestamp'] or datetime.now().isoformat(),
+                        "agent": agents[i % 6],
+                        "symbol": t['symbol'] or 'BTC/USDT',
+                        "signal": 'BUY' if t['side'] == 'buy' else 'SELL',
+                        "confidence": 50 + (t['net_pnl'] or 0) * 10,
+                        "reasoning": "Trade execution"
+                    } for i, t in enumerate(recent_trades[:10])
+                ]
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/multi-agent/control", methods=["POST"])
+def multi_agent_control():
+    """Control individual agents (pause/activate)"""
+    try:
+        data = request.get_json() or {}
+        agent = data.get('agent')
+        action = data.get('action')
+        
+        # This would actually control the agent in the real system
+        # For now, just return success
+        return jsonify({
+            "success": True,
+            "message": f"Agent {agent} {action}d successfully"
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})

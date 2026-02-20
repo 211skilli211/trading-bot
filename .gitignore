@@ -8,7 +8,7 @@ solana_wallet_live.json
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
+*$py*class
 *.so
 .Python
 botenv/
@@ -42,3 +42,19 @@ config_backup_*.json
 
 # Temporary files
 dashboard_patch.py
+
+# Runtime data
+storage/
+Desktop/
+models/*.pkl
+models/*.json
+*.pid
+*.log.*
+
+# Generated reports
+discovery_report.json
+price_log.jsonl
+
+# Rust build artifacts (if any)
+target/
+Cargo.lock

@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-people-fill text-success"></i> Multi-Agent Command Center</h4>
+
+<!-- Agent Swarm Status -->
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card bg-dark border-success">
+            <div class="card-body text-center">
+                <small class="text-muted d-block">Active Agents</small>
+                <strong id="active-agents" class="text-success fs-3">--</strong>
+                <span class="text-muted">/</span>
+                <span id="total-agents" class="text-muted">6</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-dark border-info">
+            <div class="card-body text-center">
+                <small class="text-muted d-block">Combined P&L (24h)</small>
+                <strong id="combined-pnl" class="text-info fs-3">--</strong>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-dark border-warning">
+            <div class="card-body text-center">
+                <small class="text-muted d-block">Consensus Score</small>
+                <strong id="consensus-score" class="text-warning fs-3">--</strong>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-dark border-primary">
+            <div class="card-body text-center">
+                <small class="text-muted d-block">Signals (24h)</small>
+                <strong id="signals-count" class="text-primary fs-3">--</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Agent Cards -->
+<div class="row g-3 mb-3" id="agent-cards">
+    <!-- Populated by JS -->
+    <div class="col-12 text-center py-5">
+        <div class="spinner-border text-primary"></div>
+        <p class="text-muted mt-2">Loading agents...</p>
+    </div>
+</div>
+
+<!-- Collective Decision Panel -->
+<div class="card mb-3">
+    <div class="card-header bg-success bg-opacity-10 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-magic"></i> Swarm Consensus</span>
+        <span id="consensus-badge" class="badge bg-secondary">Loading...</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <h6 class="text-muted">Current Signal</h6>
+                <div class="p-3 bg-dark rounded" id="consensus-signal">
+                    <div class="text-center text-muted">Analyzing market conditions...</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-muted">Agent Votes</h6>
+                <div id="agent-votes">
+                    <!-- Vote bars -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Signal History -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history"></i> Recent Signals</span>
+        <button class="btn btn-sm btn-outline-light" onclick="loadMultiAgentStatus()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+    <div class="card-body table-wrapper">
+        <table class="table table-dark table-hover table-sm" id="signals-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Agent</th>
+                    <th>Symbol</th>
+                    <th>Signal</th>
+                    <th>Confidence</th>
+                    <th>Reasoning</th>
+                </tr>
+            </thead>
+            <tbody id="signals-tbody">
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Loading signals...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const AGENT_INFO = {
+    'ArbBot': { icon: 'bi-arrow-left-right', color: 'primary', desc: 'Cross-exchange arbitrage' },
+    'SniperBot': { icon: 'bi-crosshair', color: 'danger', desc: 'Quick entry on breakouts' },
+    'ContrarianBot': { icon: 'bi-arrow-down-up', color: 'warning', desc: 'Mean reversion trades' },
+    'MomentumBot': { icon: 'bi-graph-up-arrow', color: 'success', desc: 'Trend following' },
+    'PairsBot': { icon: 'bi-link-45deg', color: 'info', desc: 'Statistical arbitrage' },
+    'YOLOBot': { icon: 'bi-lightning', color: 'danger', desc: 'High-risk opportunities' }
+};
+
+async function loadMultiAgentStatus() {
+    try {
+        const [agentResp, consensusResp] = await Promise.all([
+            fetch('/api/multi-agent/status'),
+            fetch('/api/multi-agent/consensus')
+        ]);
+        
+        const agentData = await agentResp.json();
+        const consensusData = await consensusResp.json();
+        
+        if (agentData.success) {
+            updateAgentCards(agentData.data.agents);
+            updateSwarmStats(agentData.data);
+        }
+        
+        if (consensusData.success) {
+            updateConsensus(consensusData.data);
+        }
+    } catch (e) {
+        console.error('Failed to load multi-agent status:', e);
+        document.getElementById('agent-cards').innerHTML = 
+            '<div class="col-12"><div class="alert alert-danger">Error loading agents</div></div>';
+    }
+}
+
+function updateAgentCards(agents) {
+    const container = document.getElementById('agent-cards');
+    let html = '';
+    
+    agents.forEach(agent => {
+        const info = AGENT_INFO[agent.name] || { icon: 'bi-robot', color: 'secondary', desc: 'Trading agent' };
+        const statusColor = agent.status === 'active' ? 'success' : 
+                           agent.status === 'paused' ? 'warning' : 'danger';
+        
+        html += `
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-${info.color}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-${info.color} bg-opacity-10 rounded p-2 me-2">
+                                <i class="bi ${info.icon} text-${info.color} fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">${agent.name}</h6>
+                                <small class="text-muted">${info.desc}</small>
+                            </div>
+                        </div>
+                        <span class="badge bg-${statusColor}">${agent.status}</span>
+                    </div>
+                    
+                    <div class="row g-2 mt-2 small">
+                        <div class="col-6">
+                            <span class="text-muted">P&L:</span>
+                            <span class="${(agent.pnl_24h || 0) >= 0 ? 'text-success' : 'text-danger'}">
+                                ${agent.pnl_24h >= 0 ? '+' : ''}$${(agent.pnl_24h || 0).toFixed(2)}
+                            </span>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted">Trades:</span>
+                            <span class="text-info">${agent.trades_24h || 0}</span>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted">Win Rate:</span>
+                            <span class="text-warning">${(agent.win_rate || 0).toFixed(1)}%</span>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted">Last:</span>
+                            <span class="text-muted">${agent.last_signal || '-'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-${agent.status === 'active' ? 'warning' : 'success'} flex-fill" 
+                                onclick="toggleAgent('${agent.name}', '${agent.status === 'active' ? 'pause' : 'activate'}')">
+                            <i class="bi bi-${agent.status === 'active' ? 'pause' : 'play'}-fill"></i>
+                            ${agent.status === 'active' ? 'Pause' : 'Activate'}
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="showAgentLogs('${agent.name}')">
+                            <i class="bi bi-journal-text"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+function updateSwarmStats(data) {
+    const active = data.agents.filter(a => a.status === 'active').length;
+    const totalPnl = data.agents.reduce((sum, a) => sum + (a.pnl_24h || 0), 0);
+    const totalTrades = data.agents.reduce((sum, a) => sum + (a.trades_24h || 0), 0);
+    
+    document.getElementById('active-agents').textContent = active;
+    document.getElementById('total-agents').textContent = data.agents.length;
+    document.getElementById('combined-pnl').textContent = (totalPnl >= 0 ? '+' : '') + '$' + totalPnl.toFixed(2);
+    document.getElementById('combined-pnl').className = totalPnl >= 0 ? 'text-success fs-3' : 'text-danger fs-3';
+    document.getElementById('signals-count').textContent = totalTrades;
+}
+
+function updateConsensus(data) {
+    const score = data.consensus_score || 0;
+    const signal = data.signal || 'HOLD';
+    
+    // Update badge
+    const badge = document.getElementById('consensus-badge');
+    badge.textContent = `${signal} (${score.toFixed(0)}%)`;
+    badge.className = 'badge ' + (signal === 'BUY' ? 'bg-success' : signal === 'SELL' ? 'bg-danger' : 'bg-secondary');
+    
+    document.getElementById('consensus-score').textContent = score.toFixed(0) + '%';
+    
+    // Update signal display
+    const signalHtml = `
+        <div class="d-flex align-items-center">
+            <div class="fs-1 me-3">${signal === 'BUY' ? '📈' : signal === 'SELL' ? '📉' : '⏸️'}</div>
+            <div>
+                <div class="h4 mb-1 text-${signal === 'BUY' ? 'success' : signal === 'SELL' ? 'danger' : 'warning'}">${signal}</div>
+                <small class="text-muted">${data.reasoning || 'No consensus reached'}</small>
+            </div>
+        </div>
+    `;
+    document.getElementById('consensus-signal').innerHTML = signalHtml;
+    
+    // Update votes
+    const votesHtml = data.votes ? data.votes.map(v => `
+        <div class="mb-2">
+            <div class="d-flex justify-content-between small">
+                <span>${v.agent}</span>
+                <span class="text-${v.signal === 'BUY' ? 'success' : v.signal === 'SELL' ? 'danger' : 'muted'}">${v.signal}</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-${v.signal === 'BUY' ? 'success' : v.signal === 'SELL' ? 'danger' : 'secondary'}" 
+                     style="width: ${v.confidence || 50}%"></div>
+            </div>
+        </div>
+    `).join('') : '<div class="text-muted">No votes yet</div>';
+    
+    document.getElementById('agent-votes').innerHTML = votesHtml;
+    
+    // Update signals table
+    if (data.recent_signals) {
+        const tbody = document.getElementById('signals-tbody');
+        tbody.innerHTML = data.recent_signals.slice(0, 20).map(s => `
+            <tr>
+                <td class="small">${new Date(s.timestamp).toLocaleTimeString()}</td>
+                <td><span class="badge bg-dark">${s.agent}</span></td>
+                <td>${s.symbol}</td>
+                <td><span class="badge bg-${s.signal === 'BUY' ? 'success' : s.signal === 'SELL' ? 'danger' : 'secondary'}">${s.signal}</span></td>
+                <td>${s.confidence}%</td>
+                <td class="small text-muted">${s.reasoning || '-'}</td>
+            </tr>
+        `).join('');
+    }
+}
+
+async function toggleAgent(name, action) {
+    try {
+        const resp = await fetch('/api/multi-agent/control', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({agent: name, action: action})
+        });
+        const result = await resp.json();
+        
+        if (result.success) {
+            loadMultiAgentStatus();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (e) {
+        alert('Error toggling agent: ' + e.message);
+    }
+}
+
+function showAgentLogs(name) {
+    alert('Agent logs for ' + name + ' - Feature coming soon');
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    loadMultiAgentStatus();
+    setInterval(loadMultiAgentStatus, 30000); // Refresh every 30s
+});
+</script>
+{% endblock %}

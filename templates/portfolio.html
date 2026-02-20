@@ -2,13 +2,13 @@
 {% block content %}
 <h4 class="mb-3"><i class="bi bi-pie-chart text-info"></i> Portfolio</h4>
 
-<div class="row g-3">
+<div class="row g-3" id="portfolio-summary">
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">Total Portfolio Value</div>
             <div class="card-body text-center">
-                <h2 class="text-success">$12,450.75</h2>
-                <small class="text-success"><i class="bi bi-arrow-up"></i> +5.2% (24h)</small>
+                <h2 class="text-success" id="total-value">$--</h2>
+                <small id="pnl-24h" class="text-muted">--</small>
             </div>
         </div>
     </div>
@@ -16,10 +16,11 @@
         <div class="card">
             <div class="card-header">Asset Allocation</div>
             <div class="card-body">
-                <div class="progress mb-2" style="height: 25px;">
-                    <div class="progress-bar bg-primary" style="width: 45%">SOL 45%</div>
-                    <div class="progress-bar bg-success" style="width: 30%">USDC 30%</div>
-                    <div class="progress-bar bg-warning" style="width: 25%">Other 25%</div>
+                <div class="progress mb-2" style="height: 25px;" id="allocation-bar">
+                    <div class="progress-bar bg-secondary w-100">Loading...</div>
+                </div>
+                <div id="allocation-legend" class="small text-muted">
+                    Loading allocation data...
                 </div>
             </div>
         </div>
@@ -28,48 +29,234 @@
         <div class="card">
             <div class="card-header">Performance</div>
             <div class="card-body">
-                <div class="d-flex justify-content-between mb-1"><span>Today:</span><span class="text-success">+$245</span></div>
-                <div class="d-flex justify-content-between mb-1"><span>7 Days:</span><span class="text-success">+$1,230</span></div>
-                <div class="d-flex justify-content-between"><span>30 Days:</span><span class="text-danger">-$89</span></div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span>Realized P&L:</span>
+                    <span id="realized-pnl" class="text-muted">--</span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span>Unrealized P&L:</span>
+                    <span id="unrealized-pnl" class="text-muted">--</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Total Trades:</span>
+                    <span id="total-trades" class="text-info">--</span>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <div class="card mt-3">
-    <div class="card-header"><i class="bi bi-coin"></i> Holdings</div>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-coin"></i> Holdings</span>
+        <button class="btn btn-sm btn-outline-light" onclick="loadPortfolio()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
     <div class="card-body table-wrapper">
-        <table class="table table-dark table-hover">
+        <table class="table table-dark table-hover" id="holdings-table">
             <thead>
-                <tr><th>Asset</th><th>Balance</th><th>Price</th><th>Value</th><th>Allocation</th><th>24h Change</th></tr>
+                <tr>
+                    <th>Asset</th>
+                    <th>Balance</th>
+                    <th>Avg Entry</th>
+                    <th>Current Price</th>
+                    <th>Value</th>
+                    <th>Unrealized P&L</th>
+                </tr>
             </thead>
-            <tbody>
+            <tbody id="holdings-tbody">
                 <tr>
-                    <td><i class="bi bi-currency-dollar text-success"></i> USDC</td>
-                    <td>2,450.50</td>
-                    <td>$1.00</td>
-                    <td>$2,450.50</td>
-                    <td>30%</td>
-                    <td class="text-muted">0.00%</td>
-                </tr>
-                <tr>
-                    <td><i class="bi bi-currency-bitcoin text-primary"></i> SOL</td>
-                    <td>24.5</td>
-                    <td>$102.50</td>
-                    <td>$2,511.25</td>
-                    <td>45%</td>
-                    <td class="text-success">+3.2%</td>
-                </tr>
-                <tr>
-                    <td><i class="bi bi-fire text-warning"></i> BONK</td>
-                    <td>5,000,000</td>
-                    <td>$0.000012</td>
-                    <td>$60.00</td>
-                    <td>5%</td>
-                    <td class="text-danger">-1.5%</td>
+                    <td colspan="6" class="text-center text-muted">Loading portfolio data...</td>
                 </tr>
             </tbody>
         </table>
     </div>
 </div>
+
+<!-- Recent Trades -->
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-clock-history"></i> Recent Trades</div>
+    <div class="card-body table-wrapper">
+        <table class="table table-dark table-hover table-sm" id="trades-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Strategy</th>
+                    <th>Symbol</th>
+                    <th>Side</th>
+                    <th>Amount</th>
+                    <th>Entry</th>
+                    <th>Exit</th>
+                    <th>P&L</th>
+                </tr>
+            </thead>
+            <tbody id="trades-tbody">
+                <tr>
+                    <td colspan="8" class="text-center text-muted">Loading trades...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Load portfolio data from API
+async function loadPortfolio() {
+    try {
+        const [dataResp, tradesResp] = await Promise.all([
+            fetch('/api/data'),
+            fetch('/api/trades')
+        ]);
+        
+        const data = await dataResp.json();
+        const trades = await tradesResp.json();
+        
+        updatePortfolioSummary(data, trades.trades || []);
+        updateHoldings(data.positions || []);
+        updateRecentTrades(trades.trades || []);
+    } catch (e) {
+        console.error('Failed to load portfolio:', e);
+        document.getElementById('holdings-tbody').innerHTML = 
+            '<tr><td colspan="6" class="text-center text-danger">Error loading data</td></tr>';
+    }
+}
+
+function updatePortfolioSummary(data, trades) {
+    // Calculate totals from trades
+    let realizedPnl = 0;
+    let unrealizedPnl = 0;
+    let totalValue = 10000; // Default base
+    
+    trades.forEach(t => {
+        if (t.net_pnl) {
+            realizedPnl += t.net_pnl;
+        }
+    });
+    
+    // Calculate from positions
+    if (data.positions) {
+        data.positions.forEach(p => {
+            if (p.value_usd) totalValue += p.value_usd;
+            if (p.unrealized_pnl) unrealizedPnl += p.unrealized_pnl;
+        });
+    }
+    
+    document.getElementById('total-value').textContent = '$' + totalValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('pnl-24h').textContent = 'Realized: ' + (realizedPnl >= 0 ? '+' : '') + '$' + realizedPnl.toFixed(2);
+    document.getElementById('pnl-24h').className = realizedPnl >= 0 ? 'text-success' : 'text-danger';
+    
+    document.getElementById('realized-pnl').textContent = (realizedPnl >= 0 ? '+' : '') + '$' + realizedPnl.toFixed(2);
+    document.getElementById('realized-pnl').className = realizedPnl >= 0 ? 'text-success' : 'text-danger';
+    
+    document.getElementById('unrealized-pnl').textContent = (unrealizedPnl >= 0 ? '+' : '') + '$' + unrealizedPnl.toFixed(2);
+    document.getElementById('unrealized-pnl').className = unrealizedPnl >= 0 ? 'text-success' : 'text-danger';
+    
+    document.getElementById('total-trades').textContent = trades.length;
+}
+
+function updateHoldings(positions) {
+    const tbody = document.getElementById('holdings-tbody');
+    
+    if (positions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No open positions</td></tr>';
+        updateAllocationBar([]);
+        return;
+    }
+    
+    let html = '';
+    let totalValue = 0;
+    const allocation = [];
+    
+    positions.forEach(p => {
+        const value = p.value_usd || 0;
+        const entry = p.entry_price || p.price || 0;
+        const current = p.current_price || p.price || 0;
+        const pnl = current && entry ? ((current - entry) / entry) * 100 : 0;
+        const pnlUsd = p.unrealized_pnl || (value * pnl / 100);
+        
+        totalValue += value;
+        allocation.push({ symbol: p.symbol || 'Unknown', value: value });
+        
+        html += `<tr>
+            <td><i class="bi bi-coin text-primary"></i> ${p.symbol || 'Unknown'}</td>
+            <td>${(p.amount || 0).toFixed(6)}</td>
+            <td>$${entry.toFixed(4)}</td>
+            <td>$${current.toFixed(4)}</td>
+            <td>$${value.toFixed(2)}</td>
+            <td class="${pnlUsd >= 0 ? 'text-success' : 'text-danger'}">
+                ${pnlUsd >= 0 ? '+' : ''}$${pnlUsd.toFixed(2)} (${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%)
+            </td>
+        </tr>`;
+    });
+    
+    tbody.innerHTML = html;
+    updateAllocationBar(allocation, totalValue);
+}
+
+function updateAllocationBar(allocation, totalValue) {
+    const bar = document.getElementById('allocation-bar');
+    const legend = document.getElementById('allocation-legend');
+    
+    if (allocation.length === 0) {
+        bar.innerHTML = '<div class="progress-bar bg-secondary w-100">No holdings</div>';
+        legend.innerHTML = 'No allocation data available';
+        return;
+    }
+    
+    // Sort by value descending
+    allocation.sort((a, b) => b.value - a.value);
+    
+    const colors = ['bg-primary', 'bg-success', 'bg-warning', 'bg-info', 'bg-danger'];
+    let barHtml = '';
+    let legendHtml = '';
+    
+    allocation.forEach((item, i) => {
+        const pct = (item.value / totalValue * 100).toFixed(1);
+        const color = colors[i % colors.length];
+        barHtml += `<div class="progress-bar ${color}" style="width: ${pct}%">${item.symbol} ${pct}%</div>`;
+        legendHtml += `<span class="me-3"><span class="badge ${color}">&nbsp;</span> ${item.symbol}</span>`;
+    });
+    
+    bar.innerHTML = barHtml;
+    legend.innerHTML = legendHtml;
+}
+
+function updateRecentTrades(trades) {
+    const tbody = document.getElementById('trades-tbody');
+    
+    if (trades.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No trades yet</td></tr>';
+        return;
+    }
+    
+    // Sort by time descending and take top 10
+    const recent = trades.slice(-10).reverse();
+    
+    let html = '';
+    recent.forEach(t => {
+        const pnl = t.net_pnl || 0;
+        const exitTime = t.exit_time || t.timestamp;
+        const entryTime = t.entry_time || t.timestamp;
+        
+        html += `<tr>
+            <td class="small">${exitTime ? new Date(exitTime).toLocaleString() : '-'}</td>
+            <td><span class="badge bg-secondary">${t.strategy || 'Unknown'}</span></td>
+            <td>${t.symbol || '-'}</td>
+            <td><span class="badge ${t.side === 'buy' ? 'bg-success' : 'bg-danger'}">${t.side || '-'}</span></td>
+            <td>${(t.amount || 0).toFixed(4)}</td>
+            <td>$${(t.entry_price || 0).toFixed(4)}</td>
+            <td>$${(t.exit_price || t.price || 0).toFixed(4)}</td>
+            <td class="${pnl >= 0 ? 'text-success' : 'text-danger'} fw-bold">
+                ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}
+            </td>
+        </tr>`;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', loadPortfolio);
+</script>
 {% endblock %}
