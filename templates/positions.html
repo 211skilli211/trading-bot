@@ -25,12 +25,12 @@
                         {% if data.positions %}
                             {% for pos in data.positions %}
                             <tr>
-                                <td>{{ pos.symbol }}</td>
-                                <td><span class="badge bg-{{ 'success' if pos.side == 'LONG' else 'danger' }}">{{ pos.side }}</span></td>
-                                <td>{{ pos.size }}</td>
-                                <td>${{ pos.entry_price }}</td>
-                                <td>${{ pos.current_price }}</td>
-                                <td class="text-{{ 'success' if pos.pnl > 0 else 'danger' }}">{{ "+${:.2f}".format(pos.pnl) if pos.pnl > 0 else "${:.2f}".format(pos.pnl) }}</td>
+                                <td>{{ pos.symbol|default('BTC') }}</td>
+                                <td><span class="badge bg-{{ 'success' if pos.side|default('LONG') == 'LONG' else 'danger' }}">{{ pos.side|default('LONG') }}</span></td>
+                                <td>{{ "%.4f"|format(pos.size|default(0)) }}</td>
+                                <td>${{ "%.2f"|format(pos.entry_price|default(0)) }}</td>
+                                <td>${{ "%.2f"|format(pos.current_price|default(0)) }}</td>
+                                <td class="text-{{ 'success' if pos.pnl|default(0) > 0 else 'danger' }}">{{ "+${:.2f}".format(pos.pnl|default(0)) if pos.pnl|default(0) > 0 else "${:.2f}".format(pos.pnl|default(0)) }}</td>
                             </tr>
                             {% endfor %}
                         {% else %}

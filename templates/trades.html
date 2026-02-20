@@ -25,20 +25,20 @@
                         {% if data.trades %}
                             {% for t in data.trades %}
                             <tr>
-                                <td>{{ t[0] if t else '-' }}</td>
+                                <td>{{ t.timestamp|default('-') }}</td>
                                 <td>
-                                    <span class="badge bg-{{ 'success' if t[1] == 'BUY' else 'danger' if t[1] == 'SELL' else 'secondary' }}">
-                                        {{ t[1] if t else '-' }}
+                                    <span class="badge bg-{{ 'success' if t.action == 'BUY' else 'danger' if t.action == 'SELL' else 'secondary' }}">
+                                        {{ t.action|default('-') }}
                                     </span>
                                 </td>
-                                <td>{{ t[2] if t else '-' }}</td>
-                                <td>${{ t[3] if t else '-' }}</td>
-                                <td class="text-{{ 'success' if t[4] and t[4] > 0 else 'danger' if t[4] and t[4] < 0 else 'muted' }}">
-                                    {{ "+${:.2f}".format(t[4]) if t[4] and t[4] > 0 else "${:.2f}".format(t[4]) if t[4] else '-' }}
+                                <td>{{ "%.4f"|format(t.amount|default(0)) }}</td>
+                                <td>${{ "%.2f"|format(t.price|default(0)) }}</td>
+                                <td class="text-{{ 'success' if t.pnl|default(0) > 0 else 'danger' if t.pnl|default(0) < 0 else 'muted' }}">
+                                    {{ "+${:.2f}".format(t.pnl) if t.pnl|default(0) > 0 else "${:.2f}".format(t.pnl|default(0)) }}
                                 </td>
                                 <td>
-                                    <span class="badge bg-{{ 'success' if t[5] == 'FILLED' else 'warning' if t[5] == 'PENDING' else 'secondary' }}">
-                                        {{ t[5] if t else '-' }}
+                                    <span class="badge bg-{{ 'success' if t.status == 'FILLED' else 'warning' if t.status == 'PENDING' else 'secondary' }}">
+                                        {{ t.status|default('FILLED') }}
                                     </span>
                                 </td>
                             </tr>

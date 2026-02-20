@@ -8,69 +8,17 @@
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Mobile navigation - Bottom bar */
+/* Mobile navigation */
 @media (max-width: 768px) {
-    body {
-        padding-bottom: calc(var(--mobile-nav-height) + var(--safe-area-inset-bottom));
-    }
-    
-    /* Sidebar becomes bottom nav */
+    /* Sidebar is hidden on mobile, use offcanvas instead */
     .sidebar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        top: auto;
-        width: 100%;
-        height: var(--mobile-nav-height);
-        flex-direction: row;
-        padding: 0;
-        z-index: 1030;
-        background: var(--bg-card);
-        border-top: 1px solid var(--border);
-        overflow-x: auto;
-        overflow-y: hidden;
-    }
-    
-    .sidebar-header {
-        display: none;
-    }
-    
-    .sidebar .nav {
-        flex-direction: row;
-        width: 100%;
-        padding: 0;
-        margin: 0;
-        display: flex;
-        justify-content: space-around;
-    }
-    
-    .sidebar .nav-item {
-        flex: 1;
-        text-align: center;
-    }
-    
-    .sidebar .nav-link {
-        padding: 8px 4px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: var(--mobile-nav-height);
-        font-size: 0.7rem;
-        gap: 4px;
-    }
-    
-    .sidebar .nav-link i {
-        font-size: 1.3rem;
-        margin: 0;
+        display: none !important;
     }
     
     /* Main content adjustments */
     main {
         margin-left: 0 !important;
         padding: 10px;
-        padding-bottom: calc(var(--mobile-nav-height) + 20px);
     }
     
     /* Top header */
@@ -185,7 +133,7 @@
     /* Quick actions floating button */
     .fab-container {
         position: fixed;
-        bottom: calc(var(--mobile-nav-height) + 20px);
+        bottom: 20px;
         right: 20px;
         z-index: 1040;
     }

@@ -113,40 +113,6 @@
         </main>
     </div>
 
-    <!-- Mobile Bottom Navigation -->
-    <nav class="mobile-nav d-lg-none">
-        <div class="nav-item">
-            <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">
-                <i class="bi bi-house-door"></i>
-                <span>Home</span>
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="/prices" class="nav-link {% if request.path == '/prices' %}active{% endif %}">
-                <i class="bi bi-graph-up"></i>
-                <span>Prices</span>
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="/positions" class="nav-link {% if request.path == '/positions' %}active{% endif %}">
-                <i class="bi bi-bag"></i>
-                <span>Positions</span>
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="/trades" class="nav-link {% if request.path == '/trades' %}active{% endif %}">
-                <i class="bi bi-clock-history"></i>
-                <span>Trades</span>
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="/config" class="nav-link {% if request.path == '/config' %}active{% endif %}">
-                <i class="bi bi-sliders"></i>
-                <span>Config</span>
-            </a>
-        </div>
-    </nav>
-
     <!-- Mobile Offcanvas Menu -->
     <div class="offcanvas offcanvas-start bg-black" id="sidebar" tabindex="-1">
         <div class="offcanvas-header border-bottom border-secondary">
