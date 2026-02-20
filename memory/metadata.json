@@ -1,0 +1,21 @@
+{
+  "total_pnl": 17.5,
+  "total_trades": 2,
+  "win_rate": 100.0,
+  "wins": 2,
+  "losses": 0,
+  "created_at": "2026-02-20T12:40:11.702186+00:00",
+  "last_updated": "2026-02-20T13:01:00.071995+00:00",
+  "strategies": {
+    "arbitrage": {
+      "trades": 1,
+      "pnl": 12.5,
+      "wins": 1
+    },
+    "test": {
+      "trades": 1,
+      "pnl": 5.0,
+      "wins": 1
+    }
+  }
+}
