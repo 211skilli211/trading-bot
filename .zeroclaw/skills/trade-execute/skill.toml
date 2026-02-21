@@ -1,0 +1,29 @@
+name = "trade-execute"
+version = "1.0.0"
+description = "Execute trades on exchanges with user approval"
+author = "211Skilli Trading Bot"
+
+[triggers]
+patterns = [
+    "execute trade",
+    "buy *",
+    "sell *",
+    "trade *",
+    "place order",
+    "execute order"
+]
+
+[tools]
+allowed = ["shell", "file_read", "file_write"]
+
+[memory]
+read = true
+write = true
+auto_commit = true
+
+[security]
+require_approval = true
+approval_timeout_secs = 300  # 5 minutes to confirm
+
+[notify]
+telegram = true

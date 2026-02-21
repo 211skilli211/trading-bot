@@ -1,0 +1,26 @@
+name = "arbitrage-scan"
+version = "1.0.0"
+description = "Scan for arbitrage opportunities across exchanges"
+author = "211Skilli Trading Bot"
+
+[triggers]
+patterns = [
+    "find arbitrage",
+    "scan opportunities",
+    "any spreads",
+    "arbitrage scan",
+    "check spreads",
+    "find opportunities"
+]
+heartbeat = "5m"  # Run every 5 minutes
+
+[tools]
+allowed = ["shell", "file_read", "file_write"]
+
+[memory]
+read = true
+write = true
+auto_commit = true
+
+[notify]
+telegram = true

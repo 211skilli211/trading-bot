@@ -1,0 +1,29 @@
+[skill]
+name = "price-check"
+version = "1.0.0"
+description = "Fetch cryptocurrency prices from CoinGecko"
+author = "211Skilli"
+
+[triggers]
+patterns = [
+    "price of *",
+    "* price",
+    "what's * worth",
+    "check * price",
+    "how much is *",
+    "get price *",
+    "btc",
+    "bitcoin",
+    "eth",
+    "ethereum"
+]
+
+[execution]
+command = "python3"
+args = ["/root/trading-bot/.zeroclaw/skills/price-check/handler.py"]
+
+[output]
+format = "plain"
+
+[notify]
+telegram = true

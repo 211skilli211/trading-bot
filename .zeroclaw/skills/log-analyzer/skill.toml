@@ -1,0 +1,66 @@
+[skill]
+name = "Log Analyzer"
+description = "Analyze logs, detect patterns, and summarize trading activity"
+version = "1.0.0"
+author = "211Skilli"
+
+[triggers]
+patterns = [
+    "analyze logs",
+    "what happened today",
+    "show me trades",
+    "trade history",
+    "activity summary",
+    "recent events",
+    "log summary"
+]
+
+[capabilities]
+- parse_logs = true
+- extract_trades = true
+- detect_anomalies = true
+- summarize_activity = true
+- filter_by_time = true
+- search_patterns = true
+
+[log_files]
+sources = [
+    { path = "/root/trading-bot/bot.log", type = "trading" },
+    { path = "/root/trading-bot/dashboard.log", type = "dashboard" },
+    { path = "/root/trading-bot/alerts.log", type = "alerts" }
+]
+max_lines = 500
+
+[patterns]
+trade_executed = "EXECUTED|Trade completed|Order filled"
+error_occurred = "ERROR|CRITICAL|Failed to"
+opportunity_found = "OPPORTUNITY|ARBITRAGE|Signal detected"
+alert_sent = "ALERT|Notification sent"
+
+[output]
+format = """
+📋 ACTIVITY SUMMARY
+
+⏰ Period: {start_time} to {end_time}
+
+TRADES EXECUTED: {trade_count}
+{trade_list}
+
+OPPORTUNITIES FOUND: {opportunity_count}
+{opportunity_list}
+
+ERRORS: {error_count}
+{error_list}
+
+ALERTS SENT: {alert_count}
+
+ANOMALIES DETECTED:
+{anomalies}
+"""
+
+[tools]
+allowed = ["shell", "file_read", "grep"]
+
+[notify]
+telegram = true
+alert_on_anomaly = true

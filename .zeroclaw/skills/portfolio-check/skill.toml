@@ -1,0 +1,22 @@
+name = "portfolio-check"
+version = "1.0.0"
+description = "Check portfolio status and performance"
+author = "211Skilli Trading Bot"
+
+[triggers]
+patterns = [
+    "portfolio",
+    "my positions",
+    "check portfolio",
+    "how am i doing",
+    "show trades",
+    "trading performance",
+    "my balance"
+]
+
+[tools]
+allowed = ["shell", "file_read"]
+
+[memory]
+read = true
+write = false

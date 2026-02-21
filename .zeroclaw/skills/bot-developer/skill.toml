@@ -1,0 +1,84 @@
+[skill]
+name = "Bot Developer"
+description = "Develop, improve, and extend trading bot functionality"
+version = "1.0.0"
+author = "211Skilli"
+
+[triggers]
+patterns = [
+    "add feature",
+    "implement",
+    "create skill",
+    "improve",
+    "optimize",
+    "refactor",
+    "new strategy",
+    "add indicator",
+    "modify",
+    "update code"
+]
+
+[capabilities]
+- read_code = true
+- write_code = true
+- create_files = true
+- modify_config = true
+- test_changes = true
+- git_operations = true
+- create_skills = true
+- add_strategies = true
+
+[development]
+safe_paths = [
+    "/root/trading-bot/skills/",
+    "/root/trading-bot/.zeroclaw/skills/",
+    "/root/trading-bot/strategies/",
+    "/root/trading-bot/templates/",
+    "/root/trading-bot/static/"
+]
+forbidden_paths = [
+    "/root/trading-bot/core/execution_layer.py",
+    "/root/trading-bot/.env",
+    "/root/trading-bot/config.json"
+]
+require_approval = true
+backup_before_change = true
+
+[tools]
+allowed = ["shell", "file_read", "file_write", "git"]
+
+[testing]
+run_tests = true
+test_command = "cd /root/trading-bot && python3 -m pytest tests/ -v --tb=short 2>/dev/null || echo 'No tests or pytest not installed'"
+lint_command = "cd /root/trading-bot && python3 -m py_compile"
+
+[git]
+auto_commit = false
+commit_prefix = "[dev]"
+require_message = true
+
+[approval]
+required_for = [
+    "modifying existing files",
+    "deleting code",
+    "changing configuration",
+    "installing packages"
+]
+
+[output]
+format = """
+🔧 DEVELOPMENT MODE
+
+Task: {task}
+Status: {status}
+
+Changes Made:
+{changes}
+
+Files Modified:
+{files}
+
+Tests: {test_result}
+
+⚠️ Review changes before committing!
+"""

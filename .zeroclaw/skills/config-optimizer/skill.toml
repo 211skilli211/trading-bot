@@ -1,0 +1,73 @@
+[skill]
+name = "Config Optimizer"
+description = "Analyze and optimize trading bot configuration for better performance"
+version = "1.0.0"
+author = "211Skilli"
+
+[triggers]
+patterns = [
+    "optimize config",
+    "improve settings",
+    "tune parameters",
+    "better configuration",
+    "optimize strategy",
+    "adjust settings",
+    "recommend changes"
+]
+
+[capabilities]
+- read_config = true
+- analyze_performance = true
+- suggest_optimizations = true
+- simulate_changes = true
+- validate_config = true
+- compare_configs = true
+
+[config_files]
+targets = [
+    "/root/trading-bot/config.json",
+    "/root/trading-bot/.zeroclaw/config.toml"
+]
+backup_before_edit = true
+
+[optimization_areas]
+- risk_parameters = true
+- strategy_thresholds = true
+- position_sizing = true
+- stop_loss_levels = true
+- take_profit_levels = true
+- monitoring_intervals = true
+- alert_settings = true
+
+[rules]
+max_position_pct = { min = 0.01, max = 0.10, optimal = 0.05 }
+stop_loss_pct = { min = 0.01, max = 0.05, optimal = 0.02 }
+daily_loss_limit = { min = 50, max = 500, optimal = 100 }
+monitor_interval = { min = 60, max = 300, optimal = 120 }
+
+[tools]
+allowed = ["shell", "file_read", "file_write"]
+
+[approval]
+required = true
+reason = "Configuration changes affect live trading"
+
+[output]
+format = """
+⚙️ CONFIGURATION OPTIMIZATION
+
+Current Performance:
+- Win Rate: {current_win_rate}%
+- Avg P&L per Trade: ${current_avg_pnl}
+- Risk-Adjusted Return: {current_rar}
+
+RECOMMENDED CHANGES:
+{recommendations}
+
+EXPECTED IMPROVEMENT:
+- Win Rate: {predicted_win_rate}%
+- Avg P&L: ${predicted_avg_pnl}
+- Risk Reduction: {risk_reduction}%
+
+⚠️ These are suggestions. Review before applying!
+"""

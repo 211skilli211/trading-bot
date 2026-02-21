@@ -4,7 +4,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h2 class="h4 mb-0">
         <i class="bi bi-graph-up-arrow text-success"></i> Live Crypto Prices
-        <span class="badge bg-info ms-2" id="price-count">{{ data.prices|length }} pairs</span>
+        <span class="badge bg-info ms-2" id="price-count">{{ data.prices_list|length }} pairs</span>
         <span class="badge bg-success ms-1" style="font-size: 0.6em;">
             <i class="bi bi-broadcast"></i> LIVE
         </span>
@@ -34,7 +34,7 @@
     </div>
 </div>
     
-    {% if not data.prices %}
+    {% if not data.prices_list %}
     <div class="card">
         <div class="card-body text-center py-5">
             <div class="spinner-border text-primary"></div>
@@ -45,7 +45,10 @@
     
     <!-- Price Cards Grid -->
     <div class="row g-2" id="prices-grid">
-        {% for exchange, price in data.prices.items() %}
+        {% for p in data.prices_list %}
+        {% set symbol = p.symbol.replace('/USDT','').replace('/USD','') %}
+        {% set change = p.change_24h|default(0) %}
+        {% set is_positive = change >= 0 %}
         <div class="col-6 col-md-4 col-lg-3 col-xl-2">
             <div class="card h-100">
                 <div class="card-body p-3">
@@ -55,15 +58,18 @@
                                 <i class="bi bi-currency-bitcoin text-white"></i>
                             </div>
                             <div>
-                                <div class="fw-bold">BTC</div>
-                                <small class="text-muted">{{ exchange }}</small>
+                                <div class="fw-bold">{{ symbol }}</div>
+                                <small class="text-muted">{{ p.exchange }}</small>
                             </div>
                         </div>
                     </div>
-                    <div class="h4 mb-1">${{ "%.2f"|format(price) }}</div>
+                    <div class="h4 mb-1">${{ "%.2f"|format(p.price) }}</div>
                     <div class="d-flex justify-content-between text-muted small">
-                        <span>Live Price</span>
-                        <span><i class="bi bi-arrow-up-short text-success"></i></span>
+                        <span class="{% if is_positive %}text-success{% else %}text-danger{% endif %}">
+                            <i class="bi bi-arrow-{% if is_positive %}up{% else %}down %}-short{% endif %}"></i>
+                            {{ "%.2f"|format(change) }}%
+                        </span>
+                        <span>Vol: ${{ "%.1f"|format((p.volume_24h|default(0))/1e6) }}M</span>
                     </div>
                 </div>
             </div>
@@ -71,7 +77,7 @@
         {% endfor %}
     </div>
     
-    <!-- Detailed Table (hidden by default on mobile) -->
+    <!-- Detailed Table -->
     <div class="card mt-3 d-none d-md-block" id="prices-table-container">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="bi bi-table"></i> Detailed View</span>
@@ -99,23 +105,27 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for exchange, price in data.prices.items() %}
+                        {% for p in data.prices_list %}
+                        {% set symbol = p.symbol.replace('/USDT','').replace('/USD','') %}
+                        {% set spread = ((p.ask|default(p.price) - p.bid|default(p.price))/p.price*100)|default(0) if p.price else 0 %}
                         <tr>
                             <td>
                                 <div class="d-flex align-items-center">
                                     <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px;">
                                         <i class="bi bi-currency-bitcoin text-white small"></i>
                                     </div>
-                                    <span class="fw-bold">BTC</span>
+                                    <span class="fw-bold">{{ symbol }}</span>
                                 </div>
                             </td>
-                            <td>{{ exchange }}</td>
-                            <td class="fw-bold">${{ "%.2f"|format(price) }}</td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td>-</td>
+                            <td>{{ p.exchange }}</td>
+                            <td class="fw-bold">${{ "%.2f"|format(p.price) }}</td>
+                            <td class="{% if p.change_24h|default(0) >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {% if p.change_24h|default(0) >= 0 %}+{% endif %}{{ "%.2f"|format(p.change_24h|default(0)) }}%
+                            </td>
+                            <td>{{ "%.2f"|format(spread) }}%</td>
+                            <td>${{ "%.1f"|format((p.volume_24h|default(0))/1e6) }}M</td>
                             <td>
-                                <button class="btn btn-sm btn-outline-info" onclick="showChart('BTC')">
+                                <button class="btn btn-sm btn-outline-info" onclick="showChart('{{ symbol }}')">
                                     <i class="bi bi-graph-up"></i>
                                 </button>
                             </td>

@@ -1,0 +1,129 @@
+[skill]
+name = "Trading Orchestrator"
+description = "Central conductor for trading operations - routes tasks to specialized agents"
+version = "1.0.0"
+author = "211Skilli"
+
+[orchestrator]
+mode = "copilot"  # copilot | auto | supervised
+persona_file = "/root/trading-bot/.zeroclaw/TRADING_PERSONA.md"
+
+# Trading Agents
+[[agents]]
+name = "market-analyst"
+triggers = ["analyze", "chart", "pattern", "trend", "support", "resistance", "technical"]
+priority = 1
+
+[[agents]]
+name = "risk-guardian"
+triggers = ["risk", "stop loss", "position size", "exposure", "drawdown", "protect"]
+priority = 2
+
+[[agents]]
+name = "execution-agent"
+triggers = ["buy", "sell", "execute", "place order", "enter", "exit", "trade"]
+requires_approval = true
+priority = 3
+
+[[agents]]
+name = "portfolio-agent"
+triggers = ["portfolio", "balance", "allocation", "rebalance", "correlation", "holdings"]
+priority = 4
+
+[[agents]]
+name = "sentiment-scanner"
+triggers = ["news", "sentiment", "twitter", "fear", "greed", "social", "mood"]
+priority = 5
+
+[[agents]]
+name = "arbitrage-hunter"
+triggers = ["arbitrage", "spread", "cross-exchange", "price difference", "opportunity"]
+priority = 6
+
+# Diagnostic & Development Agents
+[[agents]]
+name = "system-diagnostic"
+triggers = ["diagnose", "health", "status", "check", "what's wrong", "not working", "problem"]
+priority = 10
+category = "diagnostic"
+
+[[agents]]
+name = "debugger"
+triggers = ["debug", "error", "trace", "exception", "failed", "traceback", "fix"]
+priority = 11
+category = "diagnostic"
+
+[[agents]]
+name = "log-analyzer"
+triggers = ["logs", "analyze logs", "what happened", "activity", "history", "events"]
+priority = 12
+category = "diagnostic"
+
+[[agents]]
+name = "performance-monitor"
+triggers = ["performance", "pnl", "profit", "win rate", "stats", "how am i doing", "results"]
+priority = 13
+category = "analysis"
+
+[[agents]]
+name = "config-optimizer"
+triggers = ["optimize", "improve", "tune", "adjust", "better settings", "recommend"]
+priority = 14
+category = "improvement"
+
+[[agents]]
+name = "bot-developer"
+triggers = ["add feature", "implement", "create", "develop", "code", "new", "modify"]
+requires_approval = true
+priority = 15
+category = "development"
+
+[execution]
+auto_execute = false
+max_position_usd = 50
+daily_loss_limit = 100
+require_confirmation = true
+
+[handler]
+script = "/root/trading-bot/.zeroclaw/webhook_handler.py"
+type = "python"
+
+[webhook]
+endpoint = "/webhook"
+method = "POST"
+
+[routing]
+# If no agent matches, default to copilot response
+default_response = "I'm not sure how to help with that. Try asking about: price checks, market analysis, trade execution, portfolio status, or system diagnostics."
+
+# Help message
+help_text = """
+🤖 Available Commands:
+
+📊 TRADING:
+- "Check price of BTC"
+- "Analyze ETH chart"
+- "Buy 0.1 BTC" (requires approval)
+- "Show my portfolio"
+- "Find arbitrage opportunities"
+
+🔍 DIAGNOSTICS:
+- "System status" or "Health check"
+- "Debug error" or "What went wrong"
+- "Analyze logs" or "Show activity"
+
+📈 ANALYSIS:
+- "Performance report"
+- "How am I doing?"
+- "Trading stats"
+
+⚙️ OPTIMIZATION:
+- "Optimize config"
+- "Recommend changes"
+- "Tune parameters"
+
+🔧 DEVELOPMENT:
+- "Add feature X"
+- "Create new strategy"
+- "Improve Y" (requires approval)
+"""

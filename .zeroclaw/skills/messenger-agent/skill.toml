@@ -1,0 +1,129 @@
+[skill]
+name = "messenger-agent"
+version = "1.0.0"
+description = "Formats data into human-readable Telegram messages with beautiful presentation"
+author = "211Skilli"
+
+[triggers]
+patterns = [
+    "format",
+    "create alert",
+    "send report",
+    "notify",
+    "announce",
+    "summary"
+]
+
+[capabilities]
+- format_prices = true
+- format_charts = true
+- format_alerts = true
+- format_reports = true
+- format_diagnostics = true
+- sentiment_emojis = true
+- markdown_styling = true
+
+[formats]
+# Price Alert
+template_price = """
+💰 {symbol} PRICE UPDATE
+
+Price: ${price}
+Change: {emoji} {change}%
+Volume: ${volume}
+
+⏰ {timestamp}
+"""
+
+# Trade Alert  
+template_trade = """
+⚡ TRADE EXECUTED
+
+{side} {amount} {symbol}
+Price: ${price}
+Total: ${total}
+PnL: {pnl_emoji} ${pnl}
+
+Status: {status}
+"""
+
+# Opportunity Alert
+template_opportunity = """
+🚨 ARBITRAGE OPPORTUNITY
+
+Token: {symbol}
+Spread: {spread}%
+Buy: ${buy_price} on {buy_exchange}
+Sell: ${sell_price} on {sell_exchange}
+Est. Profit: ${profit}
+
+Confidence: {confidence}
+⏳ Expires: ~{time_left}s
+"""
+
+# Performance Report
+template_performance = """
+📊 PERFORMANCE REPORT - {period}
+
+💰 P&L: {pnl_emoji} ${pnl}
+📈 Win Rate: {win_rate}%
+🎯 Trades: {wins}W / {losses}L
+
+Best Trade: +${best_trade}
+Worst Trade: ${worst_trade}
+
+Risk Metrics:
+• Max DD: {max_dd}%
+• Sharpe: {sharpe}
+
+{insight}
+"""
+
+# Diagnostic Report
+template_diagnostic = """
+🔍 SYSTEM STATUS - {timestamp}
+
+{overall_status}
+
+Exchanges:
+{exchange_status}
+
+ZeroClaw:
+• Personal: {zc_personal}
+• Trading: {zc_trading}
+
+Resources:
+• Disk: {disk_status}
+• Memory: {memory_status}
+• CPU: {cpu_status}
+
+{recommendation}
+"""
+
+# News/Sentiment
+template_sentiment = """
+📰 MARKET SENTIMENT - {symbol}
+
+Score: {sentiment_emoji} {score}/100
+Trend: {trend}
+
+Sources:
+{sources}
+
+Key Mentions:
+{mentions}
+"""
+
+[output]
+format = "markdown"
+parse_mode = "MarkdownV2"
+max_length = 4000
+
+[styling]
+use_emojis = true
+use_formatting = true
+code_blocks = false
+
+[notify]
+telegram = true
+auto_format = true

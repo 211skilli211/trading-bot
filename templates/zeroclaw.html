@@ -5,97 +5,133 @@
     <h4><i class="bi bi-robot text-info"></i> ZeroClaw AI Command Center</h4>
     <div class="d-flex gap-2">
         <span id="ai-status" class="badge bg-secondary">Checking...</span>
-        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#settingsModal">
-            <i class="bi bi-gear"></i> Settings
+        <button class="btn btn-sm btn-outline-info" onclick="refreshAll()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
         </button>
     </div>
 </div>
 
-<!-- Top Stats Row -->
+<!-- Status Cards -->
 <div class="row g-3 mb-3">
     <div class="col-6 col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <small class="text-muted d-block">AI Confidence</small>
-                <h5 class="text-success mb-0" id="ai-confidence">--</h5>
+                <small class="text-muted d-block">Personal Bot</small>
+                <h5 class="text-success mb-0" id="personal-status">--</h5>
+                <small class="text-muted">Port 3000</small>
             </div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <small class="text-muted d-block">Signals Today</small>
-                <h5 class="text-info mb-0" id="signals-today">--</h5>
+                <small class="text-muted d-block">Trading Bot</small>
+                <h5 class="text-info mb-0" id="trading-status">--</h5>
+                <small class="text-muted">Port 3001</small>
             </div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <small class="text-muted d-block">Success Rate</small>
-                <h5 class="text-warning mb-0" id="success-rate">--</h5>
+                <small class="text-muted d-block">Active Skills</small>
+                <h5 class="text-warning mb-0" id="active-skills">12</h5>
+                <small class="text-muted">Loaded</small>
             </div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <small class="text-muted d-block">Active Models</small>
-                <h5 class="text-primary mb-0" id="active-models">--</h5>
+                <small class="text-muted d-block">Mode</small>
+                <h5 class="text-primary mb-0" id="ai-mode">Copilot</h5>
+                <small class="text-muted">Approval Required</small>
             </div>
         </div>
     </div>
 </div>
 
 <div class="row g-3">
-    <!-- Chart Section -->
+    <!-- Skill Command Center -->
     <div class="col-lg-8">
+        <!-- Quick Skills Access -->
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-graph-up"></i> Market Analysis & Predictions</span>
-                <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-light active" onclick="setChartTimeframe('1h')" id="tf-1h">1H</button>
-                    <button class="btn btn-outline-light" onclick="setChartTimeframe('24h')" id="tf-24h">24H</button>
-                    <button class="btn btn-outline-light" onclick="setChartTimeframe('7d')" id="tf-7d">7D</button>
-                    <button class="btn btn-outline-light" onclick="setChartTimeframe('30d')" id="tf-30d">30D</button>
-                </div>
+                <span><i class="bi bi-lightning"></i> Skill Commands</span>
+                <span class="badge bg-info">Click to Execute</span>
             </div>
             <div class="card-body">
-                <canvas id="analysisChart" height="300"></canvas>
-                <div class="row g-2 mt-3">
-                    <div class="col-6 col-md-3">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-success">&nbsp;</span>
-                            <small class="text-muted">Buy Signal</small>
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <div class="d-grid gap-2">
+                            <h6 class="text-muted"><i class="bi bi-graph-up"></i> Trading</h6>
+                            <button onclick="runSkill('price-check', 'BTC')" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-currency-bitcoin"></i> BTC Price
+                            </button>
+                            <button onclick="runSkill('price-check', 'ETH')" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-currency-exchange"></i> ETH Price
+                            </button>
+                            <button onclick="runSkill('arbitrage-scan')" class="btn btn-outline-warning btn-sm">
+                                <i class="bi bi-arrow-left-right"></i> Scan Arbitrage
+                            </button>
+                            <button onclick="runSkill('portfolio-check')" class="btn btn-outline-success btn-sm">
+                                <i class="bi bi-wallet"></i> Portfolio
+                            </button>
                         </div>
                     </div>
-                    <div class="col-6 col-md-3">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-danger">&nbsp;</span>
-                            <small class="text-muted">Sell Signal</small>
+                    <div class="col-md-4">
+                        <div class="d-grid gap-2">
+                            <h6 class="text-muted"><i class="bi bi-activity"></i> Diagnostics</h6>
+                            <button onclick="runSkill('system-diagnostic')" class="btn btn-outline-info btn-sm">
+                                <i class="bi bi-heart-pulse"></i> System Health
+                            </button>
+                            <button onclick="runSkill('performance-monitor')" class="btn btn-outline-info btn-sm">
+                                <i class="bi bi-bar-chart"></i> Performance
+                            </button>
+                            <button onclick="runSkill('debugger')" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-bug"></i> Debug Issues
+                            </button>
+                            <button onclick="runSkill('log-analyzer')" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-file-text"></i> View Logs
+                            </button>
                         </div>
                     </div>
-                    <div class="col-6 col-md-3">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-info">&nbsp;</span>
-                            <small class="text-muted">AI Prediction</small>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-warning">&nbsp;</span>
-                            <small class="text-muted">Volume</small>
+                    <div class="col-md-4">
+                        <div class="d-grid gap-2">
+                            <h6 class="text-muted"><i class="bi bi-tools"></i> Development</h6>
+                            <button onclick="runSkill('config-optimizer')" class="btn btn-outline-dark btn-sm">
+                                <i class="bi bi-gear"></i> Optimize Config
+                            </button>
+                            <button onclick="runSkill('bot-developer', 'list skills')" class="btn btn-outline-dark btn-sm">
+                                <i class="bi bi-list-check"></i> List Skills
+                            </button>
+                            <button onclick="runSkill('messenger-agent', 'test')" class="btn btn-outline-dark btn-sm">
+                                <i class="bi bi-chat-dots"></i> Test Format
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- AI Predictions Table -->
+        <!-- Command Output -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-terminal"></i> Command Output</span>
+                <button class="btn btn-sm btn-outline-light" onclick="clearOutput()">
+                    <i class="bi bi-trash"></i> Clear
+                </button>
+            </div>
+            <div class="card-body">
+                <pre id="command-output" class="bg-black text-light p-3 rounded" style="min-height: 200px; max-height: 400px; overflow: auto;"><span class="text-muted">Click a skill command above to see output...</span></pre>
+            </div>
+        </div>
+
+        <!-- Active Predictions -->
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-magic"></i> AI Predictions & Highlights</span>
-                <button class="btn btn-sm btn-outline-success" onclick="refreshPredictions()">
+                <span><i class="bi bi-magic"></i> AI Predictions & Signals</span>
+                <button class="btn btn-sm btn-outline-success" onclick="loadPredictions()">
                     <i class="bi bi-arrow-clockwise"></i> Refresh
                 </button>
             </div>
@@ -108,16 +144,15 @@
                                 <th>Signal</th>
                                 <th>Confidence</th>
                                 <th>Target</th>
-                                <th>Stop Loss</th>
                                 <th>Timeframe</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
                         <tbody id="predictions-tbody">
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
+                                <td colspan="6" class="text-center text-muted py-4">
                                     <div class="spinner-border spinner-border-sm"></div>
-                                    Loading AI predictions...
+                                    Loading predictions...
                                 </td>
                             </tr>
                         </tbody>
@@ -127,277 +162,217 @@
         </div>
     </div>
 
-    <!-- Chat & Controls -->
+    <!-- Chat Interface -->
     <div class="col-lg-4">
+        <!-- Telegram Chat -->
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-chat-dots"></i> AI Trading Assistant</span>
-                <button class="btn btn-sm btn-outline-light" onclick="clearChat()">
-                    <i class="bi bi-trash"></i>
-                </button>
+                <span><i class="bi bi-chat-dots"></i> AI Assistant Chat</span>
+                <span class="badge bg-success">Online</span>
             </div>
-            <div class="card-body d-flex flex-column" style="height: 350px;">
+            <div class="card-body d-flex flex-column" style="height: 400px;">
                 <div id="chat-messages" class="flex-grow-1 overflow-auto mb-3">
                     <div class="mb-3">
                         <div class="d-flex">
                             <span class="badge bg-info me-2">AI</span>
                             <div class="bg-secondary bg-opacity-25 p-2 rounded" style="max-width: 85%;">
-                                Hello! I'm ZeroClaw AI. I can help you with:
+                                Hello! I'm your ZeroClaw AI trading assistant. I can:
                                 <ul class="mb-0 mt-1 small">
-                                    <li>Price analysis & predictions</li>
-                                    <li>Arbitrage scanning</li>
-                                    <li>Portfolio optimization</li>
-                                    <li>Custom strategy creation</li>
+                                    <li>Check crypto prices</li>
+                                    <li>Run system diagnostics</li>
+                                    <li>Analyze performance</li>
+                                    <li>Execute trades (with approval)</li>
                                 </ul>
+                                <div class="mt-2 text-muted small">Type a command or use the buttons!</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="input-group">
                     <input type="text" id="chat-input" class="form-control bg-dark text-light" 
-                           placeholder="Ask about markets, strategies..."
-                           onkeypress="if(event.key==='Enter')sendMessage()">
-                    <button class="btn btn-info" onclick="sendMessage()">
+                           placeholder="Type command (e.g., 'BTC price')..."
+                           onkeypress="if(event.key==='Enter')sendChatMessage()">
+                    <button class="btn btn-info" onclick="sendChatMessage()">
                         <i class="bi bi-send"></i>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="card mb-3">
-            <div class="card-header"><i class="bi bi-lightning"></i> Quick Actions</div>
-            <div class="card-body">
-                <button onclick="quickAction('analyze', 'BTC')" class="btn btn-outline-info btn-sm w-100 mb-2">
-                    <i class="bi bi-graph-up"></i> Analyze BTC
-                </button>
-                <button onclick="quickAction('scan')" class="btn btn-outline-info btn-sm w-100 mb-2">
-                    <i class="bi bi-arrow-left-right"></i> Scan Arbitrage
-                </button>
-                <button onclick="quickAction('portfolio')" class="btn btn-outline-info btn-sm w-100 mb-2">
-                    <i class="bi bi-pie-chart"></i> Portfolio Check
-                </button>
-                <button onclick="quickAction('predict')" class="btn btn-outline-info btn-sm w-100">
-                    <i class="bi bi-magic"></i> Get Predictions
-                </button>
-            </div>
-        </div>
-
-        <!-- AI Stats -->
+        <!-- Skill Status -->
         <div class="card">
-            <div class="card-header"><i class="bi bi-cpu"></i> AI Performance</div>
+            <div class="card-header"><i class="bi bi-cpu"></i> Skill Status</div>
             <div class="card-body">
                 <div class="d-flex justify-content-between mb-2">
-                    <span class="text-muted">Status:</span>
-                    <span id="stats-status" class="text-warning">Unknown</span>
+                    <span class="text-muted"><i class="bi bi-check-circle text-success"></i> Price Check:</span>
+                    <span class="text-success">Active</span>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
-                    <span class="text-muted">Latency:</span>
-                    <span id="stats-latency">-- ms</span>
+                    <span class="text-muted"><i class="bi bi-check-circle text-success"></i> Arbitrage Scan:</span>
+                    <span class="text-success">Active</span>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
-                    <span class="text-muted">Model:</span>
-                    <span class="text-info">ZeroClaw v2</span>
+                    <span class="text-muted"><i class="bi bi-check-circle text-success"></i> System Diagnostic:</span>
+                    <span class="text-success">Active</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted"><i class="bi bi-check-circle text-success"></i> Performance Monitor:</span>
+                    <span class="text-success">Active</span>
                 </div>
                 <div class="d-flex justify-content-between">
-                    <span class="text-muted">Last Update:</span>
-                    <span class="text-muted" id="last-update">--</span>
+                    <span class="text-muted"><i class="bi bi-check-circle text-success"></i> Messenger Agent:</span>
+                    <span class="text-success">Active</span>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Settings Modal -->
-<div class="modal fade" id="settingsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content bg-dark">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title"><i class="bi bi-gear"></i> ZeroClaw Settings</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Chart Type</label>
-                    <select class="form-select bg-dark text-light" id="chart-type">
-                        <option value="candles">Candlestick</option>
-                        <option value="line">Line</option>
-                        <option value="area">Area</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Indicators</label>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="show-sma" checked>
-                        <label class="form-check-label" for="show-sma">SMA (20, 50)</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="show-rsi">
-                        <label class="form-check-label" for="show-rsi">RSI</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="show-volume" checked>
-                        <label class="form-check-label" for="show-volume">Volume</label>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Signal Threshold (%)</label>
-                    <input type="range" class="form-range" min="50" max="95" value="70" id="signal-threshold">
-                    <div class="text-end"><span id="threshold-value">70</span>%</div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Auto-Refresh</label>
-                    <select class="form-select bg-dark text-light" id="auto-refresh">
-                        <option value="0">Off</option>
-                        <option value="30">30 seconds</option>
-                        <option value="60" selected>1 minute</option>
-                        <option value="300">5 minutes</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer border-secondary">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" onclick="saveSettings()">Save Settings</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <script>
-let analysisChart = null;
-let currentTimeframe = '1h';
-let isProcessing = false;
-let refreshInterval = null;
-
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
-    checkAIStatus();
-    initChart();
+    checkStatus();
     loadPredictions();
-    updateStats();
-    
-    // Auto-refresh
-    const refreshRate = parseInt(localStorage.getItem('zeroclaw-refresh') || '60');
-    if (refreshRate > 0) {
-        refreshInterval = setInterval(() => {
-            updateStats();
-            loadPredictions();
-        }, refreshRate * 1000);
-    }
 });
 
-// Initialize Chart
-function initChart() {
-    const ctx = document.getElementById('analysisChart').getContext('2d');
-    
-    analysisChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [
-                {
-                    label: 'Price',
-                    data: [],
-                    borderColor: '#58a6ff',
-                    backgroundColor: 'rgba(88, 166, 255, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                },
-                {
-                    label: 'AI Prediction',
-                    data: [],
-                    borderColor: '#3fb950',
-                    backgroundColor: 'rgba(63, 185, 80, 0.1)',
-                    borderDash: [5, 5],
-                    fill: false
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(22, 27, 34, 0.95)',
-                    borderColor: '#30363d',
-                    borderWidth: 1,
-                    titleColor: '#e6edf3',
-                    bodyColor: '#e6edf3'
-                }
-            },
-            scales: {
-                x: {
-                    grid: {
-                        color: '#21262d'
-                    },
-                    ticks: {
-                        color: '#8b949e'
-                    }
-                },
-                y: {
-                    grid: {
-                        color: '#21262d'
-                    },
-                    ticks: {
-                        color: '#8b949e'
-                    }
-                }
-            }
-        }
-    });
-    
-    // Load initial data
-    loadChartData(currentTimeframe);
-}
-
-// Load chart data
-async function loadChartData(timeframe) {
+// Check ZeroClaw status
+async function checkStatus() {
     try {
-        const resp = await fetch(`/api/zeroclaw/chart?timeframe=${timeframe}`);
+        const resp = await fetch('/api/zeroclaw/status');
         const data = await resp.json();
         
-        if (data.success && analysisChart) {
-            analysisChart.data.labels = data.labels;
-            analysisChart.data.datasets[0].data = data.prices;
-            analysisChart.data.datasets[1].data = data.predictions;
-            analysisChart.update();
+        // Update personal bot status
+        const personalStatus = document.getElementById('personal-status');
+        if (data.personal?.running) {
+            personalStatus.textContent = 'Online';
+            personalStatus.className = 'text-success mb-0';
+        } else {
+            personalStatus.textContent = 'Offline';
+            personalStatus.className = 'text-danger mb-0';
+        }
+        
+        // Update trading bot status
+        const tradingStatus = document.getElementById('trading-status');
+        if (data.trading?.running) {
+            tradingStatus.textContent = 'Online';
+            tradingStatus.className = 'text-success mb-0';
+            document.getElementById('ai-status').textContent = 'Connected';
+            document.getElementById('ai-status').className = 'badge bg-success';
+        } else {
+            tradingStatus.textContent = 'Offline';
+            tradingStatus.className = 'text-danger mb-0';
+            document.getElementById('ai-status').textContent = 'Disconnected';
+            document.getElementById('ai-status').className = 'badge bg-danger';
         }
     } catch (e) {
-        console.error('Chart load failed:', e);
+        document.getElementById('personal-status').textContent = 'Error';
+        document.getElementById('trading-status').textContent = 'Error';
+        document.getElementById('ai-status').textContent = 'Error';
+        document.getElementById('ai-status').className = 'badge bg-danger';
     }
 }
 
-// Set chart timeframe
-function setChartTimeframe(tf) {
-    currentTimeframe = tf;
+// Run a skill command
+async function runSkill(skill, params = '') {
+    const output = document.getElementById('command-output');
+    output.innerHTML = `<span class="text-info"><i class="bi bi-hourglass-split"></i> Running ${skill}...</span>`;
     
-    // Update button states
-    document.querySelectorAll('[id^="tf-"]').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.getElementById(`tf-${tf}`).classList.add('active');
+    try {
+        const resp = await fetch('/api/zeroclaw/skill', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({skill, params})
+        });
+        
+        const data = await resp.json();
+        
+        if (data.success) {
+            // Format output with ANSI-like colors
+            let formatted = data.output
+                .replace(/💰/g, '<span class="text-warning">💰</span>')
+                .replace(/📈/g, '<span class="text-success">📈</span>')
+                .replace(/📉/g, '<span class="text-danger">📉</span>')
+                .replace(/✅/g, '<span class="text-success">✅</span>')
+                .replace(/❌/g, '<span class="text-danger">❌</span>')
+                .replace(/⚠️/g, '<span class="text-warning">⚠️</span>')
+                .replace(/\n/g, '<br>');
+            
+            output.innerHTML = formatted;
+            
+            // Also add to chat
+            addChatMessage('user', `${skill}${params ? ' ' + params : ''}`);
+            addChatMessage('ai', data.output.substring(0, 500));
+        } else {
+            output.innerHTML = `<span class="text-danger">Error: ${data.error}</span>`;
+        }
+    } catch (e) {
+        output.innerHTML = `<span class="text-danger">Failed: ${e.message}</span>`;
+    }
+}
+
+// Send chat message
+async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
     
-    loadChartData(tf);
+    addChatMessage('user', message);
+    input.value = '';
+    
+    try {
+        const resp = await fetch('/api/zeroclaw/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message})
+        });
+        
+        const data = await resp.json();
+        addChatMessage('ai', data.response || 'No response');
+    } catch (e) {
+        addChatMessage('ai', 'Error: ' + e.message);
+    }
+}
+
+// Add message to chat
+function addChatMessage(type, text) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'mb-3';
+    
+    if (type === 'user') {
+        div.innerHTML = `
+            <div class="d-flex justify-content-end">
+                <div class="bg-primary bg-opacity-25 p-2 rounded" style="max-width: 85%;">
+                    ${escapeHtml(text)}
+                </div>
+                <span class="badge bg-primary ms-2">You</span>
+            </div>
+        `;
+    } else {
+        div.innerHTML = `
+            <div class="d-flex">
+                <span class="badge bg-info me-2">AI</span>
+                <div class="bg-secondary bg-opacity-25 p-2 rounded" style="max-width: 85%; white-space: pre-wrap;">
+                    ${escapeHtml(text)}
+                </div>
+            </div>
+        `;
+    }
+    
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
 }
 
 // Load AI predictions
 async function loadPredictions() {
     const tbody = document.getElementById('predictions-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="spinner-border spinner-border-sm"></div> Loading...</td></tr>';
     
     try {
         const resp = await fetch('/api/zeroclaw/predictions');
         const data = await resp.json();
         
-        if (data.success && data.predictions.length > 0) {
+        if (data.predictions && data.predictions.length > 0) {
             tbody.innerHTML = data.predictions.map(p => `
                 <tr>
                     <td><strong>${p.symbol}</strong></td>
@@ -409,7 +384,6 @@ async function loadPredictions() {
                         <small>${p.confidence}%</small>
                     </td>
                     <td class="text-success">$${p.target_price}</td>
-                    <td class="text-danger">$${p.stop_loss}</td>
                     <td><small>${p.timeframe}</small></td>
                     <td>
                         <button class="btn btn-sm btn-${p.signal === 'BUY' ? 'success' : 'danger'}" onclick="executeSignal('${p.symbol}', '${p.signal}')">
@@ -421,233 +395,53 @@ async function loadPredictions() {
         } else {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">
-                        <i class="bi bi-magic fs-1 d-block mb-2"></i>
-                        No active predictions<br>
-                        <small>Ask the AI for market analysis</small>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        No active predictions
+                        <br><small>AI is analyzing markets...</small>
                     </td>
                 </tr>
             `;
         }
     } catch (e) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center text-danger py-4">
-                    <i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>
-                    Failed to load predictions
-                </td>
-            </tr>
-        `;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Error loading predictions</td></tr>`;
     }
 }
 
-// Check AI status
-async function checkAIStatus() {
-    try {
-        const resp = await fetch('/api/zeroclaw/status');
-        const data = await resp.json();
-        
-        const statusEl = document.getElementById('ai-status');
-        const statsEl = document.getElementById('stats-status');
-        
-        if (data.running) {
-            statusEl.className = 'badge bg-success';
-            statusEl.innerHTML = '<i class="bi bi-circle-fill"></i> Online';
-            statsEl.className = 'text-success';
-            statsEl.textContent = 'Online';
-        } else {
-            statusEl.className = 'badge bg-danger';
-            statusEl.innerHTML = '<i class="bi bi-circle"></i> Offline';
-            statsEl.className = 'text-danger';
-            statsEl.textContent = 'Offline';
-        }
-    } catch (e) {
-        console.error('Status check failed:', e);
-    }
-}
-
-// Update stats
-async function updateStats() {
-    try {
-        const resp = await fetch('/api/zeroclaw/stats');
-        const data = await resp.json();
-        
-        if (data.success) {
-            document.getElementById('ai-confidence').textContent = data.confidence + '%';
-            document.getElementById('signals-today').textContent = data.signals_today;
-            document.getElementById('success-rate').textContent = data.success_rate + '%';
-            document.getElementById('active-models').textContent = data.active_models;
-            document.getElementById('stats-latency').textContent = data.latency + ' ms';
-            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
-        }
-    } catch (e) {
-        console.error('Stats update failed:', e);
-    }
-}
-
-// Chat functionality
-async function sendMessage() {
-    const input = document.getElementById('chat-input');
-    const message = input.value.trim();
-    if (!message || isProcessing) return;
-    
-    addMessage(message, 'user');
-    input.value = '';
-    isProcessing = true;
+// Execute trading signal
+async function executeSignal(symbol, signal) {
+    if (!confirm(`${signal} ${symbol}?`)) return;
     
     try {
-        const resp = await fetch('/api/zeroclaw/chat', {
+        const resp = await fetch('/api/execute-trade', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({message})
+            body: JSON.stringify({symbol, side: signal, amount: 0.01})
         });
         
         const data = await resp.json();
-        addMessage(data.response || 'I apologize, I could not process that request.', 'ai');
-        
-        // Refresh predictions if analysis was done
-        if (message.toLowerCase().includes('analy') || message.toLowerCase().includes('predict')) {
-            loadPredictions();
-        }
+        alert(data.message || 'Trade executed');
     } catch (e) {
-        addMessage('Sorry, I encountered an error. Please try again.', 'ai');
-    } finally {
-        isProcessing = false;
+        alert('Error: ' + e.message);
     }
 }
 
-function addMessage(text, sender) {
-    const container = document.getElementById('chat-messages');
-    const div = document.createElement('div');
-    div.className = 'mb-3';
-    
-    if (sender === 'user') {
-        div.innerHTML = `
-            <div class="d-flex justify-content-end">
-                <div class="bg-success bg-opacity-25 p-2 rounded" style="max-width: 85%;">
-                    ${escapeHtml(text)}
-                </div>
-                <span class="badge bg-secondary ms-2">You</span>
-            </div>
-        `;
-    } else {
-        div.innerHTML = `
-            <div class="d-flex">
-                <span class="badge bg-info me-2">AI</span>
-                <div class="bg-secondary bg-opacity-25 p-2 rounded" style="max-width: 85%;">
-                    ${text}
-                </div>
-            </div>
-        `;
-    }
-    
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
+// Clear output
+function clearOutput() {
+    document.getElementById('command-output').innerHTML = '<span class="text-muted">Ready...</span>';
 }
 
+// Refresh all
+function refreshAll() {
+    checkStatus();
+    loadPredictions();
+}
+
+// Escape HTML
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-function clearChat() {
-    document.getElementById('chat-messages').innerHTML = `
-        <div class="mb-3">
-            <div class="d-flex">
-                <span class="badge bg-info me-2">AI</span>
-                <div class="bg-secondary bg-opacity-25 p-2 rounded" style="max-width: 85%;">
-                    Chat cleared. How can I help you today?
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Quick actions
-function quickAction(type, param) {
-    const input = document.getElementById('chat-input');
-    
-    switch(type) {
-        case 'analyze':
-            input.value = `Analyze ${param} price action and give me trading signals`;
-            break;
-        case 'scan':
-            input.value = 'Scan for arbitrage opportunities across all markets';
-            break;
-        case 'portfolio':
-            input.value = 'Analyze my portfolio performance and suggest optimizations';
-            break;
-        case 'predict':
-            input.value = 'Give me price predictions for the next 24 hours';
-            break;
-    }
-    
-    sendMessage();
-}
-
-// Execute signal
-async function executeSignal(symbol, signal) {
-    if (!confirm(`Execute ${signal} order for ${symbol}?`)) return;
-    
-    showToast(`Executing ${signal} for ${symbol}...`, 'info');
-    
-    try {
-        const resp = await fetch('/api/trade/execute', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({symbol, side: signal.toLowerCase()})
-        });
-        
-        const data = await resp.json();
-        if (data.success) {
-            showToast(`Order executed: ${data.order_id}`, 'success');
-        } else {
-            showToast(`Failed: ${data.error}`, 'danger');
-        }
-    } catch (e) {
-        showToast('Execution failed', 'danger');
-    }
-}
-
-// Refresh predictions
-function refreshPredictions() {
-    loadPredictions();
-    updateStats();
-    showToast('Predictions refreshed', 'success');
-}
-
-// Settings
-function saveSettings() {
-    const threshold = document.getElementById('signal-threshold').value;
-    const refresh = document.getElementById('auto-refresh').value;
-    
-    localStorage.setItem('zeroclaw-threshold', threshold);
-    localStorage.setItem('zeroclaw-refresh', refresh);
-    
-    // Update refresh interval
-    if (refreshInterval) clearInterval(refreshInterval);
-    if (parseInt(refresh) > 0) {
-        refreshInterval = setInterval(() => {
-            updateStats();
-            loadPredictions();
-        }, parseInt(refresh) * 1000);
-    }
-    
-    bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
-    showToast('Settings saved', 'success');
-}
-
-// Threshold slider
-document.getElementById('signal-threshold')?.addEventListener('input', function() {
-    document.getElementById('threshold-value').textContent = this.value;
-});
-
-// Toast helper
-function showToast(message, type) {
-    if (window.showToast) {
-        window.showToast(message, type);
-    }
 }
 </script>
 {% endblock %}

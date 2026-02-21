@@ -588,19 +588,47 @@ def stop_bot():
 
 @app.route("/api/zeroclaw/status")
 def zeroclaw_status():
-    """Check ZeroClaw AI system status"""
+    """Check ZeroClaw AI system status - both personal and trading instances"""
+    import requests
+    
+    result = {
+        "personal": {"running": False, "port": 3000},
+        "trading": {"running": False, "port": 3001},
+        "overall": False
+    }
+    
+    # Check personal bot (port 3000)
     try:
-        import requests
         resp = requests.get('http://127.0.0.1:3000/health', timeout=5)
-        data = resp.json() if resp.status_code == 200 else {}
-        return jsonify({
-            "running": data.get('status') == 'ok',
-            "paired": data.get('paired', False),
-            "uptime_seconds": data.get('runtime', {}).get('uptime_seconds', 0),
-            "components": data.get('runtime', {}).get('components', {})
-        })
+        if resp.status_code == 200:
+            data = resp.json()
+            result["personal"] = {
+                "running": True,
+                "port": 3000,
+                "status": data.get('status', 'ok'),
+                "paired": data.get('paired', False),
+                "uptime_seconds": data.get('runtime', {}).get('uptime_seconds', 0)
+            }
     except Exception as e:
-        return jsonify({"running": False, "error": str(e)})
+        result["personal"]["error"] = str(e)
+    
+    # Check trading bot (port 3001)
+    try:
+        resp = requests.get('http://127.0.0.1:3001/health', timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            result["trading"] = {
+                "running": True,
+                "port": 3001,
+                "status": data.get('status', 'ok'),
+                "paired": data.get('paired', False),
+                "uptime_seconds": data.get('runtime', {}).get('uptime_seconds', 0)
+            }
+    except Exception as e:
+        result["trading"]["error"] = str(e)
+    
+    result["overall"] = result["personal"]["running"] or result["trading"]["running"]
+    return jsonify(result)
 
 @app.route("/api/zeroclaw/chat", methods=["POST"])
 def zeroclaw_chat():
@@ -774,6 +802,46 @@ def zeroclaw_stats():
             conn.close()
         
         return jsonify(stats)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/zeroclaw/skill", methods=["POST"])
+def zeroclaw_skill():
+    """Execute a ZeroClaw skill directly"""
+    try:
+        data = request.json
+        skill = data.get('skill', '')
+        params = data.get('params', '')
+        
+        # Map skill names to executor commands
+        skill_commands = {
+            'price-check': f'price of {params}' if params else 'BTC',
+            'system-diagnostic': 'status',
+            'performance-monitor': 'performance',
+            'debugger': 'debug',
+            'log-analyzer': 'logs',
+            'arbitrage-scan': 'arbitrage',
+            'portfolio-check': 'portfolio',
+            'config-optimizer': 'optimize',
+            'bot-developer': f'develop {params}' if params else 'develop',
+            'messenger-agent': f'format {params}' if params else 'format'
+        }
+        
+        command = skill_commands.get(skill, skill)
+        
+        # Execute via executor
+        import subprocess
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/executor.py', command],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return jsonify({"success": True, "output": result.stdout})
+        else:
+            return jsonify({"success": False, "error": result.stderr})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 

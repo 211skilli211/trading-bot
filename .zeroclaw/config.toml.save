@@ -1,0 +1,328 @@
+# ZeroClaw Trading Bot Configuration ================================== This is 
+# the SECOND ZeroClaw instance for trading-bot Port: 3001 (to avoid conflict 
+# with personal instance on 3000)
+
+# ============================================
+# API & MODEL CONFIGURATION
+# ============================================
+api_key = "enc:trading_bot_api_key_placeholder"
+default_provider = "openrouter"
+default_model = "openrouter/free"
+default_temperature = 0.3
+model_routes = []
+
+# ============================================
+# GATEWAY (HTTP API)
+# ============================================
+[gateway]
+port = 3001
+host = "127.0.0.1"
+require_pairing = true
+allow_public_bind = false
+paired_tokens = []
+pair_rate_limit_per_minute = 10
+webhook_rate_limit_per_minute = 60
+trust_forwarded_headers = false
+rate_limit_max_keys = 10000
+idempotency_ttl_secs = 300
+idempotency_max_keys = 10000
+
+# ============================================
+# TELEGRAM BOT (Trading Bot)
+# ============================================
+[channels_config.telegram]
+bot_token = "YOUR_TRADING_BOT_TOKEN_HERE"
+allowed_users = []
+stream_mode = "off"
+draft_update_interval_ms = 1000
+mention_only = false
+
+# ============================================
+# TUNNEL (ngrok for external access)
+# ============================================
+[tunnel]
+provider = "ngrok"
+
+[tunnel.ngrok]
+auth_token = "YOUR_NGROK_AUTH_TOKEN_HERE"
+
+# ============================================
+# MEMORY & STORAGE
+# ============================================
+[memory]
+backend = "sqlite"
+auto_save = true
+hygiene_enabled = true
+archive_after_days = 7
+purge_after_days = 30
+conversation_retention_days = 30
+embedding_provider = "none"
+embedding_model = "text-embedding-3-small"
+embedding_dimensions = 1536
+vector_weight = 0.7
+keyword_weight = 0.3
+min_relevance_score = 0.4
+embedding_cache_size = 10000
+chunk_max_tokens = 512
+response_cache_enabled = false
+response_cache_ttl_minutes = 60
+response_cache_max_entries = 5000
+snapshot_enabled = false
+snapshot_on_hygiene = false
+auto_hydrate = true
+
+[storage.provider.config]
+provider = ""
+schema = "public"
+table = "memories"
+
+# ============================================
+# AUTONOMY & SAFETY
+# ============================================
+[autonomy]
+level = "supervised"
+workspace_only = true
+allowed_commands = [
+    "git",
+    "npm",
+    "cargo",
+    "ls",
+    "cat",
+    "grep",
+    "find",
+    "echo",
+    "pwd",
+    "wc",
+    "head",
+    "tail",
+    "python3",
+    "pip3",
+]
+forbidden_paths = [
+    "/etc",
+    "/root/.zeroclaw",
+    "/root/.ssh",
+    "/root/.gnupg",
+    "/root/.aws",
+    "/root/.config",
+    "/usr",
+    "/bin",
+    "/sbin",
+    "/lib",
+    "/opt",
+    "/boot",
+    "/dev",
+    "/proc",
+    "/sys",
+    "/var",
+]
+max_actions_per_hour = 50
+max_cost_per_day_cents = 1000
+require_approval_for_medium_risk = true
+block_high_risk_commands = true
+auto_approve = [
+    "file_read",
+    "memory_recall",
+    "web_search",
+]
+always_ask = []
+
+# ============================================
+# RUNTIME
+# ============================================
+[runtime]
+kind = "native"
+
+[runtime.docker]
+image = "alpine:3.20"
+network = "none"
+memory_limit_mb = 512
+cpu_limit = 1.0
+read_only_rootfs = true
+mount_workspace = true
+allowed_workspace_roots = []
+
+# ============================================
+# RELIABILITY
+# ============================================
+[reliability]
+provider_retries = 2
+provider_backoff_ms = 500
+fallback_providers = []
+api_keys = []
+channel_initial_backoff_secs = 2
+channel_max_backoff_secs = 60
+scheduler_poll_secs = 15
+scheduler_retries = 2
+
+[reliability.model_fallbacks]
+
+# ============================================
+# SCHEDULER
+# ============================================
+[scheduler]
+enabled = true
+max_tasks = 64
+max_concurrent = 4
+
+# ============================================
+# AGENT SETTINGS
+# ============================================
+[agent]
+compact_context = false
+max_tool_iterations = 15
+max_history_messages = 100
+parallel_tools = false
+tool_dispatcher = "auto"
+
+# ============================================
+# QUERY CLASSIFICATION
+# ============================================
+[query_classification]
+enabled = true
+rules = []
+
+# ============================================
+# HEARTBEAT
+# ============================================
+[heartbeat]
+enabled = true
+interval_minutes = 5
+
+# ============================================
+# CRON
+# ============================================
+[cron]
+enabled = true
+max_run_history = 100
+
+# ============================================
+# CHANNELS
+# ============================================
+[channels_config]
+cli = true
+
+# ============================================
+# WEB SEARCH
+# ============================================
+[web_search]
+enabled = true
+provider = "duckduckgo"
+max_results = 10
+timeout_secs = 15
+
+# ============================================
+# BROWSER
+# ============================================
+[browser]
+enabled = false
+allowed_domains = []
+backend = "agent_browser"
+native_headless = true
+native_webdriver_url = "http://127.0.0.1:9515"
+
+[browser.computer_use]
+endpoint = "http://127.0.0.1:8787/v1/actions"
+timeout_ms = 15000
+allow_remote_endpoint = false
+window_allowlist = []
+
+# ============================================
+# HTTP REQUESTS
+# ============================================
+[http_request]
+enabled = true
+allowed_domains = [
+    "api.binance.com",
+    "api.coinbase.com",
+    "api.kraken.com",
+    "api.bybit.com",
+    "api.kucoin.com",
+    "api.mainnet-beta.solana.com",
+    "quote-api.jup.ag",
+    "api.coingecko.com",
+    "api.dexscreener.com",
+    "api.birdeye.so",
+]
+max_response_size = 10485760
+timeout_secs = 30
+
+# ============================================
+# PROXY
+# ============================================
+[proxy]
+enabled = false
+no_proxy = []
+scope = "zeroclaw"
+services = []
+
+# ============================================
+# IDENTITY
+# ============================================
+[identity]
+format = "openclaw"
+
+# ============================================
+# COST TRACKING
+# ============================================
+[cost]
+enabled = true
+daily_limit_usd = 10.0
+monthly_limit_usd = 100.0
+warn_at_percent = 80
+allow_override = false
+
+[cost.prices."anthropic/claude-3-haiku"]
+input = 0.25
+output = 1.25
+
+[cost.prices."anthropic/claude-sonnet-4-20250514"]
+input = 3.0
+output = 15.0
+
+[cost.prices."openai/gpt-4o"]
+input = 5.0
+output = 15.0
+
+[cost.prices."openai/gpt-4o-mini"]
+input = 0.15
+output = 0.6
+
+# ============================================
+# OBSERVABILITY
+# ============================================
+[observability]
+backend = "none"
+
+# ============================================
+# SECRETS
+# ============================================
+[secrets]
+encrypt = true
+
+# ============================================
+# COMPOSIO
+# ============================================
+[composio]
+enabled = false
+entity_id = "default"
+
+# ============================================
+# PERIPHERALS
+# ============================================
+[peripherals]
+enabled = false
+boards = []
+
+# ============================================
+# HARDWARE
+# ============================================
+[hardware]
+enabled = false
+transport = "None"
+baud_rate = 115200
+
+# ============================================
+# AGENTS
+# ============================================
+[agents]

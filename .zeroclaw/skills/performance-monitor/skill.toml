@@ -1,0 +1,29 @@
+[skill]
+name = "performance-monitor"
+version = "1.0.0"
+description = "Monitor trading performance and P&L"
+author = "211Skilli"
+
+[triggers]
+patterns = [
+    "performance",
+    "how am i doing",
+    "pnl",
+    "profit and loss",
+    "track record",
+    "win rate",
+    "strategy stats",
+    "trading stats",
+    "am i profitable",
+    "stats"
+]
+
+[execution]
+command = "python3"
+args = ["/root/trading-bot/.zeroclaw/skills/performance-monitor/handler.py"]
+
+[output]
+format = "plain"
+
+[notify]
+telegram = true

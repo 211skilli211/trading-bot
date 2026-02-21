@@ -1,0 +1,65 @@
+[skill]
+name = "Debugger"
+description = "Debug errors, trace issues, and analyze failures in the trading system"
+version = "1.0.0"
+author = "211Skilli"
+
+[triggers]
+patterns = [
+    "debug",
+    "trace error",
+    "why did it fail",
+    "error log",
+    "exception",
+    "traceback",
+    "what went wrong",
+    "fix this"
+]
+
+[capabilities]
+- read_logs = true
+- analyze_tracebacks = true
+- search_errors = true
+- suggest_fixes = true
+- test_connectivity = true
+- validate_config = true
+
+[log_sources]
+files = [
+    "/root/trading-bot/bot.log",
+    "/root/trading-bot/dashboard.log",
+    "/root/trading-bot/storage/logs/trades.log",
+    "/root/.zeroclaw/zeroclaw.log",
+    "/tmp/trading_zeroclaw/zeroclaw.log"
+]
+max_lines = 100
+error_patterns = [
+    "ERROR",
+    "CRITICAL",
+    "Exception",
+    "Traceback",
+    "Failed",
+    "Connection refused",
+    "Timeout",
+    "401",
+    "403",
+    "500"
+]
+
+[tools]
+allowed = ["shell", "file_read", "file_write", "grep"]
+
+[debugging]
+steps = [
+    "1. Identify error from logs",
+    "2. Trace to source file/line",
+    "3. Check configuration",
+    "4. Test connectivity if API-related",
+    "5. Suggest fix or workaround",
+    "6. Apply fix (if safe)",
+    "7. Verify resolution"
+]
+
+[notify]
+telegram = true
+show_traceback = true

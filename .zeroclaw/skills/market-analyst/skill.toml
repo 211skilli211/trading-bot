@@ -1,0 +1,20 @@
+[skill]
+name = "Market Analyst"
+description = "Technical and fundamental analysis specialist"
+version = "1.0.0"
+
+[capabilities]
+- technical_analysis = true
+- pattern_recognition = true
+- support_resistance = true
+- trend_analysis = true
+- volume_analysis = true
+
+[apis]
+coingecko = "https://api.coingecko.com/api/v3"
+trending = "/search/trending"
+markets = "/coins/markets"
+
+[analysis]
+timeframes = ["15m", "1h", "4h", "1d"]
+indicators = ["rsi", "macd", "ema", "volume", "bollinger"]

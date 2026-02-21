@@ -1,0 +1,28 @@
+[skill]
+name = "system-diagnostic"
+version = "1.0.0"
+description = "Diagnose trading bot health and system status"
+author = "211Skilli"
+
+[triggers]
+patterns = [
+    "diagnose",
+    "system status",
+    "health check",
+    "is bot working",
+    "check connection",
+    "debug bot",
+    "what's wrong",
+    "why isn't it working",
+    "status"
+]
+
+[execution]
+command = "python3"
+args = ["/root/trading-bot/.zeroclaw/skills/system-diagnostic/handler.py"]
+
+[output]
+format = "plain"
+
+[notify]
+telegram = true
