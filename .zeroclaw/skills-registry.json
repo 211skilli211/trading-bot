@@ -1,0 +1,137 @@
+{
+  "version": "1.0",
+  "skills": [
+    {
+      "name": "system-info",
+      "description": "Check device system status and resources",
+      "version": "1.0",
+      "author": "personal-bot",
+      "tags": [
+        "system",
+        "info",
+        "monitoring"
+      ]
+    },
+    {
+      "name": "file-manager",
+      "description": "Browse and manage files in workspace",
+      "version": "1.0",
+      "author": "personal-bot",
+      "tags": [
+        "files",
+        "management"
+      ]
+    },
+    {
+      "name": "note-keeper",
+      "description": "Save and retrieve quick notes",
+      "version": "1.0",
+      "author": "personal-bot",
+      "tags": [
+        "notes",
+        "productivity"
+      ]
+    },
+    {
+      "name": "show-menu",
+      "description": "Display Reply Keyboard with quick action buttons",
+      "version": "1.0",
+      "author": "personal-bot",
+      "tags": [
+        "ui",
+        "menu",
+        "keyboard"
+      ],
+      "capabilities": [
+        "telegram-api",
+        "user-interface"
+      ]
+    },
+    {
+      "name": "memory-capture",
+      "description": "Save notes to Memory Vault with auto-tagging",
+      "version": "1.0",
+      "author": "personal-bot",
+      "tags": [
+        "memory",
+        "capture",
+        "notes"
+      ],
+      "capabilities": [
+        "storage",
+        "auto-tag"
+      ]
+    },
+    {
+      "name": "memory-search",
+      "description": "Search through Memory Vault and daily notes",
+      "version": "1.0",
+      "author": "personal-bot",
+      "tags": [
+        "memory",
+        "search",
+        "find"
+      ],
+      "capabilities": [
+        "search",
+        "retrieval"
+      ]
+    },
+    {
+      "name": "show-dashboard",
+      "description": "Display visual ASCII dashboard with activity stats",
+      "version": "1.0",
+      "author": "personal-bot",
+      "tags": [
+        "dashboard",
+        "overview",
+        "stats"
+      ],
+      "capabilities": [
+        "visualization",
+        "analytics"
+      ]
+    },
+    {
+      "name": "daily-summary",
+      "description": "Show today's captured notes and activity",
+      "version": "1.0",
+      "author": "personal-bot",
+      "tags": [
+        "daily",
+        "summary",
+        "activity"
+      ],
+      "capabilities": [
+        "reporting",
+        "time-based"
+      ]
+    },
+    {
+      "name": "show-help",
+      "description": "Display help message with all commands",
+      "version": "1.0",
+      "author": "personal-bot",
+      "tags": [
+        "help",
+        "documentation"
+      ],
+      "capabilities": [
+        "user-guide"
+      ]
+    },
+    {
+      "name": "close-menu",
+      "description": "Hide the Reply Keyboard",
+      "version": "1.0",
+      "author": "personal-bot",
+      "tags": [
+        "ui",
+        "keyboard"
+      ],
+      "capabilities": [
+        "telegram-api"
+      ]
+    }
+  ]
+}
