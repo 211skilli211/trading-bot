@@ -2322,3 +2322,50 @@ def run_dashboard(host="0.0.0.0", port=8080):
 
 if __name__ == "__main__":
     run_dashboard()
+
+# Schedule API endpoints
+@app.route("/api/schedule/list")
+def schedule_list():
+    """List scheduled posts"""
+    try:
+        import sys
+        sys.path.insert(0, '/root/trading-bot/.zeroclaw')
+        from schedule_tool import ScheduleTool
+        posts = ScheduleTool.load_posts()
+        return jsonify({
+            "success": True,
+            "posts": [p for p in posts if not p.get("sent")]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/schedule/create", methods=["POST"])
+def schedule_create():
+    """Create a scheduled post"""
+    try:
+        import sys
+        sys.path.insert(0, '/root/trading-bot/.zeroclaw')
+        from schedule_tool import ScheduleTool
+        
+        data = request.json
+        result = ScheduleTool.schedule(
+            data.get("message", ""),
+            data.get("when", ""),
+            data.get("user_id", "dashboard")
+        )
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/schedule/cancel/<post_id>", methods=["DELETE"])
+def schedule_cancel(post_id):
+    """Cancel a scheduled post"""
+    try:
+        import sys
+        sys.path.insert(0, '/root/trading-bot/.zeroclaw')
+        from schedule_tool import ScheduleTool
+        
+        success = ScheduleTool.cancel(post_id, request.args.get("user_id", "dashboard"))
+        return jsonify({"success": success})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
