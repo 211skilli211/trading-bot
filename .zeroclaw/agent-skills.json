@@ -1,0 +1,44 @@
+{
+  "agents": [
+    {
+      "id": "market-analyst",
+      "name": "Market Analyst",
+      "icon": "📊",
+      "description": "Analyzes market prices and trends",
+      "commands": ["price", "btc", "eth", "sol", "signals"],
+      "color": "#3b82f6"
+    },
+    {
+      "id": "arbitrage-hunter",
+      "name": "Arbitrage Hunter", 
+      "icon": "⚡",
+      "description": "Finds cross-exchange arbitrage opportunities",
+      "commands": ["arbitrage", "spread"],
+      "color": "#f59e0b"
+    },
+    {
+      "id": "portfolio-manager",
+      "name": "Portfolio Manager",
+      "icon": "💼",
+      "description": "Manages portfolio and tracks PnL",
+      "commands": ["portfolio", "positions"],
+      "color": "#22c55e"
+    },
+    {
+      "id": "system-monitor",
+      "name": "System Monitor",
+      "icon": "🔧",
+      "description": "Monitors system health and diagnostics",
+      "commands": ["status", "health", "debug"],
+      "color": "#64748b"
+    },
+    {
+      "id": "alert-manager",
+      "name": "Alert Manager",
+      "icon": "🔔",
+      "description": "Manages price alerts and notifications",
+      "commands": ["alert", "alerts"],
+      "color": "#ef4444"
+    }
+  ]
+}

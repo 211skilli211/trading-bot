@@ -1,0 +1,8 @@
+[skill]
+name = "signals"
+version = "1.0.0"
+description = "Generate trading signals based on technical analysis"
+author = "211Skilli"
+
+[triggers]
+patterns = ["signals", "/signals", "trading signals", "buy sell signals"]
