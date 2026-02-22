@@ -85,7 +85,7 @@ max_concurrent = 4
 
 [agent]
 compact_context = false
-max_tool_iterations = 10
+max_tool_iterations = 50
 max_history_messages = 50
 parallel_tools = false
 tool_dispatcher = "auto"
