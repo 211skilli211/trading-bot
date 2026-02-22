@@ -49,24 +49,35 @@
         {% set symbol = p.symbol.replace('/USDT','').replace('/USD','') %}
         {% set change = p.change_24h|default(0) %}
         {% set is_positive = change >= 0 %}
+        {% set is_bullish = change >= 5 %}
+        {% set is_bearish = change <= -5 %}
+        {% set card_class = 'border-success' if is_bullish else 'border-danger' if is_bearish else 'border-secondary' %}
+        {% set bg_class = 'bg-success bg-opacity-10' if is_bullish else 'bg-danger bg-opacity-10' if is_bearish else '' %}
         <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-            <div class="card h-100">
+            <div class="card h-100 {{ card_class }} {{ bg_class }}">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="d-flex align-items-center">
-                            <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                                <i class="bi bi-currency-bitcoin text-white"></i>
+                            <div class="coin-icon-wrapper me-2" style="width: 32px; height: 32px;">
+                                <img src="" data-symbol="{{ symbol }}" class="coin-icon" 
+                                     style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;"
+                                     alt="{{ symbol }}">
                             </div>
                             <div>
                                 <div class="fw-bold">{{ symbol }}</div>
                                 <small class="text-muted">{{ p.exchange }}</small>
                             </div>
                         </div>
+                        {% if is_bullish %}
+                        <span class="badge bg-success"><i class="bi bi-arrow-up"></i></span>
+                        {% elif is_bearish %}
+                        <span class="badge bg-danger"><i class="bi bi-arrow-down"></i></span>
+                        {% endif %}
                     </div>
                     <div class="h4 mb-1">${{ "%.2f"|format(p.price) }}</div>
                     <div class="d-flex justify-content-between text-muted small">
                         <span class="{% if is_positive %}text-success{% else %}text-danger{% endif %}">
-                            <i class="bi bi-arrow-{% if is_positive %}up{% else %}down %}-short{% endif %}"></i>
+                            <i class="bi bi-arrow-{% if is_positive %}up{% else %}down{% endif %}"></i>
                             {{ "%.2f"|format(change) }}%
                         </span>
                         <span>Vol: ${{ "%.1f"|format((p.volume_24h|default(0))/1e6) }}M</span>
@@ -107,20 +118,32 @@
                     <tbody>
                         {% for p in data.prices_list %}
                         {% set symbol = p.symbol.replace('/USDT','').replace('/USD','') %}
+                        {% set change = p.change_24h|default(0) %}
+                        {% set is_positive = change >= 0 %}
+                        {% set is_bullish = change >= 5 %}
+                        {% set is_bearish = change <= -5 %}
+                        {% set row_class = 'table-success' if is_bullish else 'table-danger' if is_bearish else '' %}
                         {% set spread = ((p.ask|default(p.price) - p.bid|default(p.price))/p.price*100)|default(0) if p.price else 0 %}
-                        <tr>
+                        <tr class="{{ row_class }}">
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px;">
-                                        <i class="bi bi-currency-bitcoin text-white small"></i>
+                                    <div class="coin-icon-wrapper me-2" style="width: 24px; height: 24px;">
+                                        <img src="" data-symbol="{{ symbol }}" class="coin-icon" 
+                                             style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;"
+                                             alt="{{ symbol }}">
                                     </div>
                                     <span class="fw-bold">{{ symbol }}</span>
+                                    {% if is_bullish %}
+                                    <span class="badge bg-success ms-2"><i class="bi bi-arrow-up"></i></span>
+                                    {% elif is_bearish %}
+                                    <span class="badge bg-danger ms-2"><i class="bi bi-arrow-down"></i></span>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td>{{ p.exchange }}</td>
                             <td class="fw-bold">${{ "%.2f"|format(p.price) }}</td>
-                            <td class="{% if p.change_24h|default(0) >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                {% if p.change_24h|default(0) >= 0 %}+{% endif %}{{ "%.2f"|format(p.change_24h|default(0)) }}%
+                            <td class="{% if is_positive %}text-success{% else %}text-danger{% endif %}">
+                                {% if is_positive %}+{% endif %}{{ "%.2f"|format(change) }}%
                             </td>
                             <td>{{ "%.2f"|format(spread) }}%</td>
                             <td>${{ "%.1f"|format((p.volume_24h|default(0))/1e6) }}M</td>
@@ -255,11 +278,63 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <script src="/static/js/coinData.js"></script>
 <script>
+// Coin symbol to logo URL mapping - using CoinGecko CDN
+const COIN_LOGOS = {
+    'BTC': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+    'ETH': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+    'SOL': 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+    'BNB': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+    'XRP': 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
+    'ADA': 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
+    'DOGE': 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
+    'TRX': 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
+    'AVAX': 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+    'LINK': 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+    'DOT': 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
+    'MATIC': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+    'SHIB': 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
+    'LTC': 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
+    'BCH': 'https://assets.coingecko.com/coins/images/780/small/bitcoin-cash-circle.png',
+    'USDC': 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
+    'USDT': 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+    'TON': 'https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png',
+    'SUI': 'https://assets.coingecko.com/coins/images/26375/small/sui_asset.jpeg',
+    'APT': 'https://assets.coingecko.com/coins/images/26455/small/aptos_round.png',
+    'NEAR': 'https://assets.coingecko.com/coins/images/10365/small/near.jpg',
+    'UNI': 'https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png',
+    'ATOM': 'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',
+    'ETC': 'https://assets.coingecko.com/coins/images/453/small/ethereum-classic-logo.png',
+    'XLM': 'https://assets.coingecko.com/coins/images/100/small/Stellar_symbol_black_RGB.png',
+    'FIL': 'https://assets.coingecko.com/coins/images/12817/small/filecoin.png',
+    'ALGO': 'https://assets.coingecko.com/coins/images/4380/small/download.png',
+    'VET': 'https://assets.coingecko.com/coins/images/1167/small/VET_Token_Icon.png',
+    'ICP': 'https://assets.coingecko.com/coins/images/14495/small/Internet_Computer_logo.png',
+    'AAVE': 'https://assets.coingecko.com/coins/images/12645/small/AAVE.png',
+    'GRT': 'https://assets.coingecko.com/coins/images/13311/small/The_Graph.png',
+    'MANA': 'https://assets.coingecko.com/coins/images/878/small/decentraland-mana.png',
+    'SAND': 'https://assets.coingecko.com/coins/images/12129/small/sandbox_logo.jpg',
+    'AXS': 'https://assets.coingecko.com/coins/images/13029/small/axie_infinity_logo.png',
+    'THETA': 'https://assets.coingecko.com/coins/images/2538/small/theta-token-logo.png',
+    'XTZ': 'https://assets.coingecko.com/coins/images/975/small/Tezos-logo.png',
+    'FTM': 'https://assets.coingecko.com/coins/images/4001/small/Fantom.png',
+    'HBAR': 'https://assets.coingecko.com/coins/images/3688/small/hbar.png',
+    'EGLD': 'https://assets.coingecko.com/coins/images/12335/small/egld-token-logo.png'
+};
+
+function getCoinLogoUrl(symbol) {
+    const upperSymbol = symbol.toUpperCase();
+    if (COIN_LOGOS[upperSymbol]) {
+        return COIN_LOGOS[upperSymbol];
+    }
+    // Fallback to CoinGecko search
+    return `https://assets.coingecko.com/coins/images/1/small/${symbol.toLowerCase()}.png`;
+}
+
 let currentChart = null;
 let currentSymbol = '';
 let currentTimeframe = '30';
 
-// Set up icons on page load
+// Load coin icons on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadCoinIcons();
 });
@@ -268,9 +343,9 @@ function loadCoinIcons() {
     document.querySelectorAll('.coin-icon').forEach(img => {
         const symbol = img.getAttribute('data-symbol');
         if (symbol) {
-            img.src = getCoinIconUrl(symbol);
+            img.src = getCoinLogoUrl(symbol);
             img.onerror = function() {
-                // Final fallback
+                // Fallback to generated avatar
                 this.src = `https://ui-avatars.com/api/?name=${symbol}&background=random&color=fff&size=64&bold=true`;
             };
         }
@@ -325,9 +400,9 @@ function sortPrices() {
                 return parseFloat(priceText);
             }
             if (type === 'change') {
-                const badge = card.querySelector('.badge.bg-success, .badge.bg-danger');
-                if (!badge) return 0;
-                return parseFloat(badge.textContent);
+                const changeText = card.querySelector('.text-success, .text-danger');
+                if (!changeText) return 0;
+                return parseFloat(changeText.textContent.replace('%', '').trim());
             }
             return 0;
         };
@@ -400,7 +475,7 @@ function showChart(symbol) {
     currentTimeframe = '30';
     
     // Set icon and name
-    document.getElementById('chart-coin-icon').src = getCoinIconUrl(symbol);
+    document.getElementById('chart-coin-icon').src = getCoinLogoUrl(symbol);
     document.getElementById('chart-coin-name').textContent = `${symbol}/USDT Price Chart`;
     
     // Reset timeframe buttons
@@ -602,7 +677,7 @@ function renderCoinList(type, coins) {
         html += `
             <div class="list-group-item bg-dark d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center">
-                    <img src="${getCoinIconUrl(coin.symbol)}" 
+                    <img src="${getCoinLogoUrl(coin.symbol)}" 
                          class="me-2" style="width: 32px; height: 32px; border-radius: 50%; background: #1a1a2e;"
                          onerror="this.src='https://ui-avatars.com/api/?name=${coin.symbol}&background=random&color=fff&size=32'">
                     <div>

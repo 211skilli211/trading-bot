@@ -2214,6 +2214,94 @@ def ai_tools_execute():
         return jsonify({"success": False, "error": str(e)})
 
 # ============================================================================
+# SCHEDULED POSTS API
+# ============================================================================
+
+@app.route("/api/scheduled-posts/status")
+def scheduled_posts_status():
+    """Get scheduled posts status"""
+    try:
+        from scheduled_posts import get_poster
+        poster = get_poster()
+        return jsonify({
+            "success": True,
+            "status": poster.get_status()
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/scheduled-posts/start", methods=["POST"])
+def scheduled_posts_start():
+    """Start scheduled posts"""
+    try:
+        from scheduled_posts import start_scheduled_posts
+        poster = start_scheduled_posts()
+        return jsonify({
+            "success": True,
+            "message": "Scheduled posts started"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/scheduled-posts/stop", methods=["POST"])
+def scheduled_posts_stop():
+    """Stop scheduled posts"""
+    try:
+        from scheduled_posts import stop_scheduled_posts
+        stop_scheduled_posts()
+        return jsonify({
+            "success": True,
+            "message": "Scheduled posts stopped"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/scheduled-posts/config", methods=["GET", "POST"])
+def scheduled_posts_config():
+    """Get or update scheduled posts configuration"""
+    try:
+        from scheduled_posts import get_poster
+        poster = get_poster()
+        
+        if request.method == "POST":
+            new_config = request.json
+            poster.update_schedule(new_config)
+            return jsonify({
+                "success": True,
+                "message": "Configuration updated"
+            })
+        else:
+            return jsonify({
+                "success": True,
+                "config": poster.schedule_config
+            })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/scheduled-posts/test", methods=["POST"])
+def scheduled_posts_test():
+    """Send a test post immediately"""
+    try:
+        from scheduled_posts import get_poster
+        poster = get_poster()
+        
+        message = """🧪 <b>Test Post</b>
+
+This is a test message from the scheduled poster.
+
+If you're seeing this, the integration is working! ✅
+
+<i>ZeroClaw Trading Bot</i>"""
+        
+        success = poster.post_to_channel(message)
+        return jsonify({
+            "success": success,
+            "message": "Test post sent" if success else "Test post failed"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -2221,6 +2309,15 @@ def run_dashboard(host="0.0.0.0", port=8080):
     print(f"[Dashboard] Trading Bot Dashboard v2.0")
     print(f"[Dashboard] 16 pages | WalletConnect | ZeroClaw AI")
     print(f"[Dashboard] URL: http://{host}:{port}")
+    
+    # Start scheduled posts
+    try:
+        from scheduled_posts import start_scheduled_posts
+        start_scheduled_posts()
+        print("[Dashboard] Scheduled posts started")
+    except Exception as e:
+        print(f"[Dashboard] Failed to start scheduled posts: {e}")
+    
     app.run(host=host, port=port, debug=False, threaded=True)
 
 if __name__ == "__main__":

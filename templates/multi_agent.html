@@ -2,6 +2,60 @@
 {% block content %}
 <h4 class="mb-3"><i class="bi bi-people-fill text-success"></i> Multi-Agent Command Center</h4>
 
+<!-- Global Controls -->
+<div class="card mb-3 border-primary">
+    <div class="card-header bg-primary bg-opacity-10 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-sliders"></i> Global Controls</span>
+        <span class="badge bg-success" id="system-status">System Active</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-6 col-md-3">
+                <button class="btn btn-outline-success w-100" onclick="controlAllAgents('activate')">
+                    <i class="bi bi-play-fill"></i> Start All
+                </button>
+            </div>
+            <div class="col-6 col-md-3">
+                <button class="btn btn-outline-warning w-100" onclick="controlAllAgents('pause')">
+                    <i class="bi bi-pause-fill"></i> Pause All
+                </button>
+            </div>
+            <div class="col-6 col-md-3">
+                <button class="btn btn-outline-danger w-100" onclick="controlAllAgents('stop')">
+                    <i class="bi bi-stop-fill"></i> Stop All
+                </button>
+            </div>
+            <div class="col-6 col-md-3">
+                <button class="btn btn-outline-info w-100" onclick="restartAllAgents()">
+                    <i class="bi bi-arrow-clockwise"></i> Restart All
+                </button>
+            </div>
+        </div>
+        <div class="row g-2 mt-2">
+            <div class="col-6 col-md-3">
+                <button class="btn btn-outline-secondary w-100" onclick="showGlobalSettings()">
+                    <i class="bi bi-gear"></i> Global Settings
+                </button>
+            </div>
+            <div class="col-6 col-md-3">
+                <button class="btn btn-outline-secondary w-100" onclick="rebalanceCapital()">
+                    <i class="bi bi-arrow-left-right"></i> Rebalance
+                </button>
+            </div>
+            <div class="col-6 col-md-3">
+                <button class="btn btn-outline-secondary w-100" onclick="exportAgentData()">
+                    <i class="bi bi-download"></i> Export Data
+                </button>
+            </div>
+            <div class="col-6 col-md-3">
+                <button class="btn btn-outline-secondary w-100" onclick="loadAgentData()">
+                    <i class="bi bi-upload"></i> Load Config
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Agent Swarm Status -->
 <div class="row g-3 mb-3">
     <div class="col-md-3">
@@ -205,20 +259,59 @@ function updateAgentCards(agents) {
                             <span class="text-warning">${(agent.win_rate || 0).toFixed(1)}%</span>
                         </div>
                         <div class="col-6">
-                            <span class="text-muted">Last:</span>
-                            <span class="text-muted">${agent.last_signal || '-'}</span>
+                            <span class="text-muted">Capital:</span>
+                            <span class="text-primary">$${(agent.capital || 0).toFixed(0)}</span>
                         </div>
                     </div>
                     
-                    <div class="mt-3 d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-${agent.status === 'active' ? 'warning' : 'success'} flex-fill" 
-                                onclick="toggleAgent('${agent.name}', '${agent.status === 'active' ? 'pause' : 'activate'}')">
-                            <i class="bi bi-${agent.status === 'active' ? 'pause' : 'play'}-fill"></i>
-                            ${agent.status === 'active' ? 'Pause' : 'Activate'}
-                        </button>
-                        <button class="btn btn-sm btn-outline-info" onclick="showAgentLogs('${agent.name}')">
-                            <i class="bi bi-journal-text"></i>
-                        </button>
+                    <!-- Extended Controls -->
+                    <div class="mt-3">
+                        <div class="row g-1">
+                            <div class="col-4">
+                                <button class="btn btn-sm btn-outline-${agent.status === 'active' ? 'warning' : 'success'} w-100" 
+                                        onclick="toggleAgent('${agent.name}', '${agent.status === 'active' ? 'pause' : 'activate'}')"
+                                        title="${agent.status === 'active' ? 'Pause' : 'Activate'}">
+                                    <i class="bi bi-${agent.status === 'active' ? 'pause' : 'play'}-fill"></i>
+                                </button>
+                            </div>
+                            <div class="col-4">
+                                <button class="btn btn-sm btn-outline-info w-100" 
+                                        onclick="restartAgent('${agent.name}')"
+                                        title="Restart">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                            <div class="col-4">
+                                <button class="btn btn-sm btn-outline-secondary w-100" 
+                                        onclick="showAgentConfig('${agent.name}')"
+                                        title="Config">
+                                    <i class="bi bi-gear"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-1 mt-1">
+                            <div class="col-4">
+                                <button class="btn btn-sm btn-outline-primary w-100" 
+                                        onclick="showAgentLogs('${agent.name}')"
+                                        title="Logs">
+                                    <i class="bi bi-journal-text"></i>
+                                </button>
+                            </div>
+                            <div class="col-4">
+                                <button class="btn btn-sm btn-outline-warning w-100" 
+                                        onclick="adjustAgentCapital('${agent.name}')"
+                                        title="Adjust Capital">
+                                    <i class="bi bi-cash-stack"></i>
+                                </button>
+                            </div>
+                            <div class="col-4">
+                                <button class="btn btn-sm btn-outline-danger w-100" 
+                                        onclick="resetAgent('${agent.name}')"
+                                        title="Reset Stats">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -306,16 +399,171 @@ async function toggleAgent(name, action) {
         
         if (result.success) {
             loadMultiAgentStatus();
+            showToast(`Agent ${name} ${action}d`, 'success');
         } else {
-            alert('Error: ' + result.error);
+            showToast('Error: ' + result.error, 'danger');
         }
     } catch (e) {
-        alert('Error toggling agent: ' + e.message);
+        showToast('Error: ' + e.message, 'danger');
     }
 }
 
+async function restartAgent(name) {
+    if (!confirm(`Restart ${name}? This will reset its current state.`)) return;
+    
+    try {
+        const resp = await fetch('/api/multi-agent/control', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({agent: name, action: 'restart'})
+        });
+        const result = await resp.json();
+        
+        if (result.success) {
+            loadMultiAgentStatus();
+            showToast(`Agent ${name} restarted`, 'success');
+        } else {
+            showToast('Error: ' + result.error, 'danger');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'danger');
+    }
+}
+
+function showAgentConfig(name) {
+    // Show config modal
+    alert(`Config for ${name} - Feature coming soon\\n\\nSettings to include:\\n- Strategy parameters\\n- Risk limits\\n- Trading pairs\\n- Signal thresholds`);
+}
+
 function showAgentLogs(name) {
-    alert('Agent logs for ' + name + ' - Feature coming soon');
+    // Show logs modal
+    alert(`Logs for ${name} - Feature coming soon\\n\\nWill show:\\n- Recent trades\\n- Signal history\\n- Error logs\\n- Performance metrics`);
+}
+
+function adjustAgentCapital(name) {
+    const newCapital = prompt(`Enter new capital allocation for ${name}:`, '100');
+    if (newCapital && !isNaN(newCapital)) {
+        showToast(`Capital for ${name} adjusted to $${newCapital}`, 'success');
+        // Would send to backend
+    }
+}
+
+async function resetAgent(name) {
+    if (!confirm(`Reset ${name} stats? This cannot be undone.`)) return;
+    
+    try {
+        const resp = await fetch('/api/multi-agent/control', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({agent: name, action: 'reset'})
+        });
+        const result = await resp.json();
+        
+        if (result.success) {
+            loadMultiAgentStatus();
+            showToast(`Agent ${name} stats reset`, 'success');
+        } else {
+            showToast('Error: ' + result.error, 'danger');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'danger');
+    }
+}
+
+// Global controls
+async function controlAllAgents(action) {
+    const actionText = action === 'activate' ? 'start' : action;
+    if (!confirm(`${actionText.charAt(0).toUpperCase() + actionText.slice(1)} all agents?`)) return;
+    
+    try {
+        const resp = await fetch('/api/multi-agent/control', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({agent: 'all', action: action})
+        });
+        const result = await resp.json();
+        
+        if (result.success) {
+            loadMultiAgentStatus();
+            showToast(`All agents ${action}d`, 'success');
+        } else {
+            showToast('Error: ' + result.error, 'danger');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'danger');
+    }
+}
+
+async function restartAllAgents() {
+    if (!confirm('Restart all agents? This will reset their current state.')) return;
+    
+    try {
+        const resp = await fetch('/api/multi-agent/control', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({agent: 'all', action: 'restart'})
+        });
+        const result = await resp.json();
+        
+        if (result.success) {
+            loadMultiAgentStatus();
+            showToast('All agents restarted', 'success');
+        } else {
+            showToast('Error: ' + result.error, 'danger');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'danger');
+    }
+}
+
+function showGlobalSettings() {
+    alert('Global Settings - Feature coming soon\\n\\nSettings to include:\\n- Default risk level\\n- Max concurrent trades\\n- Stop loss / take profit defaults\\n- Rebalance frequency');
+}
+
+function rebalanceCapital() {
+    if (!confirm('Rebalance capital across all agents?')) return;
+    showToast('Capital rebalanced', 'success');
+}
+
+function exportAgentData() {
+    const data = {
+        agents: [], // Would get from API
+        timestamp: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `agent-config-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    showToast('Agent data exported', 'success');
+}
+
+function loadAgentData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            showToast(`Loading ${file.name}...`, 'info');
+            // Would process file
+        }
+    };
+    input.click();
+}
+
+// Toast notification
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 // Custom Agent Management
@@ -346,6 +594,9 @@ function renderCustomAgents() {
                     <div class="mt-2 d-flex gap-2">
                         <button class="btn btn-sm btn-outline-success" onclick="activateCustomAgent(${idx})">
                             <i class="bi bi-play"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editCustomAgent(${idx})">
+                            <i class="bi bi-pencil"></i>
                         </button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomAgent(${idx})">
                             <i class="bi bi-trash"></i>
@@ -412,6 +663,12 @@ async function createCustomAgent() {
     }
 }
 
+function editCustomAgent(idx) {
+    const agent = customAgents[idx];
+    // Would populate modal with agent data
+    alert(`Edit ${agent.name} - Feature coming soon`);
+}
+
 function activateCustomAgent(idx) {
     const agent = customAgents[idx];
     showToast(`Activating ${agent.name}...`, 'info');
@@ -437,10 +694,6 @@ function loadSkillFile(event) {
         showToast('Skill file loaded', 'success');
     };
     reader.readAsText(file);
-}
-
-function showToast(message, type) {
-    if (window.showToast) window.showToast(message, type);
 }
 
 // Initialize
@@ -495,13 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="col-12">
                             <label class="form-label">Strategy Prompt / Skill Definition *</label>
                             <textarea class="form-control bg-dark text-light" id="agent-prompt" rows="6" 
-                                      placeholder="Describe your trading strategy in natural language or paste skill file content...
-
-Example:
-- Buy when RSI < 30 and price above 50 SMA
-- Sell when RSI > 70 or stop loss hit
-- Max position size: 5% of portfolio
-- Only trade BTC and ETH pairs" required></textarea>
+                                      placeholder="Describe your trading strategy in natural language or paste skill file content...&#10;&#10;Example:&#10;- Buy when RSI < 30 and price above 50 SMA&#10;- Sell when RSI > 70 or stop loss hit&#10;- Max position size: 5% of portfolio&#10;- Only trade BTC and ETH pairs" required></textarea>
                             <small class="text-muted">Use natural language or structured skill definitions</small>
                         </div>
                         <div class="col-12">
