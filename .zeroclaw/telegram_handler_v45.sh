@@ -1,6 +1,6 @@
 #!/bin/bash
-# Trading Bot Handler v4.5 - Smart Post Scheduler
-# Users can schedule posts AND set up auto-generated content
+# Trading Bot Handler v4.5 - Hybrid: Handler for commands, AI for chat
+# Returns EMPTY for unknown messages (lets AI respond)
 
 read -r JSON_PAYLOAD
 
@@ -14,9 +14,10 @@ SCHEDULER_DIR="/tmp/trading_zeroclaw/.zeroclaw"
 
 # Start scheduler if not running
 if ! pgrep -f "scheduler.py" > /dev/null; then
-    python3 "$SCHEDULER_DIR/scheduler.py" &
+    python3 "$SCHEDULER_DIR/scheduler.py" > /dev/null 2>&1 &
 fi
 
+# Function to send message via Telegram API
 send_msg() {
 python3 << PYCODE
 import json, urllib.request
@@ -37,11 +38,11 @@ req = urllib.request.Request(
 try:
     urllib.request.urlopen(req, timeout=10)
 except Exception as e:
-    print(f'Error: {e}')
+    pass
 PYCODE
 }
 
-# Function to call Python scheduler
+# Schedule a post
 schedule_post() {
     local message="$1"
     local when="$2"
@@ -58,6 +59,7 @@ else:
 PYCODE
 }
 
+# Auto-schedule content
 schedule_auto() {
     local content_type="$1"
     local frequency="$2"
@@ -77,6 +79,7 @@ else:
 PYCODE
 }
 
+# List user's schedules
 list_schedules() {
     python3 << PYCODE
 import sys
@@ -103,30 +106,73 @@ else:
 PYCODE
 }
 
-# Handle commands
+# Get prices for AI context
+get_prices() {
+    cd "$WORKSPACE"
+    python3 << 'PYCODE'
+import requests, json
+try:
+    resp = requests.get('http://localhost:8080/api/zeroclaw/predictions', timeout=5)
+    if resp.status_code == 200:
+        data = resp.json()
+        prices = data.get('prices', {})
+        if prices:
+            print("Current Prices:")
+            for symbol, price in list(prices.items())[:5]:
+                print(f"• {symbol}: ${price:,.2f}")
+        else:
+            print("No price data available")
+    else:
+        print("Price service unavailable")
+except Exception as e:
+    print(f"Error fetching prices: {e}")
+PYCODE
+}
+
+# Get AI signals
+get_signals() {
+    cd "$WORKSPACE"
+    python3 << 'PYCODE'
+import requests, json
+try:
+    resp = requests.get('http://localhost:8080/api/zeroclaw/predictions', timeout=5)
+    if resp.status_code == 200:
+        data = resp.json()
+        predictions = data.get('predictions', [])
+        if predictions:
+            print("AI Signals:")
+            for pred in predictions[:3]:
+                symbol = pred.get('symbol', 'N/A')
+                direction = pred.get('direction', 'HOLD')
+                confidence = pred.get('confidence', 0)
+                print(f"• {symbol}: {direction} ({confidence}% confidence)")
+        else:
+            print("No active signals")
+    else:
+        print("Signal service unavailable")
+except Exception as e:
+    print(f"Error fetching signals: {e}")
+PYCODE
+}
+
+# Handle specific commands - if matched, we handle it
+# If not matched, output NOTHING so AI can respond
+
 case "$MSG_LOWER" in
   "menu"|"/menu"|"start"|"/start")
     KEYBOARD='{"keyboard": [[{"text": "📊 AI Signals"}, {"text": "💰 Prices"}, {"text": "💼 Portfolio"}], [{"text": "🔍 Arbitrage"}, {"text": "📈 Dashboard"}, {"text": "🤖 Bot Status"}], [{"text": "📢 Post to Channel"}, {"text": "📅 Schedule Post"}, {"text": "⚙️ Settings"}]], "resize_keyboard": true, "one_time_keyboard": false}'
     send_msg "📈 <b>ZeroClaw Trading Bot</b>\n\nChoose your action:" "$KEYBOARD"
-    echo "✅ Menu sent!"
+    # Output empty so AI doesn't duplicate
     ;;
     
-  "📅 schedule post"*)
-    REST=$(echo "$MESSAGE" | sed 's/^[📅][[:space:]]*Schedule Post[[:space:]]*//i')
-    
-    if [ -z "$REST" ]; then
-        send_msg "📅 <b>Smart Post Scheduler</b>\n\n<b>Option 1: Schedule a specific message</b>\nType:\n<code>schedule [message] for [when]</code>\n\nExamples:\n• schedule Buy BTC now for tomorrow 9am\n• schedule Price alert for in 2 hours\n• schedule Good morning traders for 2026-02-25 08:00\n\n<b>Option 2: Auto-generate content</b>\nType:\n<code>auto [type] [frequency]</code>\n\nTypes:\n• arbitrage - Arbitrage opportunities\n• prices - Price updates\n• signals - AI trading signals\n\nFrequencies:\n• hourly, every_4_hours, twice_daily\n• 3x_daily, daily, weekly\n\nExamples:\n• auto arbitrage twice_daily\n• auto prices every_4_hours\n• auto signals 3x_daily" ""
-    else
-        send_msg "Use the commands above to schedule posts!" ""
-    fi
-    echo "✅ Schedule help sent!"
+  "📅 schedule post"|"schedule help")
+    send_msg "📅 <b>Smart Post Scheduler</b>\n\n<b>Schedule a message:</b>\n<code>schedule [message] for [when]</code>\n\nExamples:\n• schedule Buy BTC now! for tomorrow 9am\n• schedule Price alert for in 2 hours\n• schedule Market update for 2026-02-25 08:00\n\n<b>Auto-generate content:</b>\n<code>auto [type] [frequency]</code>\n\nTypes: arbitrage, prices, signals\nFrequencies: hourly, every_4_hours, twice_daily, 3x_daily, daily\n\nExamples:\n• auto arbitrage twice_daily\n• auto prices every_4_hours\n• auto signals 3x_daily" ""
     ;;
     
   "schedule "*)
     # Parse: schedule [message] for [when]
     REST=$(echo "$MESSAGE" | sed 's/^schedule //i')
     
-    # Extract message and time
     if echo "$REST" | grep -qi " for "; then
         MSG_PART=$(echo "$REST" | sed 's/ for .*//i')
         TIME_PART=$(echo "$REST" | sed 's/.* for //i')
@@ -136,7 +182,6 @@ case "$MSG_LOWER" in
     else
         send_msg "❌ Format: <code>schedule [message] for [when]</code>\n\nExample: schedule Buy BTC for tomorrow 9am" ""
     fi
-    echo "✅ Schedule command handled!"
     ;;
     
   "auto "*)
@@ -147,17 +192,15 @@ case "$MSG_LOWER" in
     
     if [ -n "$CONTENT_TYPE" ] && [ -n "$FREQUENCY" ]; then
         RESULT=$(schedule_auto "$CONTENT_TYPE" "$FREQUENCY")
-        send_msg "🤖 <b>Auto-Schedule Created!</b>\n\n$RESULT\n\nThe bot will automatically generate and post content." ""
+        send_msg "🤖 <b>Auto-Schedule Created!</b>\n\n$RESULT" ""
     else
-        send_msg "❌ Format: <code>auto [type] [frequency]</code>\n\nExample: auto arbitrage twice_daily\n\nTypes: arbitrage, prices, signals\nFrequencies: hourly, every_4_hours, twice_daily, 3x_daily, daily" ""
+        send_msg "❌ Format: <code>auto [type] [frequency]</code>\n\nExample: auto arbitrage twice_daily" ""
     fi
-    echo "✅ Auto-schedule handled!"
     ;;
     
   "my schedules"|"list schedules"|"show schedules")
     RESULT=$(list_schedules)
     send_msg "📅 <b>Your Scheduled Posts</b>\n\n$RESULT" ""
-    echo "✅ Schedules listed!"
     ;;
     
   "cancel schedule "*)
@@ -168,15 +211,81 @@ sys.path.insert(0, '$SCHEDULER_DIR')
 from scheduler import get_scheduler
 scheduler = get_scheduler()
 if scheduler.cancel_post("""$SCHEDULE_ID""", "$USER_ID"):
-    print("✅ Schedule cancelled")
+    print("CANCELLED")
 else:
-    print("❌ Could not find schedule")
+    print("NOT_FOUND")
 PYCODE
-    echo "✅ Cancel handled!"
+    ;;
+    
+  "📊 ai signals"|"ai signals"|"signals"|"get signals")
+    RESULT=$(get_signals)
+    send_msg "🤖 <b>AI Trading Signals</b>\n\n<code>$RESULT</code>" ""
+    ;;
+    
+  "💰 prices"|"prices"|"get prices"|"price")
+    RESULT=$(get_prices)
+    send_msg "💰 <b>Live Prices</b>\n\n<code>$RESULT</code>" ""
+    ;;
+    
+  "💼 portfolio"|"portfolio")
+    # Let AI handle this with context
+    echo "$MESSAGE"
+    ;;
+    
+  "🔍 arbitrage"|"arbitrage"|"scan arbitrage")
+    # Let AI handle this
+    echo "$MESSAGE"
+    ;;
+    
+  "📈 dashboard"|"dashboard")
+    send_msg "📈 <b>Trading Dashboard</b>\n\n🔗 <a href='http://localhost:8080'>Open Dashboard</a>" ""
+    ;;
+    
+  "🤖 bot status"|"bot status"|"status")
+    # Let AI handle with dynamic data
+    echo "$MESSAGE"
+    ;;
+    
+  "📢 post to channel"*)
+    MSG_CONTENT=$(echo "$MESSAGE" | sed 's/^[📢][[:space:]]*Post to Channel[[:space:]]*//')
+    
+    if [ -n "$MSG_CONTENT" ]; then
+        # Post directly
+        python3 << PYCODE
+import json, urllib.request
+payload = {
+    'chat_id': '-1003637413591',
+    'text': """$MSG_CONTENT""",
+    'parse_mode': 'HTML'
+}
+data = json.dumps(payload).encode()
+req = urllib.request.Request(
+    f'https://api.telegram.org/bot$BOT_TOKEN/sendMessage',
+    data=data,
+    headers={'Content-Type': 'application/json'}
+)
+try:
+    urllib.request.urlopen(req, timeout=10)
+    print("POSTED")
+except:
+    print("FAILED")
+PYCODE
+    else
+        send_msg "📢 <b>Post to Channel</b>\n\nType your message and I'll post it to <b>Arbitrage Pro Signals</b>.\n\nOr use:\n<code>schedule [message] for [when]</code>" ""
+    fi
+    ;;
+    
+  "⚙️ settings"|"settings")
+    send_msg "⚙️ <b>Bot Settings</b>\n\nUse the dashboard for full configuration:\n🔗 <a href='http://localhost:8080/config'>Open Config</a>" ""
+    ;;
+    
+  "help"|"/help")
+    send_msg "📈 <b>Trading Bot Help</b>\n\n<b>Quick Commands:</b>\n• 📊 AI Signals - Get AI predictions\n• 💰 Prices - Live crypto prices\n• 📢 Post to Channel - Broadcast message\n• 📅 Schedule Post - Schedule messages\n\n<b>Examples:</b>\n• schedule Buy BTC for tomorrow 9am\n• auto arbitrage twice_daily\n• my schedules\n\nOr just chat with me about trading!" ""
     ;;
     
   *)
-    # Pass to regular handler
+    # Unknown command - let AI handle it
+    # Output the message so AI can respond dynamically
     echo "$MESSAGE"
     ;;
 esac
