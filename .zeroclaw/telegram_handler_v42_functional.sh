@@ -1,0 +1,389 @@
+#!/bin/bash
+# Trading Bot Handler v4.2 - ALL BUTTONS FUNCTIONAL
+# Every button performs its actual skill/task
+
+read -r JSON_PAYLOAD
+
+MESSAGE=$(echo "$JSON_PAYLOAD" | python3 -c "import json,sys; print(json.load(sys.stdin).get('message',''))" 2>/dev/null)
+MSG_LOWER=$(echo "$MESSAGE" | tr '[:upper:]' '[:lower:]')
+USER_ID=$(echo "$JSON_PAYLOAD" | python3 -c "import json,sys; print(json.load(sys.stdin).get('user_id',''))" 2>/dev/null)
+
+BOT_TOKEN="8275696907:AAGF4IE-XGNoFSQCSCZ2j47iu2p5Rfs7Cvc"
+WORKSPACE="/root/trading-bot"
+
+send_msg() {
+python3 << PYCODE
+import json, urllib.request
+chat_id = "$USER_ID"
+text = """$1"""
+markup = """$2"""
+
+payload = {'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}
+if markup:
+    payload['reply_markup'] = json.loads(markup)
+
+data = json.dumps(payload).encode()
+req = urllib.request.Request(
+    'https://api.telegram.org/bot' + '$BOT_TOKEN' + '/sendMessage',
+    data=data,
+    headers={'Content-Type': 'application/json'}
+)
+try:
+    urllib.request.urlopen(req, timeout=10)
+except Exception as e:
+    print(f'Error: {e}')
+PYCODE
+}
+
+# Get current prices from API
+get_prices() {
+    cd "$WORKSPACE"
+    python3 << 'PYCODE'
+import requests, json
+
+try:
+    # Try dashboard API first
+    resp = requests.get('http://localhost:8080/api/zeroclaw/predictions', timeout=5)
+    if resp.status_code == 200:
+        data = resp.json()
+        prices = data.get('prices', {})
+        if prices:
+            print("📊 LIVE PRICES\n")
+            for symbol, price in list(prices.items())[:5]:
+                print(f"• {symbol}: ${price:,.2f}")
+        else:
+            print("No price data available")
+    else:
+        # Fallback to direct fetch
+        import sys
+        sys.path.insert(0, '/root/trading-bot')
+        from crypto_price_fetcher import BinanceConnector, CoinbaseConnector
+        
+        binance = BinanceConnector()
+        coinbase = CoinbaseConnector()
+        
+        print("📊 LIVE PRICES\n")
+        
+        for symbol in ['BTC', 'ETH', 'SOL']:
+            bin_data = binance.fetch_price(f"{symbol}USDT")
+            if bin_data:
+                print(f"• {symbol}/USDT: ${bin_data['price']:,.2f}")
+except Exception as e:
+    print(f"⚠️ Error fetching prices: {e}")
+PYCODE
+}
+
+# Get AI signals
+get_ai_signals() {
+    cd "$WORKSPACE"
+    python3 << 'PYCODE'
+import requests, json
+
+try:
+    resp = requests.get('http://localhost:8080/api/zeroclaw/predictions', timeout=5)
+    if resp.status_code == 200:
+        data = resp.json()
+        predictions = data.get('predictions', [])
+        
+        if predictions:
+            print("🤖 AI TRADING SIGNALS\n")
+            for pred in predictions[:3]:
+                symbol = pred.get('symbol', 'N/A')
+                direction = pred.get('direction', 'HOLD')
+                confidence = pred.get('confidence', 0)
+                entry = pred.get('entry_price', 0)
+                
+                emoji = "🟢" if direction == "BUY" else "🔴" if direction == "SELL" else "⚪"
+                print(f"{emoji} {symbol}: {direction}")
+                print(f"   Confidence: {confidence}%")
+                if entry:
+                    print(f"   Entry: ${entry:,.2f}")
+                print()
+        else:
+            print("🤖 AI TRADING SIGNALS\n\nNo active signals at the moment.")
+    else:
+        print("⚠️ AI service unavailable")
+except Exception as e:
+    print(f"⚠️ Error: {e}")
+PYCODE
+}
+
+# Get portfolio data
+get_portfolio() {
+    cd "$WORKSPACE"
+    python3 << 'PYCODE'
+import sqlite3, json
+from datetime import datetime
+
+try:
+    conn = sqlite3.connect('trades.db')
+    cursor = conn.cursor()
+    
+    # Get stats
+    cursor.execute("SELECT COUNT(*) FROM trades")
+    total_trades = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM positions WHERE status='OPEN'")
+    open_pos = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT SUM(net_pnl) FROM trades")
+    result = cursor.fetchone()[0]
+    total_pnl = result if result else 0.0
+    
+    cursor.execute("SELECT AVG(CASE WHEN net_pnl > 0 THEN 1.0 ELSE 0.0 END) * 100 FROM trades")
+    win_rate = cursor.fetchone()[0] or 0.0
+    
+    conn.close()
+    
+    print("💼 PORTFOLIO STATUS\n")
+    print(f"📊 Total Trades: {total_trades}")
+    print(f"📈 Open Positions: {open_pos}")
+    print(f"💰 Total P&L: ${total_pnl:,.2f}")
+    print(f"🎯 Win Rate: {win_rate:.1f}%")
+    print(f"\n🔗 Dashboard: http://localhost:8080/portfolio")
+    
+except Exception as e:
+    print(f"⚠️ Portfolio error: {e}")
+PYCODE
+}
+
+# Run arbitrage scanner
+scan_arbitrage() {
+    cd "$WORKSPACE"
+    python3 << 'PYCODE'
+import requests, json
+
+try:
+    # Try API endpoint
+    resp = requests.get('http://localhost:8080/api/arbitrage/scan', timeout=10)
+    if resp.status_code == 200:
+        data = resp.json()
+        opportunities = data.get('opportunities', [])
+        
+        print("🔍 ARBITRAGE SCANNER\n")
+        
+        if opportunities:
+            for opp in opportunities[:3]:
+                symbol = opp.get('symbol', 'N/A')
+                spread = opp.get('spread_percent', 0)
+                buy_ex = opp.get('buy_exchange', 'N/A')
+                sell_ex = opp.get('sell_exchange', 'N/A')
+                
+                print(f"🟢 {symbol}")
+                print(f"   Spread: {spread:.2f}%")
+                print(f"   Buy: {buy_ex} → Sell: {sell_ex}")
+                print()
+        else:
+            print("No profitable opportunities found.")
+            print("Spreads are below 0.15% threshold.")
+            
+    else:
+        print("⚠️ Arbitrage scanner offline")
+except Exception as e:
+    print(f"🔍 ARBITRAGE SCANNER\n\nScanning CEX prices...\n⚠️ Scanner temporarily unavailable")
+PYCODE
+}
+
+# Get bot status
+get_bot_status() {
+    cd "$WORKSPACE"
+    python3 << 'PYCODE'
+import sqlite3
+from datetime import datetime
+
+try:
+    # Check processes
+    import subprocess
+    zerocount = subprocess.run("pgrep -f 'zeroclaw daemon' | wc -l", 
+                                shell=True, capture_output=True, text=True).stdout.strip()
+    
+    # Get database stats
+    conn = sqlite3.connect('trades.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM trades WHERE timestamp > datetime('now', '-1 day')")
+    daily_trades = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT SUM(net_pnl) FROM trades WHERE timestamp > datetime('now', '-1 day')")
+    daily_pnl = cursor.fetchone()[0] or 0.0
+    
+    cursor.execute("SELECT COUNT(*) FROM positions WHERE status='OPEN'")
+    open_pos = cursor.fetchone()[0]
+    
+    conn.close()
+    
+    print("🤖 BOT STATUS\n")
+    print(f"🟢 ZeroClaw instances: {zerocount} running")
+    print(f"📊 Today's trades: {daily_trades}")
+    print(f"💰 Today's P&L: ${daily_pnl:,.2f}")
+    print(f"📈 Open positions: {open_pos}")
+    print(f"\n🔗 API: http://localhost:8080")
+    print(f"⏱️ Checked: {datetime.now().strftime('%H:%M:%S')}")
+    
+except Exception as e:
+    print(f"⚠️ Status error: {e}")
+PYCODE
+}
+
+# Get settings
+get_settings() {
+    cd "$WORKSPACE"
+    python3 << 'PYCODE'
+import json
+
+try:
+    with open('config.json', 'r') as f:
+        config = json.load(f)
+    
+    mode = config.get('bot', {}).get('mode', 'PAPER')
+    max_trades = config.get('bot', {}).get('max_concurrent_trades', 5)
+    
+    print("⚙️ BOT SETTINGS\n")
+    print(f"🎮 Mode: {mode}")
+    print(f"📊 Max concurrent trades: {max_trades}")
+    
+    # Count enabled strategies
+    strategies = config.get('strategies', {})
+    enabled = [k for k, v in strategies.items() if v.get('enabled', False)]
+    print(f"🤖 Active strategies: {len(enabled)}")
+    print(f"   {', '.join(enabled[:3])}")
+    
+    print(f"\n💡 Edit config.json to change settings")
+    
+except Exception as e:
+    print(f"⚠️ Settings error: {e}")
+PYCODE
+}
+
+# Post to channel
+post_to_channel() {
+    local channel="$1"
+    local message="$2"
+    
+    if [ -z "$channel" ] || [ -z "$message" ]; then
+        send_msg "📢 CHANNEL BROADCAST\n\nUsage:\n• Post @channel_name Your message here\n\n<i>Bot must be admin in target channel</i>" ""
+        return
+    fi
+    
+    # Send message via Telegram API
+    python3 << PYCODE
+import json, urllib.request
+
+bot_token = "$BOT_TOKEN"
+channel = "$channel"
+message = """$message"""
+
+# Remove @ if present
+if channel.startswith('@'):
+    channel = channel[1:]
+
+payload = {
+    'chat_id': '@' + channel,
+    'text': message,
+    'parse_mode': 'HTML'
+}
+
+data = json.dumps(payload).encode()
+req = urllib.request.Request(
+    f'https://api.telegram.org/bot{bot_token}/sendMessage',
+    data=data,
+    headers={'Content-Type': 'application/json'}
+)
+
+try:
+    urllib.request.urlopen(req, timeout=10)
+    print("✅ Message sent to @$channel!")
+except Exception as e:
+    print(f"❌ Failed to send: {e}")
+PYCODE
+}
+
+# Handle commands
+case "$MSG_LOWER" in
+  "menu"|"/menu"|"start"|"/start")
+    KEYBOARD='{"keyboard": [[{"text": "📊 AI Signals"}, {"text": "💰 Prices"}, {"text": "💼 Portfolio"}], [{"text": "🔍 Arbitrage"}, {"text": "📈 Dashboard"}, {"text": "🤖 Bot Status"}], [{"text": "📢 Post to Channel"}, {"text": "⚙️ Settings"}]], "resize_keyboard": true, "one_time_keyboard": false}'
+    send_msg "📈 <b>ZeroClaw Trading Bot</b>\n\nChoose your trading action:" "$KEYBOARD"
+    echo "✅ Trading menu sent!"
+    ;;
+    
+  "🗑️ close"|"close menu"|"hide")
+    REMOVE='{"remove_keyboard": true}'
+    send_msg "✅ Keyboard hidden. Type 'menu' to bring it back!" "$REMOVE"
+    echo "✅ Closed!"
+    ;;
+    
+  "📊 ai signals"*)
+    RESULT=$(get_ai_signals)
+    send_msg "$RESULT" ""
+    echo "✅ AI Signals sent!"
+    ;;
+    
+  "💰 prices"*)
+    RESULT=$(get_prices)
+    send_msg "$RESULT" ""
+    echo "✅ Prices sent!"
+    ;;
+    
+  "💼 portfolio"*)
+    RESULT=$(get_portfolio)
+    send_msg "$RESULT" ""
+    echo "✅ Portfolio sent!"
+    ;;
+    
+  "🔍 arbitrage"*)
+    RESULT=$(scan_arbitrage)
+    send_msg "$RESULT" ""
+    echo "✅ Arbitrage scan sent!"
+    ;;
+    
+  "📈 dashboard"*)
+    send_msg "📈 <b>Trading Dashboard</b>\n\n🔗 <a href='http://localhost:8080'>Open Dashboard</a>\n\nAvailable pages:\n• /portfolio - Holdings & P&L\n• /positions - Active trades\n• /analytics - Performance stats\n• /alerts - Notification center" ""
+    echo "✅ Dashboard link sent!"
+    ;;
+    
+  "🤖 bot status"*)
+    RESULT=$(get_bot_status)
+    send_msg "$RESULT" ""
+    echo "✅ Bot status sent!"
+    ;;
+    
+  "📢 post to channel"*)
+    # Check if message includes channel and content
+    REST=$(echo "$MESSAGE" | sed 's/^📢 Post to Channel //i')
+    if [ -n "$REST" ]; then
+        CHANNEL=$(echo "$REST" | awk '{print $1}')
+        MSG_CONTENT=$(echo "$REST" | cut -d' ' -f2-)
+        RESULT=$(post_to_channel "$CHANNEL" "$MSG_CONTENT")
+        send_msg "$RESULT" ""
+    else
+        send_msg "📢 CHANNEL BROADCAST\n\nUsage:\n• Click button then type:\n  @channel_name Your message\n\nOr send:\n• Post @channel_name Message\n\n<i>Bot must be admin in target channel</i>" ""
+    fi
+    echo "✅ Post to channel handled!"
+    ;;
+    
+  "⚙️ settings"*)
+    RESULT=$(get_settings)
+    send_msg "$RESULT" ""
+    echo "✅ Settings sent!"
+    ;;
+    
+  "post"*)
+    # Direct post command
+    REST=$(echo "$MESSAGE" | sed 's/^post //i')
+    CHANNEL=$(echo "$REST" | awk '{print $1}')
+    MSG_CONTENT=$(echo "$REST" | cut -d' ' -f2-)
+    RESULT=$(post_to_channel "$CHANNEL" "$MSG_CONTENT")
+    send_msg "$RESULT" ""
+    echo "✅ Posted!"
+    ;;
+    
+  "help"|"/help")
+    send_msg "📈 <b>Trading Bot Help</b>\n\n📱 <b>Reply Keyboard:</b>\n• 📊 AI Signals - Live AI predictions\n• 💰 Prices - Real-time crypto prices\n• 💼 Portfolio - Your trading stats\n• 🔍 Arbitrage - Scan for opportunities\n• 📈 Dashboard - Web interface\n• 🤖 Bot Status - System health\n• 📢 Post to Channel - Broadcast\n• ⚙️ Settings - View config\n\n💡 Type 'menu' anytime for buttons!" ""
+    echo "✅ Help sent!"
+    ;;
+    
+  *)
+    # Default echo
+    echo "$MESSAGE"
+    ;;
+esac
