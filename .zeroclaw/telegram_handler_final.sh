@@ -1,111 +1,73 @@
 #!/bin/bash
-# Personal Bot Handler - Final Version with Reply Keyboard Support
-# This handler passes messages to ZeroClaw AI which matches them to SKILL.md files
+# Final working handler - outputs directly for zeroclaw
 
 read -r JSON_PAYLOAD
 
-# Extract fields
-MESSAGE=$(echo "$JSON_PAYLOAD" | python3 -c "import json,sys; print(json.load(sys.stdin).get('message',''))" 2>/dev/null)
+# Extract message and user_id
+MESSAGE=$(echo "$JSON_PAYLOAD" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('message',''))")
+USER_ID=$(echo "$JSON_PAYLOAD" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('user_id',''))")
+
 MSG_LOWER=$(echo "$MESSAGE" | tr '[:upper:]' '[:lower:]')
-USER_ID=$(echo "$JSON_PAYLOAD" | python3 -c "import json,sys; print(json.load(sys.stdin).get('user_id',''))" 2>/dev/null)
+TOOL_DIR="/root/trading-bot/.zeroclaw"
 
-# Export for use by skills
-export USER_ID="$USER_ID"
-export TELEGRAM_CHAT_ID="$USER_ID"
+# Check for scheduled posts
+python3 "$TOOL_DIR/schedule_tool.py" check 2>/dev/null
 
-# File paths
-NOTES_FILE="$HOME/.zeroclaw/workspace/notes.txt"
-
-echo "$JSON_PAYLOAD" >> ~/.zeroclaw/last_message.json 2>/dev/null
-
-# ============ SKILL-BASED COMMAND ROUTING ============
-# ZeroClaw AI will match these to SKILL.md files
-
+# Handle commands
 case "$MSG_LOWER" in
-    
-  # Menu/Start - triggers show-menu skill
-  "/start"|"start"|"menu"|"show menu"|"buttons"|"keyboard")
-    echo "🤖 Opening menu..."
-    # The AI will match this to show-menu skill
-    ;;
-    
-  # Capture - triggers memory-capture skill
-  "💾 capture note"*)
-    # Strip the button text and pass content to AI
-    CONTENT=$(echo "$MESSAGE" | sed 's/^💾 Capture Note //')
-    if [ -n "$CONTENT" ]; then
-      echo "$CONTENT"
-    fi
-    ;;
-    
-  # Search - triggers memory-search skill
-  "🔍 search memory"*)
-    QUERY=$(echo "$MESSAGE" | sed 's/^🔍 Search Memory //')
-    if [ -n "$QUERY" ]; then
-      echo "$QUERY"
-    fi
-    ;;
-    
-  # Dashboard - triggers show-dashboard skill
-  "📊 dashboard")
-    echo "Showing dashboard..."
-    ;;
-    
-  # Daily Summary - triggers daily-summary skill
-  "📅 daily summary")
-    echo "Generating daily summary..."
-    ;;
-    
-  # Help - triggers show-help skill
-  "❓ help"|"help")
-    echo "Showing help..."
-    ;;
-    
-  # Close Menu - triggers close-menu skill
-  "🗑️ close menu"|"close menu")
-    echo "Closing menu..."
-    ;;
-    
-  # Remember command (legacy)
-  "remember"*)
-    # Pass to AI for memory-capture
-    ;;
-    
-  # Capture command (legacy)
-  "capture"*)
-    # Pass to AI for memory-capture
-    ;;
-    
-  # Search command (legacy)
-  "search"*)
-    # Pass to AI for memory-search
-    ;;
-    
-  # Daily command (legacy)
-  "daily")
-    # Pass to AI for daily-summary
-    ;;
-    
-  # Dashboard command (legacy)
-  "dashboard"|"status")
-    # Pass to AI for show-dashboard
-    ;;
-    
-  # Auto-capture logic
-  *)
-    # Check if should auto-save (long or keyword-rich)
-    WORD_COUNT=$(echo "$MESSAGE" | wc -w)
-    
-    if [ $WORD_COUNT -gt 15 ]; then
-      # Long message - auto capture
-      python3 "$HOME/.zeroclaw/memory_system.py" capture "$MESSAGE" > /dev/null 2>&1
-      echo "✅ Auto-saved to Memory Vault (${WORD_COUNT} words)"
+  schedule*)
+    REST=$(echo "$MESSAGE" | sed 's/^[Ss]chedule //')
+    if echo "$REST" | grep -qi " for "; then
+        MSG_PART=$(echo "$REST" | sed 's/ for .*//')
+        TIME_PART=$(echo "$REST" | sed 's/.* for //')
+        
+        # Output schedule result directly
+        python3 -c "
+import sys
+sys.path.insert(0, '$TOOL_DIR')
+from schedule_tool import ScheduleTool
+result = ScheduleTool.schedule('''$MSG_PART''', '''$TIME_PART''', '$USER_ID')
+if result['success']:
+    print(f'''✅ SCHEDULED: {result['message_preview']}
+🕐 When: {result['scheduled_time']}
+💡 I'll send this to the channel at the scheduled time!''')
+else:
+    print(f'❌ Error: ' + result.get('error', 'Unknown error'))
+"
     else
-      # Check for keywords
-      if echo "$MSG_LOWER" | grep -qE "(remember|important|idea|decided|plan|todo|task|meeting|note)"; then
-        python3 "$HOME/.zeroclaw/memory_system.py" capture "$MESSAGE" > /dev/null 2>&1
-        echo "✅ Auto-saved: detected key phrase"
-      fi
+        echo "❌ Format: schedule [message] for [when]
+Example: schedule Buy BTC for tomorrow 9am"
     fi
+    ;;
+    
+  "my schedules"|"list schedules")
+    python3 -c "
+import sys
+sys.path.insert(0, '$TOOL_DIR')
+from schedule_tool import ScheduleTool
+posts = ScheduleTool.list_user_posts('$USER_ID')
+if posts:
+    print(f'📅 You have {len(posts)} scheduled post(s):')
+    for p in posts[:5]:
+        msg = p['message'][:40] + '...' if len(p['message']) > 40 else p['message']
+        print(f'• {msg}')
+        print(f'  🕐 {p[\"scheduled_time\"][:16]}')
+else:
+    print('📭 No scheduled posts')
+"
+    ;;
+    
+  menu*|/menu|start|/start)
+    echo "🤖 <b>Trading Bot Menu</b>
+
+Use the buttons below or type:
+• schedule [msg] for [when]
+• my schedules
+• help"
+    ;;
+    
+  *)
+    # Pass to AI
+    echo "$MESSAGE"
     ;;
 esac
