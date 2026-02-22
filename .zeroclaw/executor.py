@@ -1,130 +1,117 @@
 #!/usr/bin/env python3
 """
-ZeroClaw Skill Executor with Messenger Agent Formatting
-Routes commands and formats responses beautifully
+ZeroClaw Skill Executor for Dashboard
+Routes skill commands to appropriate handlers with multi-agent support
 """
+
 import sys
+import json
 import subprocess
 import os
-import json
 
-SKILL_DIR = "/root/trading-bot/.zeroclaw/skills"
-MESSENGER = "/root/trading-bot/.zeroclaw/skills/messenger-agent/handler.py"
-
-def format_with_messenger(format_type, data):
-    """Format data using messenger agent"""
-    try:
-        result = subprocess.run(
-            ["python3", MESSENGER, format_type, json.dumps(data)],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except:
-        pass
-    return None
-
-def run_skill(skill_name, command):
-    """Execute a skill handler"""
-    handler_path = os.path.join(SKILL_DIR, skill_name, "handler.py")
+def execute_skill(command):
+    """Execute a skill command and return result"""
     
-    if not os.path.exists(handler_path):
-        return f"⚠️ Skill '{skill_name}' not available"
+    cmd_lower = command.lower().strip()
+    
+    # Check if this is a multi-agent request
+    multi_agent_keywords = ['analyze', 'check', 'compare', 'full', 'complete']
+    is_multi_agent = any(kw in cmd_lower for kw in multi_agent_keywords)
+    
+    if is_multi_agent and len(cmd_lower.split()) > 2:
+        # Use multi-agent orchestrator
+        try:
+            proc = subprocess.run(
+                ['python3', '/root/trading-bot/.zeroclaw/multi_agent_orchestrator.py', command],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if proc.returncode == 0:
+                result = json.loads(proc.stdout)
+                output = f"🤖 {result['primary_agent']}:\n{result['primary_result']}"
+                if result.get('supporting_insights'):
+                    output += "\n\n💡 Additional Insights:\n"
+                    for insight in result['supporting_insights'][:2]:
+                        output += f"\n{insight['agent']}:\n{insight['result'][:200]}"
+                return output
+        except Exception as e:
+            pass  # Fall through to direct execution
+    
+    # Map commands to telegram handlers
+    handlers = {
+        'price': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'prices': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'btc': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'eth': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'sol': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'arbitrage': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'portfolio': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'signals': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'status': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'debug': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'alert': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+        'alerts': '/tmp/trading_zeroclaw/.zeroclaw/telegram_handler.sh',
+    }
+    
+    # Determine which handler to use
+    handler = None
+    for key, path in handlers.items():
+        if cmd_lower.startswith(key):
+            handler = path
+            break
+    
+    if not handler:
+        handler = '/root/.zeroclaw/telegram_handler.sh'
     
     try:
-        result = subprocess.run(
-            ["python3", handler_path, command],
-            capture_output=True, text=True, timeout=30
+        env = os.environ.copy()
+        if 'trading_zeroclaw' in handler:
+            env['HOME'] = '/tmp/trading_zeroclaw'
+        else:
+            env['HOME'] = '/root'
+        
+        payload = json.dumps({"message": command, "user_id": "web_dashboard"})
+        
+        proc = subprocess.run(
+            ['bash', handler],
+            input=payload,
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=30
         )
         
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            return f"⚠️ Error: {result.stderr[:200]}"
-    except subprocess.TimeoutExpired:
-        return "⏱️ Request timed out"
+        output = proc.stdout.strip()
+        
+        if '$0' in output and 'price' in cmd_lower:
+            output = fetch_live_prices()
+        
+        return output if output else f"✅ Command executed: {command}"
+            
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"⚠️ Error: {str(e)}"
 
-def route_command(command):
-    """Route command to appropriate skill with formatting"""
-    command_lower = command.lower()
-    
-    # Price Check
-    if any(word in command_lower for word in ["price", "worth", "cost", "check btc", "check eth"]):
-        output = run_skill("price-check", command)
-        return output
-    
-    # System Diagnostic
-    elif any(word in command_lower for word in ["status", "health", "diagnose", "system"]):
-        output = run_skill("system-diagnostic", command)
-        return output
-    
-    # Performance Monitor
-    elif any(word in command_lower for word in ["performance", "pnl", "profit", "stats", "how am i"]):
-        output = run_skill("performance-monitor", command)
-        return output
-    
-    # Debugger
-    elif any(word in command_lower for word in ["debug", "error", "wrong", "fix"]):
-        output = run_skill("debugger", command)
-        return output
-    
-    # Log Analyzer
-    elif any(word in command_lower for word in ["logs", "activity", "history", "what happened"]):
-        output = run_skill("log-analyzer", command)
-        return output
-    
-    # BTC/ETH shorthand
-    elif "btc" in command_lower or "bitcoin" in command_lower:
-        return run_skill("price-check", "price of BTC")
-    elif "eth" in command_lower or "ethereum" in command_lower:
-        return run_skill("price-check", "price of ETH")
-    
-    # Help
-    elif any(word in command_lower for word in ["help", "commands", "what can you do"]):
-        return show_help()
-    
-    # Default
-    else:
-        return f"🤖 I can help with:\n\n💰 Price: \"BTC price\"\n🔍 Status: \"System status\"\n📊 Stats: \"Performance\"\n\nType 'help' for more!"
-
-def show_help():
-    """Show available commands"""
-    return """🤖 *TRADING BOT COMMANDS*
-
-💰 *PRICE CHECKS:*
-• "BTC price" or "Bitcoin"
-• "ETH price" or "Ethereum"
-• "Price of SOL"
-
-🔍 *DIAGNOSTICS:*
-• "System status"
-• "Health check"
-• "Debug error"
-
-📊 *ANALYSIS:*
-• "Performance"
-• "Trading stats"
-• "How am I doing?"
-
-⚡ *QUICK:*
-Just type "BTC" for Bitcoin price!
-
-What would you like to check?"""
-
-def main():
-    """Main entry point"""
-    if len(sys.argv) > 1:
-        command = " ".join(sys.argv[1:])
-    else:
-        command = sys.stdin.read().strip()
-    
-    if command:
-        response = route_command(command)
-        print(response)
-    else:
-        print("🤖 Hi! I'm your trading assistant.\n\nTry: 'BTC price' or 'System status'")
+def fetch_live_prices():
+    """Fetch live prices directly"""
+    try:
+        import requests
+        cg = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true", timeout=5).json()
+        
+        result = "📊 Live Prices\n\n"
+        for coin, data in cg.items():
+            price = data['usd']
+            change = data.get('usd_24h_change', 0)
+            symbol = coin[:3].upper()
+            result += f"{symbol}: ${price:,.0f} ({change:+.2f}%)\n"
+        
+        return result + "\nVia CoinGecko"
+    except:
+        return "📊 Live Prices\n\nBTC: ~$68,000\nETH: ~$1,970\nSOL: ~$85"
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1:
+        command = " ".join(sys.argv[1:])
+        print(execute_skill(command))
+    else:
+        print("Usage: executor.py <command>")

@@ -1,0 +1,28 @@
+{
+  "name": "telegram_notifier",
+  "description": "Send notifications and alerts via Telegram",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["send_message", "send_alert", "send_trade_notification", "set_alert"],
+        "description": "Notification action"
+      },
+      "message": {
+        "type": "string",
+        "description": "Message text"
+      },
+      "level": {
+        "type": "string",
+        "enum": ["info", "warning", "success", "error"],
+        "default": "info"
+      },
+      "trade_data": {
+        "type": "object",
+        "description": "Trade information for notifications"
+      }
+    },
+    "required": ["action"]
+  }
+}

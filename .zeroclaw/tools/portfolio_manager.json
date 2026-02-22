@@ -1,0 +1,24 @@
+{
+  "name": "portfolio_manager",
+  "description": "Manage portfolio, track P&L, and analyze performance",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["get_portfolio", "get_pnl", "get_performance", "rebalance", "set_allocation"],
+        "description": "Portfolio action"
+      },
+      "allocations": {
+        "type": "object",
+        "description": "Asset allocation percentages"
+      },
+      "timeframe": {
+        "type": "string",
+        "enum": ["1d", "7d", "30d", "90d", "all"],
+        "default": "7d"
+      }
+    },
+    "required": ["action"]
+  }
+}

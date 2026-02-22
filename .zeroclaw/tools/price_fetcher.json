@@ -1,0 +1,29 @@
+{
+  "name": "price_fetcher",
+  "description": "Fetch real-time prices from multiple exchanges",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["get_price", "get_prices", "get_history", "subscribe", "unsubscribe"],
+        "description": "Price action"
+      },
+      "symbol": {
+        "type": "string",
+        "description": "Symbol to get price for"
+      },
+      "symbols": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Multiple symbols"
+      },
+      "exchanges": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Exchanges to query"
+      }
+    },
+    "required": ["action"]
+  }
+}

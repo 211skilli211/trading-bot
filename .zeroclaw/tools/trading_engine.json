@@ -1,0 +1,36 @@
+{
+  "name": "trading_engine",
+  "description": "Execute trades, manage positions, and control trading operations",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["buy", "sell", "close_position", "get_positions", "get_balance", "set_mode", "get_history"],
+        "description": "Trading action to perform"
+      },
+      "symbol": {
+        "type": "string",
+        "description": "Trading pair symbol (e.g., BTC, ETH, SOL)"
+      },
+      "amount": {
+        "type": "number",
+        "description": "Amount to trade in base currency"
+      },
+      "price": {
+        "type": "number",
+        "description": "Limit price (optional, market order if not provided)"
+      },
+      "order_type": {
+        "type": "string",
+        "enum": ["market", "limit"],
+        "default": "market"
+      },
+      "reason": {
+        "type": "string",
+        "description": "Reason for the trade decision"
+      }
+    },
+    "required": ["action"]
+  }
+}

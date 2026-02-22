@@ -1,0 +1,28 @@
+{
+  "name": "multi_bot_controller",
+  "description": "Coordinate multiple trading bots and strategies",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["list_bots", "start_bot", "stop_bot", "get_status", "coordinate", "set_strategy"],
+        "description": "Bot control action"
+      },
+      "bot_id": {
+        "type": "string",
+        "description": "Bot identifier"
+      },
+      "strategy": {
+        "type": "string",
+        "enum": ["arbitrage", "momentum", "mean_reversion", "grid", "dca"],
+        "description": "Trading strategy"
+      },
+      "parameters": {
+        "type": "object",
+        "description": "Strategy parameters"
+      }
+    },
+    "required": ["action"]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "arbitrage_scanner",
+  "description": "Scan for arbitrage opportunities across exchanges",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["scan", "execute", "get_opportunities", "set_threshold"],
+        "description": "Arbitrage action"
+      },
+      "symbol": {
+        "type": "string",
+        "description": "Symbol to scan (e.g., BTC, ETH, or 'all')"
+      },
+      "min_spread_pct": {
+        "type": "number",
+        "description": "Minimum spread percentage to consider"
+      },
+      "exchanges": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Exchanges to compare"
+      }
+    },
+    "required": ["action"]
+  }
+}

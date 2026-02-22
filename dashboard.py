@@ -632,13 +632,54 @@ def zeroclaw_status():
 
 @app.route("/api/zeroclaw/chat", methods=["POST"])
 def zeroclaw_chat():
+    """Process chat messages using ZeroClaw AI Agent with LLM integration"""
     try:
-        import requests
+        import subprocess
+        import os
+        import json
+        
         data = request.json
-        resp = requests.post('http://127.0.0.1:3000/agent', json={"message": data.get("message", "")}, timeout=30)
-        return jsonify(resp.json() if resp.status_code == 200 else {"error": "Failed"})
+        message = data.get("message", "")
+        conversation_history = data.get("history", [])
+        
+        # Set API key for the agent
+        env = os.environ.copy()
+        env['OPENROUTER_API_KEY'] = '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'
+        env['PYTHONPATH'] = '/root/trading-bot/.zeroclaw'
+        
+        # Call AI Agent
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/ai_agent.py', message],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=env
+        )
+        
+        if result.returncode == 0:
+            try:
+                agent_result = json.loads(result.stdout)
+                return jsonify({
+                    "success": True, 
+                    "response": agent_result.get("response", "No response"),
+                    "skill_used": agent_result.get("skill_used"),
+                    "skill_data": agent_result.get("skill_data"),
+                    "tool_used": agent_result.get("tool_used"),
+                    "tool_result": agent_result.get("tool_result"),
+                    "model": agent_result.get("model", "unknown"),
+                    "provider": agent_result.get("provider", "unknown"),
+                    "timestamp": agent_result.get("timestamp")
+                })
+            except json.JSONDecodeError:
+                return jsonify({"success": True, "response": result.stdout.strip()})
+        else:
+            error_msg = result.stderr.strip()[:200] if result.stderr else "AI agent error"
+            return jsonify({"success": False, "error": error_msg})
+            
+    except subprocess.TimeoutExpired:
+        return jsonify({"success": False, "error": "AI agent timed out (60s limit)"})
     except Exception as e:
-        return jsonify({"error": str(e)})
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/zeroclaw/predictions")
 def zeroclaw_predictions():
@@ -1878,6 +1919,299 @@ def security_decrypt():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
+
+# ============================================================================
+# ZEROCLAW TRADING TOOLS API
+# ============================================================================
+
+@app.route("/api/trading/execute", methods=["POST"])
+def trading_execute():
+    """Execute a trade via AI-controlled trading engine"""
+    try:
+        data = request.json
+        action = data.get('action', 'buy')  # buy, sell
+        symbol = data.get('symbol', 'BTC')
+        amount = float(data.get('amount', 0.1))
+        price = data.get('price')
+        reason = data.get('reason', 'AI trading decision')
+        
+        import subprocess
+        import json
+        
+        cmd = [
+            'python3', '/root/trading-bot/.zeroclaw/trading_engine.py',
+            action, symbol, str(amount)
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        
+        if result.returncode == 0:
+            output = json.loads(result.stdout)
+            return jsonify(output)
+        else:
+            return jsonify({"success": False, "error": result.stderr})
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/trading/positions")
+def trading_positions():
+    """Get open positions"""
+    try:
+        import subprocess
+        import json
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/trading_engine.py', 'get_positions'],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "positions": []})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "positions": []})
+
+@app.route("/api/trading/balance")
+def trading_balance():
+    """Get account balance"""
+    try:
+        import subprocess
+        import json
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/trading_engine.py', 'get_balance'],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "balance": {}})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "balance": {}})
+
+@app.route("/api/trading/history")
+def trading_history():
+    """Get trade history"""
+    try:
+        import subprocess
+        import json
+        
+        limit = request.args.get('limit', 50)
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/trading_engine.py', 'get_history'],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            return jsonify(data)
+        return jsonify({"success": False, "trades": []})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "trades": []})
+
+@app.route("/api/trading/portfolio")
+def trading_portfolio():
+    """Get full portfolio summary"""
+    try:
+        import subprocess
+        import json
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/trading_engine.py', 'summary'],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "portfolio": {}})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "portfolio": {}})
+
+@app.route("/api/arbitrage/scan")
+def arbitrage_scan():
+    """Scan for arbitrage opportunities"""
+    try:
+        import subprocess
+        import json
+        
+        symbol = request.args.get('symbol')
+        min_spread = request.args.get('min_spread', 0.3)
+        
+        cmd = ['python3', '/root/trading-bot/.zeroclaw/arbitrage_engine.py', 'scan']
+        if symbol:
+            cmd.extend([symbol, str(min_spread)])
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "opportunities": []})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "opportunities": []})
+
+@app.route("/api/arbitrage/stats")
+def arbitrage_stats():
+    """Get arbitrage statistics"""
+    try:
+        import subprocess
+        import json
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/arbitrage_engine.py', 'stats'],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "statistics": {}})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "statistics": {}})
+
+@app.route("/api/bots/list")
+def bots_list():
+    """List all trading bots"""
+    try:
+        import subprocess
+        import json
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/multi_bot_controller.py', 'list_bots'],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "bots": [], "summary": {}})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "bots": [], "summary": {}})
+
+@app.route("/api/bots/create", methods=["POST"])
+def bots_create():
+    """Create a new trading bot"""
+    try:
+        data = request.json
+        name = data.get('name', 'New Bot')
+        strategy = data.get('strategy', 'arbitrage')
+        symbols = data.get('symbols', ['BTC', 'ETH'])
+        
+        import subprocess
+        import json
+        
+        cmd = [
+            'python3', '/root/trading-bot/.zeroclaw/multi_bot_controller.py',
+            'create_bot', name, strategy, ','.join(symbols)
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "error": result.stderr})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/bots/<bot_id>/start", methods=["POST"])
+def bots_start(bot_id):
+    """Start a trading bot"""
+    try:
+        import subprocess
+        import json
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/multi_bot_controller.py', 'start_bot', bot_id],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "error": result.stderr})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/bots/<bot_id>/stop", methods=["POST"])
+def bots_stop(bot_id):
+    """Stop a trading bot"""
+    try:
+        import subprocess
+        import json
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/multi_bot_controller.py', 'stop_bot', bot_id],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "error": result.stderr})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/bots/coordinate", methods=["POST"])
+def bots_coordinate():
+    """Coordinate all bots (start_all, stop_all, report)"""
+    try:
+        data = request.json
+        action = data.get('action', 'report')
+        
+        import subprocess
+        import json
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/multi_bot_controller.py', 'coordinate', action],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "error": result.stderr})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/notifications/send", methods=["POST"])
+def notifications_send():
+    """Send Telegram notification"""
+    try:
+        data = request.json
+        message = data.get('message', '')
+        level = data.get('level', 'info')
+        
+        import subprocess
+        import json
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/telegram_notifier.py', 'send_alert', message, level],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "error": result.stderr})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/ai/tools", methods=["POST"])
+def ai_tools_execute():
+    """Execute AI tools directly (for agent control)"""
+    try:
+        data = request.json
+        tool = data.get('tool')
+        params = data.get('params', {})
+        
+        import subprocess
+        import json
+        
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/tool_executor.py', tool, json.dumps(params)],
+            capture_output=True, text=True, timeout=30
+        )
+        
+        if result.returncode == 0:
+            return jsonify(json.loads(result.stdout))
+        return jsonify({"success": False, "error": result.stderr})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 # ============================================================================
 # MAIN

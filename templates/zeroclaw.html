@@ -168,34 +168,40 @@
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-chat-dots"></i> AI Assistant Chat</span>
-                <span class="badge bg-success">Online</span>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-dark" id="ai-model-badge" title="AI Model">ZeroClaw</span>
+                    <span class="badge bg-success">Online</span>
+                </div>
             </div>
             <div class="card-body d-flex flex-column" style="height: 400px;">
                 <div id="chat-messages" class="flex-grow-1 overflow-auto mb-3">
                     <div class="mb-3">
                         <div class="d-flex">
-                            <span class="badge bg-info me-2">AI</span>
+                            <span class="badge bg-info me-2">🤖 AI</span>
                             <div class="bg-secondary bg-opacity-25 p-2 rounded" style="max-width: 85%;">
-                                Hello! I'm your ZeroClaw AI trading assistant. I can:
+                                Hello! I'm your <strong>ZeroClaw AI</strong> trading assistant powered by OpenRouter.
                                 <ul class="mb-0 mt-1 small">
-                                    <li>Check crypto prices</li>
-                                    <li>Run system diagnostics</li>
-                                    <li>Analyze performance</li>
-                                    <li>Execute trades (with approval)</li>
+                                    <li>Check real-time crypto prices</li>
+                                    <li>Find arbitrage opportunities</li>
+                                    <li>Analyze your portfolio</li>
+                                    <li>Provide trading signals</li>
                                 </ul>
-                                <div class="mt-2 text-muted small">Type a command or use the buttons!</div>
+                                <div class="mt-2 text-muted small">Try: "What's the BTC price?" or "Show my portfolio"</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="input-group">
                     <input type="text" id="chat-input" class="form-control bg-dark text-light" 
-                           placeholder="Type command (e.g., 'BTC price')..."
+                           placeholder="Ask me anything about crypto trading..."
                            onkeypress="if(event.key==='Enter')sendChatMessage()">
                     <button class="btn btn-info" onclick="sendChatMessage()">
                         <i class="bi bi-send"></i>
                     </button>
                 </div>
+                <small class="text-muted mt-1">
+                    <i class="bi bi-magic"></i> Powered by AI • <i class="bi bi-shield-check"></i> Paper Trading Mode
+                </small>
             </div>
         </div>
 
@@ -310,6 +316,9 @@ async function runSkill(skill, params = '') {
     }
 }
 
+// Conversation history for context
+let conversationHistory = [];
+
 // Send chat message
 async function sendChatMessage() {
     const input = document.getElementById('chat-input');
@@ -319,22 +328,77 @@ async function sendChatMessage() {
     addChatMessage('user', message);
     input.value = '';
     
+    // Show typing indicator
+    const typingId = addTypingIndicator();
+    
     try {
         const resp = await fetch('/api/zeroclaw/chat', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({message})
+            body: JSON.stringify({
+                message: message,
+                history: conversationHistory.slice(-6) // Last 3 exchanges
+            })
         });
         
+        removeTypingIndicator(typingId);
         const data = await resp.json();
-        addChatMessage('ai', data.response || 'No response');
+        
+        if (data.success) {
+            addChatMessage('ai', data.response, data.skill_used, data.model);
+            
+            // Update model badge
+            if (data.model && data.model !== 'unknown') {
+                const badge = document.getElementById('ai-model-badge');
+                if (badge) badge.textContent = data.model.split('/').pop().substring(0, 15);
+            }
+            
+            // Update conversation history
+            conversationHistory.push({role: "user", content: message});
+            conversationHistory.push({role: "assistant", content: data.response});
+            
+            // Keep history manageable
+            if (conversationHistory.length > 10) {
+                conversationHistory = conversationHistory.slice(-10);
+            }
+        } else {
+            addChatMessage('ai', '❌ Error: ' + (data.error || 'Unknown error'));
+        }
     } catch (e) {
-        addChatMessage('ai', 'Error: ' + e.message);
+        removeTypingIndicator(typingId);
+        addChatMessage('ai', '❌ Error: ' + e.message);
     }
 }
 
+// Add typing indicator
+function addTypingIndicator() {
+    const container = document.getElementById('chat-messages');
+    const id = 'typing-' + Date.now();
+    const div = document.createElement('div');
+    div.id = id;
+    div.className = 'mb-3';
+    div.innerHTML = `
+        <div class="d-flex">
+            <span class="badge bg-info me-2">🤖 AI</span>
+            <div class="bg-secondary bg-opacity-25 p-2 rounded">
+                <span class="spinner-border spinner-border-sm text-muted"></span>
+                <span class="text-muted ms-2">Thinking...</span>
+            </div>
+        </div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return id;
+}
+
+// Remove typing indicator
+function removeTypingIndicator(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+}
+
 // Add message to chat
-function addChatMessage(type, text) {
+function addChatMessage(type, text, skillUsed = null, model = null) {
     const container = document.getElementById('chat-messages');
     const div = document.createElement('div');
     div.className = 'mb-3';
@@ -349,11 +413,30 @@ function addChatMessage(type, text) {
             </div>
         `;
     } else {
+        // Format AI response with markdown-like styling
+        let formattedText = escapeHtml(text)
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+        
+        // Add skill badge if used
+        let skillBadge = '';
+        if (skillUsed) {
+            skillBadge = `<span class="badge bg-warning text-dark ms-2" title="Used skill: ${skillUsed}"><i class="bi bi-magic"></i> ${skillUsed}</span>`;
+        }
+        
         div.innerHTML = `
             <div class="d-flex">
-                <span class="badge bg-info me-2">AI</span>
-                <div class="bg-secondary bg-opacity-25 p-2 rounded" style="max-width: 85%; white-space: pre-wrap;">
-                    ${escapeHtml(text)}
+                <span class="badge bg-info me-2">🤖 AI</span>
+                <div style="max-width: 85%;">
+                    <div class="bg-secondary bg-opacity-25 p-2 rounded" style="white-space: pre-wrap;">
+                        ${formattedText}
+                    </div>
+                    <div class="mt-1 d-flex align-items-center">
+                        <small class="text-muted" style="font-size: 0.7rem;">
+                            <i class="bi bi-cpu"></i> ZeroClaw AI
+                        </small>
+                        ${skillBadge}
+                    </div>
                 </div>
             </div>
         `;

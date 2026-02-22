@@ -8,7 +8,7 @@
 # ============================================
 api_key = "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"
 default_provider = "openrouter"
-default_model = "openrouter/free"
+default_model = "stepfun/step-3.5-flash:free"
 default_temperature = 0.3
 model_routes = []
 
@@ -104,6 +104,11 @@ allowed_commands = [
     "tail",
     "python3",
     "pip3",
+    "curl",
+    "df",
+    "free",
+    "ps",
+    "uptime",
 ]
 forbidden_paths = [
     "/etc",
@@ -396,4 +401,11 @@ enabled = true
 # ============================================
 # AGENTS
 # ============================================
-[agents]
+
+# Disable AI agent - use skill executor only
+
+# Telegram direct response - no AI tool calling
+[channels_config.telegram.handler]
+type = "script"
+script = "/root/trading-bot/.zeroclaw/telegram-handler.sh"
+disable_ai = true
