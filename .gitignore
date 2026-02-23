@@ -58,3 +58,6 @@ price_log.jsonl
 # Rust build artifacts (if any)
 target/
 Cargo.lock
+.zeroclaw/config.toml
+.zeroclaw/*.toml
+.env
