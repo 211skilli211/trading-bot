@@ -12,7 +12,13 @@ Features:
 - Thread-safe data access
 """
 
-import websocket
+try:
+    import websocket
+    WEBSOCKET_AVAILABLE = True
+except ImportError:
+    WEBSOCKET_AVAILABLE = False
+    print("[WebSocketPriceFeed] websocket-client not installed. WebSocket features disabled.")
+
 import json
 import time
 import threading

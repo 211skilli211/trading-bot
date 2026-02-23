@@ -110,7 +110,11 @@ class ZeroClawAIAgent:
         """Call LLM with tool awareness"""
         try:
             if not self.api_key or len(self.api_key) < 20:
-                return {"response": "", "tool_calls": []}
+                return {
+                    "response": "⚠️ OpenRouter API key not configured.\n\nTo enable AI features:\n1. Get API key from https://openrouter.ai\n2. Set OPENROUTER_API_KEY environment variable\n3. Or add api_key to ~/.zeroclaw/config.toml",
+                    "tool_calls": [],
+                    "error": "API_KEY_MISSING"
+                }
             
             # Enhance system prompt with tool info
             if messages and messages[0].get('role') == 'system':

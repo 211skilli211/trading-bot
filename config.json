@@ -15,14 +15,14 @@
       "min_spread_pct": 1.0,
       "max_position_usd": 10,
       "max_concurrent_arbs": 3,
-      "check_interval_seconds": 30
+      "check_interval_seconds": 120
     },
     "sniper": {
       "enabled": true,
       "name": "15-Min Sniper",
       "description": "Momentum sniper for 15-min markets",
       "momentum_threshold": 0.1,
-      "max_position_usd": 5,
+      "max_position_usd": 10,
       "entry_window_seconds": 60,
       "max_concurrent_trades": 3,
       "allowed_tokens": [
@@ -41,9 +41,9 @@
       "rsi_overbought": 70,
       "use_funding_rate": true,
       "funding_threshold": 0.01,
-      "max_position_usd": 25,
-      "stop_loss_pct": 0.03,
-      "take_profit_pct": 0.06,
+      "max_position_usd": 10,
+      "stop_loss_pct": 0.019200000000000002,
+      "take_profit_pct": 0.029399999999999996,
       "symbols": [
         "BTC/USDT",
         "ETH/USDT",
@@ -58,9 +58,9 @@
       "sma_slow": 50,
       "volume_threshold": 1.5,
       "min_price_change_pct": 2.0,
-      "max_position_usd": 25,
-      "stop_loss_pct": 0.03,
-      "take_profit_pct": 0.09,
+      "max_position_usd": 10,
+      "stop_loss_pct": 0.019200000000000002,
+      "take_profit_pct": 0.0441,
       "symbols": [
         "BTC/USDT",
         "ETH/USDT",
@@ -77,7 +77,7 @@
       "lookback_period": 100,
       "entry_zscore": 2.0,
       "exit_zscore": 0.5,
-      "max_position_usd": 25,
+      "max_position_usd": 10,
       "stop_loss_zscore": 3.5
     },
     "vwap_reversion": {
@@ -87,7 +87,7 @@
       "vwap_period": "1d",
       "std_dev_entry": 2.0,
       "std_dev_exit": 0.5,
-      "max_position_usd": 20,
+      "max_position_usd": 10,
       "symbols": [
         "BTC/USDT",
         "ETH/USDT"
@@ -112,8 +112,8 @@
       "lookback_period": 20,
       "breakout_threshold_pct": 3.0,
       "volume_confirm": true,
-      "max_position_usd": 20,
-      "stop_loss_pct": 0.02,
+      "max_position_usd": 10,
+      "stop_loss_pct": 0.0128,
       "symbols": [
         "BTC/USDT",
         "ETH/USDT",
@@ -151,8 +151,8 @@
       "description": "High risk, high reward gambles",
       "max_position_usd": 10,
       "leverage": 3,
-      "stop_loss_pct": 0.15,
-      "take_profit_pct": 0.3,
+      "stop_loss_pct": 0.096,
+      "take_profit_pct": 0.147,
       "max_consecutive_losses": 2,
       "symbols": [
         "BTC/USDT",
@@ -212,7 +212,7 @@
     "max_position_btc": 0.05,
     "stop_loss_pct": 0.02,
     "take_profit_pct": 0.06,
-    "capital_pct_per_trade": 0.05,
+    "capital_pct_per_trade": 0.0125,
     "max_total_exposure_pct": 0.3,
     "daily_loss_limit_pct": 0.05,
     "consecutive_loss_limit": 3

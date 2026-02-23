@@ -51,6 +51,81 @@
     </div>
 </div>
 
+<!-- AUTONOMOUS AGENT CONTROL CENTER -->
+<div class="card border-info mb-3">
+    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-cpu-fill"></i> 24/7 Autonomous Trading Agent</span>
+        <div class="d-flex gap-2 align-items-center">
+            <span id="autonomous-status-badge" class="badge bg-secondary">Checking...</span>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="autonomous-toggle" onchange="toggleAutonomous()">
+                <label class="form-check-label" for="autonomous-toggle">Enable</label>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <!-- Status Column -->
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted">Current Regime</h6>
+                        <h4 id="current-regime" class="text-info">--</h4>
+                        <small id="regime-description" class="text-muted">Loading...</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted">Decisions Today</h6>
+                        <h4 id="decisions-today" class="text-primary">0</h4>
+                        <small class="text-muted">Autonomous actions</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted">Active Adjustments</h6>
+                        <h4 id="active-adjustments" class="text-warning">0</h4>
+                        <small class="text-muted">Config changes</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted">Self-Healing</h6>
+                        <h4 id="healing-status" class="text-success">--</h4>
+                        <small id="healing-issues" class="text-muted">No issues</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="btn-group w-100" role="group">
+                    <button onclick="applyRegime('DEFENSIVE')" class="btn btn-outline-danger">
+                        <i class="bi bi-shield-fill"></i> DEFENSIVE
+                    </button>
+                    <button onclick="applyRegime('NEUTRAL')" class="btn btn-outline-primary">
+                        <i class="bi bi-circle-fill"></i> NEUTRAL
+                    </button>
+                    <button onclick="applyRegime('RISK_ON')" class="btn btn-outline-success">
+                        <i class="bi bi-rocket-fill"></i> RISK ON
+                    </button>
+                    <button onclick="showDecisionLog()" class="btn btn-outline-info">
+                        <i class="bi bi-journal-text"></i> Decision Log
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-3">
     <!-- Skill Command Center -->
     <div class="col-lg-8">
@@ -526,5 +601,233 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// ==================== AUTONOMOUS AGENT FUNCTIONS ====================
+
+// Load autonomous agent status
+async function loadAutonomousStatus() {
+    try {
+        const resp = await fetch('/api/autonomous/status');
+        const data = await resp.json();
+        
+        if (data.success) {
+            const s = data.data;
+            
+            // Update toggle
+            document.getElementById('autonomous-toggle').checked = s.enabled;
+            
+            // Update badge
+            const badge = document.getElementById('autonomous-status-badge');
+            if (s.running) {
+                badge.className = 'badge bg-success';
+                badge.textContent = 'RUNNING';
+            } else if (s.enabled) {
+                badge.className = 'badge bg-warning';
+                badge.textContent = 'Starting...';
+            } else {
+                badge.className = 'badge bg-secondary';
+                badge.textContent = 'Disabled';
+            }
+            
+            // Update stats
+            document.getElementById('current-regime').textContent = s.current_regime || 'NEUTRAL';
+            document.getElementById('decisions-today').textContent = s.decisions_today || 0;
+            
+            // Load config status
+            loadConfigStatus();
+            
+            // Load healing status
+            loadHealingStatus();
+        }
+    } catch (e) {
+        console.error('Failed to load autonomous status:', e);
+    }
+}
+
+// Load config manager status
+async function loadConfigStatus() {
+    try {
+        const resp = await fetch('/api/config/dynamic/status');
+        const data = await resp.json();
+        
+        if (data.success) {
+            document.getElementById('active-adjustments').textContent = data.data.active_adjustments || 0;
+            
+            // Update regime description
+            const regime = data.data.current_regime;
+            const desc = {
+                'DEFENSIVE': 'Risk-off mode - reduced positions',
+                'NEUTRAL': 'Balanced trading parameters',
+                'RISK_ON': 'Expanded opportunities mode'
+            };
+            document.getElementById('regime-description').textContent = desc[regime] || 'Standard operation';
+        }
+    } catch (e) {
+        console.error('Failed to load config status:', e);
+    }
+}
+
+// Load self-healing status
+async function loadHealingStatus() {
+    try {
+        const resp = await fetch('/api/healing/status');
+        const data = await resp.json();
+        
+        if (data.success) {
+            const s = data.data;
+            const statusEl = document.getElementById('healing-status');
+            const issuesEl = document.getElementById('healing-issues');
+            
+            if (s.running) {
+                statusEl.textContent = 'Active';
+                statusEl.className = 'text-success';
+            } else {
+                statusEl.textContent = 'Standby';
+                statusEl.className = 'text-muted';
+            }
+            
+            if (s.active_issues > 0) {
+                issuesEl.textContent = `${s.active_issues} issue(s) detected`;
+                issuesEl.className = 'text-warning';
+            } else {
+                issuesEl.textContent = 'No issues';
+                issuesEl.className = 'text-muted';
+            }
+        }
+    } catch (e) {
+        console.error('Failed to load healing status:', e);
+    }
+}
+
+// Toggle autonomous mode
+async function toggleAutonomous() {
+    const enabled = document.getElementById('autonomous-toggle').checked;
+    
+    try {
+        const resp = await fetch('/api/autonomous/toggle', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({enabled})
+        });
+        
+        const data = await resp.json();
+        
+        if (data.success) {
+            showToast(`Autonomous mode ${enabled ? 'enabled' : 'disabled'}`, 'success');
+            loadAutonomousStatus();
+        } else {
+            showToast('Error: ' + data.error, 'danger');
+            document.getElementById('autonomous-toggle').checked = !enabled;
+        }
+    } catch (e) {
+        showToast('Failed: ' + e.message, 'danger');
+        document.getElementById('autonomous-toggle').checked = !enabled;
+    }
+}
+
+// Apply regime configuration
+async function applyRegime(regime) {
+    if (!confirm(`Apply ${regime} regime? This will adjust all strategy parameters.`)) return;
+    
+    try {
+        const resp = await fetch('/api/config/dynamic/apply-regime', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({regime})
+        });
+        
+        const data = await resp.json();
+        
+        if (data.success) {
+            showToast(`${regime} regime applied (${data.changes_made} changes)`, 'success');
+            loadConfigStatus();
+        } else {
+            showToast('Error: ' + data.error, 'danger');
+        }
+    } catch (e) {
+        showToast('Failed: ' + e.message, 'danger');
+    }
+}
+
+// Show decision log modal
+async function showDecisionLog() {
+    try {
+        const resp = await fetch('/api/autonomous/decisions?limit=10');
+        const data = await resp.json();
+        
+        let content = '';
+        if (data.decisions && data.decisions.length > 0) {
+            content = data.decisions.map(d => `
+                <tr>
+                    <td><small>${new Date(d.timestamp).toLocaleString()}</small></td>
+                    <td><span class="badge bg-${d.status === 'executed' ? 'success' : d.status === 'escalated' ? 'warning' : 'secondary'}">${d.status}</span></td>
+                    <td>${d.decision_type}</td>
+                    <td>${d.description}</td>
+                    <td>${Math.round(d.confidence * 100)}%</td>
+                </tr>
+            `).join('');
+        } else {
+            content = '<tr><td colspan="5" class="text-center text-muted">No decisions yet</td></tr>';
+        }
+        
+        // Create modal
+        const modalHtml = `
+            <div class="modal fade" id="decisionsModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Autonomous Decision Log</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Status</th>
+                                        <th>Type</th>
+                                        <th>Description</th>
+                                        <th>Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${content}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        const existing = document.getElementById('decisionsModal');
+        if (existing) existing.remove();
+        
+        // Add and show
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = new bootstrap.Modal(document.getElementById('decisionsModal'));
+        modal.show();
+    } catch (e) {
+        showToast('Failed to load decisions: ' + e.message, 'danger');
+    }
+}
+
+// Toast notification helper
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+// Refresh autonomous status periodically
+setInterval(loadAutonomousStatus, 30000);
+
+// Load on page load
+document.addEventListener('DOMContentLoaded', loadAutonomousStatus);
 </script>
 {% endblock %}

@@ -1,0 +1,1 @@
+/root/trading-bot/.zeroclaw/telegram_handler_v49_smart.sh

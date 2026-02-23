@@ -43,6 +43,18 @@ except ImportError:
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', os.urandom(24))
 
+# ============================================================================
+# AUTONOMOUS TRADING AGENT INTEGRATION
+# ============================================================================
+try:
+    from autonomous_api import register_autonomous_routes
+    register_autonomous_routes(app)
+    AUTONOMOUS_INTEGRATED = True
+    print("[Dashboard] Autonomous trading agent integrated successfully")
+except ImportError as e:
+    AUTONOMOUS_INTEGRATED = False
+    print(f"[Dashboard] Autonomous integration not available: {e}")
+
 # Global variable to store latest data from trading bot
 _latest_data = {
     'prices': [],
