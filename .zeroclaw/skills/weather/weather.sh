@@ -1,57 +1,63 @@
 #!/bin/bash
-# Weather API Script
-CITY="${1:-Basseterre}"  # Default to St. Kitts
+# Weather API Script - OpenWeatherMap
+CITY="${1:-Basseterre}"
 
-if [ -z "$WEATHERAPI_KEY" ]; then
-    echo "❌ WEATHERAPI_KEY not set"
+if [ -z "$OPENWEATHER_API_KEY" ]; then
+    echo "❌ OPENWEATHER_API_KEY not set"
     echo ""
     echo "To get weather data:"
-    echo "1. Get FREE API key: https://www.weatherapi.com/signup.aspx"
-    echo "2. Run: export WEATHERAPI_KEY=your_key_here"
+    echo "1. Get FREE API key: https://home.openweathermap.org/users/sign_up"
+    echo "2. Run: export OPENWEATHER_API_KEY=your_key_here"
     echo "3. Add to ~/.bashrc to make permanent"
     exit 1
 fi
 
 # Make API call
-RESPONSE=$(curl -s "https://api.weatherapi.com/v1/current.json?key=$WEATHERAPI_KEY&q=$CITY&aqi=no")
+RESPONSE=$(curl -s "https://api.openweathermap.org/data/2.5/weather?q=$CITY&appid=$OPENWEATHER_API_KEY&units=metric")
 
 # Check for errors
-if echo "$RESPONSE" | grep -q '"error"'; then
-    ERROR_MSG=$(echo "$RESPONSE" | grep -o '"message":"[^"]*"' | head -1 | cut -d'"' -f4)
-    echo "❌ Weather API Error: $ERROR_MSG"
+if echo "$RESPONSE" | grep -q '"cod":"401"'; then
+    echo "❌ Invalid API key"
+    exit 1
+fi
+
+if echo "$RESPONSE" | grep -q '"cod":"404"'; then
+    echo "❌ City not found: $CITY"
     exit 1
 fi
 
 # Parse JSON response
-LOCATION=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['location']['name'])")
-REGION=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['location']['region'])")
-TEMP_C=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['current']['temp'])")
-TEMP_F=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(int(d['current']['temp']*9/5+32))")
-CONDITION=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['current']['condition']['text'])")
-HUMIDITY=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['current']['humidity'])")
-WIND=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(int(d['current']['wind_kph']))")
-FEELS_C=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(int(d['current']['feelslike_c']))")
+CITY_NAME=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['name'])")
+COUNTRY=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['sys']['country'])")
+TEMP=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(int(d['main']['temp']))")
+FEELS=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(int(d['main']['feels_like']))")
+HUMIDITY=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['main']['humidity'])")
+WIND=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(int(d['wind']['speed']))")
+CONDITION=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['weather'][0]['description'].title())")
 
-# Get emoji
+# Convert to Fahrenheit
+TEMP_F=$((TEMP * 9/5 + 32))
+
+# Get emoji based on condition
  case "$CONDITION" in
-    *Sunny*|*Clear*) EMOJI="☀️" ;;
-    *Cloud*|*Overcast*) EMOJI="☁️" ;;
-    *Rain*|*Drizzle*|* shower*) EMOJI="🌧️" ;;
+    *Clear*|*Sunny*) EMOJI="☀️" ;;
+    *Cloud*) EMOJI="☁️" ;;
+    *Rain*|*Drizzle*) EMOJI="🌧️" ;;
     *Thunder*) EMOJI="⛈️" ;;
     *Snow*) EMOJI="❄️" ;;
-    *Fog*|*Mist*) EMOJI="🌫️" ;;
+    *Fog*|*Mist*|*Haze*) EMOJI="🌫️" ;;
     *) EMOJI="🌡️" ;;
 esac
 
 # Output formatted weather
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "$EMOJI Weather in $LOCATION, $REGION"
+echo "$EMOJI Weather in $CITY_NAME, $COUNTRY"
 echo ""
-echo "🌡️  Temperature: ${TEMP_C}°C (${TEMP_F}°F)"
-echo "🤔 Feels like: ${FEELS_C}°C"
+echo "🌡️  Temperature: ${TEMP}°C (${TEMP_F}°F)"
+echo "🤔 Feels like: ${FEELS}°C"
 echo "☁️  Condition: $CONDITION"
 echo "💧 Humidity: ${HUMIDITY}%"
-echo "💨 Wind: ${WIND} km/h"
+echo "💨 Wind: ${WIND} m/s"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
