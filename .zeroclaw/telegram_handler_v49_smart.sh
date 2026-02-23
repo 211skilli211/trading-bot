@@ -193,15 +193,15 @@ case "$MSG_LOWER" in
     echo "  • scheduled"
     ;;
     
-  # Default: pass to AI
-  *)
-    echo "$MESSAGE"
-    ;;
-esac
-
   # Weather pattern
   "weather"*)
     CITY=$(echo "$MESSAGE" | sed 's/weather//i' | sed 's/in//i' | xargs)
     [ -z "$CITY" ] && CITY="Basseterre"
     /root/.zeroclaw/skills/weather/weather.sh "$CITY"
     ;;
+
+  # Default: pass to AI
+  *)
+    echo "$MESSAGE"
+    ;;
+esac
