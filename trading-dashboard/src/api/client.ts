@@ -97,7 +97,7 @@ export const api = {
   getStrategies: () => fetchWithAuth(`${API_BASE}/api/strategies`),
   updateStrategy: (id: string, data: any) => 
     fetchWithAuth(`${API_BASE}/api/strategies/${id}`, {
-      method: 'PUT',
+      method: 'POST',
       body: JSON.stringify(data),
     }),
   
@@ -163,8 +163,11 @@ export const api = {
     }),
   
   // Strategies
-  toggleStrategy: (id: string) => 
-    fetchWithAuth(`${API_BASE}/api/strategies/${id}/toggle`, { method: 'POST' }),
+  toggleStrategy: (id: string, enabled: boolean) => 
+    fetchWithAuth(`${API_BASE}/api/strategies/${id}/toggle`, { 
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
   
   // ZeroClaw extra
   toggleAutonomous: (enabled?: boolean) => 

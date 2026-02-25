@@ -58,10 +58,12 @@ export function Strategies() {
   async function toggleStrategy(id: string) {
     try {
       const strategy = strategies.find(s => s.id === id);
-      await api.toggleStrategy(id);
+      if (!strategy) return;
+      const newEnabled = !strategy.enabled;
+      await api.toggleStrategy(id, newEnabled);
       // Optimistic update
       setStrategies(prev => prev.map(s => 
-        s.id === id ? { ...s, enabled: !s.enabled } : s
+        s.id === id ? { ...s, enabled: newEnabled } : s
       ));
       loadStrategies();
     } catch (error) {
