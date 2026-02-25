@@ -137,6 +137,8 @@ export interface Agent {
   consecutive_losses?: number;
   kill_threshold?: number;
   max_position_pct?: number;
+  model?: string;
+  role?: 'executor' | 'analyst' | 'supervisor';
   created_at?: string;
   last_eval?: string;
   currency?: Currency;

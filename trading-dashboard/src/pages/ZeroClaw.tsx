@@ -4,7 +4,7 @@ import {
   CheckCircle, Clock, TrendingUp, Brain, Zap, RefreshCw,
   Terminal, Play, Pause, ChevronDown, ChevronUp,
   AlertOctagon, BarChart3, History, Sparkles, Lock, Unlock,
-  MessageSquare, Send, User, Loader2, Sparkle
+  MessageSquare, Send, User, Loader2, Sparkle, X
 } from 'lucide-react';
 import { Header } from '../components/Header';
 import { api } from '../api/client';
@@ -56,7 +56,7 @@ export function ZeroClaw() {
   const [issues, setIssues] = useState<HealingIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'decisions' | 'healing' | 'chat'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'decisions' | 'healing'>('overview');
   const [expandedDecision, setExpandedDecision] = useState<string | null>(null);
   
   // Chat state
@@ -64,6 +64,27 @@ export function ZeroClaw() {
   const [inputMessage, setInputMessage] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Settings state
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
+    model: 'anthropic/claude-3.5-sonnet',
+    tools: {
+      portfolio: true,
+      arbitrage: true,
+      charting: true,
+      risk: true,
+    },
+    permissions: {
+      autoTrade: false,
+      requireApproval: true,
+      maxPositionSize: 1000,
+    },
+    mcp: {
+      enabled: false,
+      protocol: 'standard',
+    },
+  });
 
   async function loadData() {
     try {
@@ -270,17 +291,17 @@ export function ZeroClaw() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 flex-wrap">
-          {[
-            { id: 'overview', label: 'Overview', icon: Activity },
-            { id: 'decisions', label: `Decisions (${pendingDecisions.length})`, icon: Brain },
-            { id: 'healing', label: `Self-Healing (${openIssues.length})`, icon: Shield },
-            { id: 'chat', label: 'AI Chat', icon: MessageSquare },
-          ].map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id as any)}
+        {/* Tabs & Settings */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { id: 'overview', label: 'Overview', icon: Activity },
+              { id: 'decisions', label: `Decisions (${pendingDecisions.length})`, icon: Brain },
+              { id: 'healing', label: `Self-Healing (${openIssues.length})`, icon: Shield },
+            ].map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id as any)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === id 
                   ? 'bg-blue-600 text-white' 
@@ -291,9 +312,19 @@ export function ZeroClaw() {
               {label}
             </button>
           ))}
+          </div>
+          
+          {/* Settings Button */}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-gray-400 hover:text-white rounded-lg font-medium transition-colors"
+          >
+            <Settings size={16} />
+            Settings
+          </button>
         </div>
 
-        {/* Overview Tab */}
+        {/* Overview Tab with Chat */}
         {activeTab === 'overview' && (
           <div className="space-y-4">
             {/* System Health */}
@@ -367,10 +398,93 @@ export function ZeroClaw() {
                 )}
               </div>
             </div>
+
+            {/* AI Chat - Now on Overview Screen */}
+            <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+              <div className="p-4 border-b border-dark-700 flex items-center justify-between">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <MessageSquare size={18} className="text-green-400" />
+                  AI Chat Assistant
+                </h3>
+                <span className="text-xs text-gray-400">Ask about markets, strategies, or status</span>
+              </div>
+              
+              {/* Chat Messages */}
+              <div className="h-64 overflow-y-auto p-4 space-y-4 bg-dark-900/50">
+                {messages.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <Bot size={40} className="mx-auto mb-3 opacity-30" />
+                    <p className="text-sm mb-3">Chat with ZeroClaw AI</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {['Check portfolio status', 'Scan for arbitrage', 'Analyze BTC trend', 'What strategies are active?'].map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          onClick={() => { setInputMessage(suggestion); }}
+                          className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg text-xs text-gray-300 transition-colors"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  messages.map((msg) => (
+                    <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`p-2 rounded-xl ${msg.role === 'user' ? 'bg-blue-600' : 'bg-green-600/20'}`}>
+                        {msg.role === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} className="text-green-400" />}
+                      </div>
+                      <div className={`max-w-[80%] p-3 rounded-xl text-sm ${
+                        msg.role === 'user' 
+                          ? 'bg-blue-600/20 text-blue-100' 
+                          : 'bg-dark-700 text-gray-200'
+                      }`}>
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                        <span className="text-xs text-gray-500 mt-1 block">
+                          {new Date(msg.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+                {chatLoading && (
+                  <div className="flex gap-3">
+                    <div className="p-2 rounded-xl bg-green-600/20">
+                      <Bot size={16} className="text-green-400" />
+                    </div>
+                    <div className="p-3 rounded-xl bg-dark-700 flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin text-green-400" />
+                      <span className="text-xs text-gray-400">ZeroClaw is thinking...</span>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+              
+              {/* Chat Input */}
+              <div className="p-4 border-t border-dark-700">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                    placeholder="Ask ZeroClaw about markets, strategies, or bot status..."
+                    className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={chatLoading || !inputMessage.trim()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors"
+                  >
+                    <Send size={18} />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Decisions Tab */}
+        {/* Decisions Tab -->
         {activeTab === 'decisions' && (
           <div className="space-y-3">
             {decisions.map((decision) => (
@@ -520,78 +634,190 @@ export function ZeroClaw() {
           </div>
         )}
 
-        {/* Chat Tab */}
-        {activeTab === 'chat' && (
-          <div className="bg-dark-800 rounded-xl border border-dark-700 flex flex-col" style={{ height: '500px' }}>
-            {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
-                  <Bot size={48} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-medium mb-2">Chat with ZeroClaw AI</p>
-                  <p className="text-sm mb-4">Ask about market analysis, trading strategies, or bot status</p>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {['Check portfolio status', 'Scan for arbitrage', 'Analyze BTC trend', 'What strategies are active?'].map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        onClick={() => { setInputMessage(suggestion); }}
-                        className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg text-xs text-gray-300 transition-colors"
-                      >
-                        {suggestion}
-                      </button>
+        {/* Settings Modal */}
+        {showSettings && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-dark-800 rounded-2xl border border-dark-600 max-w-2xl w-full max-h-[90vh] overflow-auto">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-dark-700">
+                <div className="flex items-center gap-2">
+                  <Settings className="text-blue-400" size={24} />
+                  <span className="text-xl font-bold">ZeroClaw Settings</span>
+                </div>
+                <button 
+                  onClick={() => setShowSettings(false)}
+                  className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                >
+                  <X size={20} className="text-gray-400" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Model Selection */}
+                <div className="bg-dark-900 rounded-xl p-4">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Brain size={18} className="text-purple-400" />
+                    AI Model
+                  </h3>
+                  <select
+                    value={settings.model}
+                    onChange={(e) => setSettings({...settings, model: e.target.value})}
+                    className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm"
+                  >
+                    <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Recommended)</option>
+                    <option value="anthropic/claude-3-opus">Claude 3 Opus (Most Capable)</option>
+                    <option value="openai/gpt-4o">GPT-4o (OpenAI)</option>
+                    <option value="google/gemini-pro">Gemini Pro (Google)</option>
+                    <option value="meta-llama/llama-3-70b">Llama 3 70B (Meta)</option>
+                  </select>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Select the AI model that powers ZeroClaw's decision making. More capable models may have higher latency.
+                  </p>
+                </div>
+
+                {/* Tools */}
+                <div className="bg-dark-900 rounded-xl p-4">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Zap size={18} className="text-yellow-400" />
+                    Assistant Tools
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { key: 'portfolio', label: 'Portfolio Analysis', desc: 'Analyze portfolio performance and suggest rebalancing' },
+                      { key: 'arbitrage', label: 'Arbitrage Scanner', desc: 'Scan for price discrepancies across exchanges' },
+                      { key: 'charting', label: 'Technical Analysis', desc: 'Chart patterns and indicator analysis' },
+                      { key: 'risk', label: 'Risk Manager', desc: 'Monitor and manage trading risks' },
+                    ].map(({ key, label, desc }) => (
+                      <label key={key} className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings.tools[key as keyof typeof settings.tools]}
+                          onChange={(e) => setSettings({
+                            ...settings,
+                            tools: { ...settings.tools, [key]: e.target.checked }
+                          })}
+                          className="mt-1 w-4 h-4 rounded border-dark-600"
+                        />
+                        <div>
+                          <div className="font-medium text-sm">{label}</div>
+                          <div className="text-xs text-gray-400">{desc}</div>
+                        </div>
+                      </label>
                     ))}
                   </div>
                 </div>
-              ) : (
-                messages.map((msg) => (
-                  <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`p-2 rounded-xl ${msg.role === 'user' ? 'bg-blue-600' : 'bg-green-600/20'}`}>
-                      {msg.role === 'user' ? <User size={18} className="text-white" /> : <Bot size={18} className="text-green-400" />}
+
+                {/* Permissions */}
+                <div className="bg-dark-900 rounded-xl p-4">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Shield size={18} className="text-green-400" />
+                    Controls & Permissions
+                  </h3>
+                  <div className="space-y-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.permissions.autoTrade}
+                        onChange={(e) => setSettings({
+                          ...settings,
+                          permissions: { ...settings.permissions, autoTrade: e.target.checked }
+                        })}
+                        className="mt-1 w-4 h-4 rounded border-dark-600"
+                      />
+                      <div>
+                        <div className="font-medium text-sm">Auto-Trading</div>
+                        <div className="text-xs text-gray-400">Allow ZeroClaw to execute trades automatically without approval</div>
+                      </div>
+                    </label>
+                    
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.permissions.requireApproval}
+                        onChange={(e) => setSettings({
+                          ...settings,
+                          permissions: { ...settings.permissions, requireApproval: e.target.checked }
+                        })}
+                        className="mt-1 w-4 h-4 rounded border-dark-600"
+                      />
+                      <div>
+                        <div className="font-medium text-sm">Require Approval</div>
+                        <div className="text-xs text-gray-400">Require manual approval for trades above $100</div>
+                      </div>
+                    </label>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Max Position Size ($)</label>
+                      <input
+                        type="number"
+                        value={settings.permissions.maxPositionSize}
+                        onChange={(e) => setSettings({
+                          ...settings,
+                          permissions: { ...settings.permissions, maxPositionSize: parseInt(e.target.value) }
+                        })}
+                        className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm"
+                      />
                     </div>
-                    <div className={`max-w-[80%] p-3 rounded-xl ${
-                      msg.role === 'user' 
-                        ? 'bg-blue-600/20 text-blue-100' 
-                        : 'bg-dark-700 text-gray-200'
-                    }`}>
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                      <span className="text-xs text-gray-500 mt-1 block">
-                        {new Date(msg.timestamp).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-              {chatLoading && (
-                <div className="flex gap-3">
-                  <div className="p-2 rounded-xl bg-green-600/20">
-                    <Bot size={18} className="text-green-400" />
-                  </div>
-                  <div className="p-3 rounded-xl bg-dark-700 flex items-center gap-2">
-                    <Loader2 size={16} className="animate-spin text-green-400" />
-                    <span className="text-sm text-gray-400">ZeroClaw is thinking...</span>
                   </div>
                 </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-            
-            {/* Chat Input */}
-            <div className="p-4 border-t border-dark-700">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="Ask ZeroClaw about markets, strategies, or bot status..."
-                  className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={chatLoading || !inputMessage.trim()}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors"
+
+                {/* MCP */}
+                <div className="bg-dark-900 rounded-xl p-4">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Activity size={18} className="text-blue-400" />
+                    MCP (Multi-Control Protocol)
+                  </h3>
+                  <div className="space-y-3">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.mcp.enabled}
+                        onChange={(e) => setSettings({
+                          ...settings,
+                          mcp: { ...settings.mcp, enabled: e.target.checked }
+                        })}
+                        className="mt-1 w-4 h-4 rounded border-dark-600"
+                      />
+                      <div>
+                        <div className="font-medium text-sm">Enable MCP</div>
+                        <div className="text-xs text-gray-400">Allow external systems to control ZeroClaw via API</div>
+                      </div>
+                    </label>
+                    
+                    {settings.mcp.enabled && (
+                      <select
+                        value={settings.mcp.protocol}
+                        onChange={(e) => setSettings({
+                          ...settings,
+                          mcp: { ...settings.mcp, protocol: e.target.value }
+                        })}
+                        className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="standard">Standard Protocol</option>
+                        <option value="extended">Extended Protocol (More commands)</option>
+                        <option value="restricted">Restricted (Read-only)</option>
+                      </select>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex gap-3 p-4 border-t border-dark-700">
+                <button 
+                  onClick={() => setShowSettings(false)}
+                  className="flex-1 py-2.5 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors"
                 >
-                  <Send size={18} />
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    // TODO: Save settings to backend
+                    setShowSettings(false);
+                  }}
+                  className="flex-1 py-2.5 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Save Settings
                 </button>
               </div>
             </div>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, Filter, Grid3X3, List, TrendingUp, TrendingDown,
-  Star, Zap
+  Star, Zap, ChevronDown, Layers, Globe
 } from 'lucide-react';
 import { Header } from '../components/Header';
 import { PriceCard } from '../components/PriceCard';
@@ -12,6 +12,59 @@ import { api } from '../api/client';
 import { Price, ArbitrageOpportunity } from '../types';
 import { formatCurrency, formatPercent } from '../utils/format';
 
+// Unified coin list from Analytics
+interface CoinOption {
+  symbol: string;
+  name: string;
+  price: number;
+  change24h: number;
+  volume24h: number;
+  marketCap: number;
+  chain: 'ethereum' | 'solana' | 'binance' | 'layer1' | 'layer2' | 'meme' | 'defi';
+}
+
+const AVAILABLE_COINS: CoinOption[] = [
+  // Major Coins
+  { symbol: 'BTC/USDT', name: 'Bitcoin', price: 64250, change24h: 2.5, volume24h: 28.5e9, marketCap: 1.26e12, chain: 'layer1' },
+  { symbol: 'ETH/USDT', name: 'Ethereum', price: 3450, change24h: 1.8, volume24h: 15.2e9, marketCap: 415e9, chain: 'ethereum' },
+  { symbol: 'SOL/USDT', name: 'Solana', price: 148, change24h: -0.5, volume24h: 3.8e9, marketCap: 68e9, chain: 'solana' },
+  { symbol: 'BNB/USDT', name: 'Binance Coin', price: 585, change24h: 0.8, volume24h: 1.2e9, marketCap: 88e9, chain: 'binance' },
+  { symbol: 'XRP/USDT', name: 'Ripple', price: 0.62, change24h: 1.2, volume24h: 1.8e9, marketCap: 34e9, chain: 'layer1' },
+  { symbol: 'ADA/USDT', name: 'Cardano', price: 0.58, change24h: -1.5, volume24h: 420e6, marketCap: 20e9, chain: 'layer1' },
+  { symbol: 'DOGE/USDT', name: 'Dogecoin', price: 0.12, change24h: 5.2, volume24h: 2.1e9, marketCap: 17e9, chain: 'meme' },
+  { symbol: 'DOT/USDT', name: 'Polkadot', price: 7.25, change24h: 2.1, volume24h: 280e6, marketCap: 10e9, chain: 'layer1' },
+  // Layer 1s
+  { symbol: 'AVAX/USDT', name: 'Avalanche', price: 38.5, change24h: 3.2, volume24h: 580e6, marketCap: 15e9, chain: 'layer1' },
+  { symbol: 'MATIC/USDT', name: 'Polygon', price: 0.72, change24h: -0.8, volume24h: 380e6, marketCap: 7e9, chain: 'layer2' },
+  { symbol: 'NEAR/USDT', name: 'NEAR Protocol', price: 6.8, change24h: 4.5, volume24h: 320e6, marketCap: 7e9, chain: 'layer1' },
+  { symbol: 'ATOM/USDT', name: 'Cosmos', price: 9.2, change24h: 1.5, volume24h: 280e6, marketCap: 3.5e9, chain: 'layer1' },
+  { symbol: 'FTM/USDT', name: 'Fantom', price: 0.85, change24h: -2.1, volume24h: 180e6, marketCap: 2.4e9, chain: 'layer1' },
+  { symbol: 'ALGO/USDT', name: 'Algorand', price: 0.19, change24h: 0.5, volume24h: 95e6, marketCap: 1.6e9, chain: 'layer1' },
+  { symbol: 'VET/USDT', name: 'VeChain', price: 0.035, change24h: 1.2, volume24h: 85e6, marketCap: 2.8e9, chain: 'layer1' },
+  // DeFi
+  { symbol: 'UNI/USDT', name: 'Uniswap', price: 9.8, change24h: -1.2, volume24h: 180e6, marketCap: 5.9e9, chain: 'ethereum' },
+  { symbol: 'AAVE/USDT', name: 'Aave', price: 105, change24h: 2.8, volume24h: 120e6, marketCap: 1.5e9, chain: 'ethereum' },
+  { symbol: 'MKR/USDT', name: 'Maker', price: 1680, change24h: 0.5, volume24h: 95e6, marketCap: 1.5e9, chain: 'ethereum' },
+  { symbol: 'CRV/USDT', name: 'Curve', price: 0.42, change24h: -3.5, volume24h: 85e6, marketCap: 550e6, chain: 'ethereum' },
+  { symbol: 'SUSHI/USDT', name: 'SushiSwap', price: 1.25, change24h: 3.5, volume24h: 85e6, marketCap: 290e6, chain: 'ethereum' },
+  { symbol: 'COMP/USDT', name: 'Compound', price: 65, change24h: -1.5, volume24h: 35e6, marketCap: 520e6, chain: 'ethereum' },
+  // Solana Ecosystem
+  { symbol: 'JTO/USDT', name: 'Jito', price: 3.2, change24h: 8.5, volume24h: 120e6, marketCap: 380e6, chain: 'solana' },
+  { symbol: 'RAY/USDT', name: 'Raydium', price: 1.85, change24h: 5.2, volume24h: 45e6, marketCap: 480e6, chain: 'solana' },
+  { symbol: 'BONK/USDT', name: 'Bonk', price: 0.000022, change24h: 12.5, volume24h: 280e6, marketCap: 1.4e9, chain: 'meme' },
+  { symbol: 'WIF/USDT', name: 'Dogwifhat', price: 2.15, change24h: 15.8, volume24h: 420e6, marketCap: 2.1e9, chain: 'meme' },
+];
+
+const chainLabels: Record<string, { label: string; color: string }> = {
+  ethereum: { label: 'Ethereum', color: 'bg-blue-500/20 text-blue-400' },
+  solana: { label: 'Solana', color: 'bg-purple-500/20 text-purple-400' },
+  binance: { label: 'BNB Chain', color: 'bg-yellow-500/20 text-yellow-400' },
+  layer1: { label: 'Layer 1', color: 'bg-green-500/20 text-green-400' },
+  layer2: { label: 'Layer 2', color: 'bg-cyan-500/20 text-cyan-400' },
+  meme: { label: 'Meme', color: 'bg-pink-500/20 text-pink-400' },
+  defi: { label: 'DeFi', color: 'bg-orange-500/20 text-orange-400' },
+};
+
 export function Prices() {
   const navigate = useNavigate();
   const [prices, setPrices] = useState<Price[]>([]);
@@ -20,9 +73,11 @@ export function Prices() {
   const [activeTab, setActiveTab] = useState<'prices' | 'arbitrage'>('prices');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [exchangeFilter, setExchangeFilter] = useState<string>('all');
+  const [chainFilter, setChainFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'volume' | 'change' | 'price'>('volume');
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showCoinDropdown, setShowCoinDropdown] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('favoriteCoins');
@@ -62,6 +117,26 @@ export function Prices() {
 
   const exchanges = Array.from(new Set(prices.map(p => p.exchange)));
 
+  // Filter coins from unified list
+  let filteredCoins = AVAILABLE_COINS.filter(coin => {
+    const matchesSearch = coin.symbol.toLowerCase().includes(search.toLowerCase()) ||
+                         coin.name.toLowerCase().includes(search.toLowerCase());
+    const matchesChain = chainFilter === 'all' || coin.chain === chainFilter;
+    const matchesFavorites = exchangeFilter !== 'favorites' || favorites.includes(coin.symbol);
+    const matchesGainers = exchangeFilter !== 'gainers' || coin.change24h > 0;
+    const matchesLosers = exchangeFilter !== 'losers' || coin.change24h < 0;
+    return matchesSearch && matchesChain && matchesFavorites && matchesGainers && matchesLosers;
+  });
+
+  // Sort coins
+  filteredCoins.sort((a, b) => {
+    if (sortBy === 'volume') return b.volume24h - a.volume24h;
+    if (sortBy === 'change') return b.change24h - a.change24h;
+    if (sortBy === 'price') return b.price - a.price;
+    return 0;
+  });
+
+  // Legacy price filtering (keep for compatibility)
   let filteredPrices = prices.filter(p => {
     const matchesSearch = p.symbol.toLowerCase().includes(search.toLowerCase());
     const matchesExchange = exchangeFilter === 'all' || p.exchange === exchangeFilter;
@@ -130,6 +205,21 @@ export function Prices() {
             </select>
 
             <select
+              value={chainFilter}
+              onChange={(e) => setChainFilter(e.target.value)}
+              className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+            >
+              <option value="all">All Chains</option>
+              <option value="ethereum">Ethereum</option>
+              <option value="solana">Solana</option>
+              <option value="binance">BNB Chain</option>
+              <option value="layer1">Layer 1</option>
+              <option value="layer2">Layer 2</option>
+              <option value="meme">Meme Coins</option>
+              <option value="defi">DeFi</option>
+            </select>
+
+            <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
               className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
@@ -189,6 +279,71 @@ export function Prices() {
           )}
         </div>
 
+        {/* Unified Coin List Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowCoinDropdown(!showCoinDropdown)}
+            className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-dark-800 border border-dark-700 rounded-xl hover:border-blue-500 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Globe className="text-blue-400" size={20} />
+              <div className="text-left">
+                <div className="font-semibold">Unified Market List</div>
+                <div className="text-xs text-gray-400">{filteredCoins.length} assets available</div>
+              </div>
+            </div>
+            <ChevronDown className={`text-gray-400 transition-transform ${showCoinDropdown ? 'rotate-180' : ''}`} size={20} />
+          </button>
+          
+          {showCoinDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-dark-800 border border-dark-700 rounded-xl shadow-xl z-50 max-h-[60vh] overflow-auto">
+              <div className="p-3">
+                <div className="text-xs text-gray-500 mb-2 px-2 sticky top-0 bg-dark-800">Select Market ({filteredCoins.length} assets)</div>
+                {filteredCoins.map((coin) => (
+                  <button
+                    key={coin.symbol}
+                    onClick={() => {
+                      navigate(`/coin/${encodeURIComponent(coin.symbol)}`);
+                      setShowCoinDropdown(false);
+                    }}
+                    className="w-full flex items-center justify-between p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <CryptoIcon symbol={coin.symbol} size={32} />
+                      <div className="text-left">
+                        <div className="font-medium">{coin.symbol}</div>
+                        <div className="text-xs text-gray-400">{coin.name}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono">${coin.price.toLocaleString()}</div>
+                      <div className={`text-xs ${coin.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {coin.change24h >= 0 ? '+' : ''}{coin.change24h.toFixed(2)}%
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Chain Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <span className="text-sm text-gray-400 whitespace-nowrap">Filter by:</span>
+          {Object.entries(chainLabels).map(([key, { label, color }]) => (
+            <button
+              key={key}
+              onClick={() => setChainFilter(chainFilter === key ? 'all' : key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                chainFilter === key ? color : 'bg-dark-800 text-gray-400 border border-dark-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Tabs */}
         <div className="flex gap-2">
           <button
@@ -199,7 +354,8 @@ export function Prices() {
                 : 'bg-dark-800 text-gray-400'
             }`}
           >
-            Prices ({uniqueSymbols.length})
+            <Layers size={16} className="inline mr-1" />
+            Live Prices ({uniqueSymbols.length})
           </button>
           <button
             onClick={() => setActiveTab('arbitrage')}

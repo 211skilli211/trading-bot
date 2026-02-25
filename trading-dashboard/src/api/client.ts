@@ -136,6 +136,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ action: action === 'activate' ? 'start' : action === 'pause' ? 'stop' : action }),
     }),
+  controlAgent: (agentName: string, action: 'start' | 'stop' | 'activate' | 'pause') => 
+    fetchWithAuth(`${API_BASE}/api/multi-agent/control`, {
+      method: 'POST',
+      body: JSON.stringify({ agent: agentName, action: action === 'activate' ? 'start' : action === 'pause' ? 'stop' : action }),
+    }),
   rebalanceCapital: () => 
     fetchWithAuth(`${API_BASE}/api/multi-agent/rebalance`, { method: 'POST' }),
   runAgentEvaluation: () => 

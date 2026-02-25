@@ -47,6 +47,11 @@ export function MultiAgent() {
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [welcomeStep, setWelcomeStep] = useState<'intro' | 'research' | 'opportunities' | 'next'>('intro');
   
+  // Confirmation modals
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const [showStopAllConfirm, setShowStopAllConfirm] = useState(false);
+  const [agentToStop, setAgentToStop] = useState<string | null>(null);
+  
   // Activity feed for live updates
   const [activityFeed, setActivityFeed] = useState<Array<{
     id: string;
@@ -149,14 +154,39 @@ export function MultiAgent() {
   async function controlAgent(agentName: string, action: 'activate' | 'pause' | 'stop') {
     setActionLoading(`${action}-${agentName}`);
     try {
-      // TODO: Add individual agent control endpoint
-      console.log(`Controlling agent ${agentName}: ${action}`);
+      const result = await api.controlAgent(agentName, action);
+      if (result.success) {
+        console.log(`Agent ${agentName} ${action}d successfully`);
+      }
       await loadData();
     } catch (error) {
       console.error('Failed to control agent:', error);
+      alert(`Failed to ${action} agent ${agentName}. Check console for details.`);
     } finally {
       setActionLoading(null);
     }
+  }
+
+  function confirmStopAgent(agentName: string) {
+    setAgentToStop(agentName);
+    setShowStopConfirm(true);
+  }
+
+  function confirmStopAll() {
+    setShowStopAllConfirm(true);
+  }
+
+  async function executeStopAgent() {
+    if (agentToStop) {
+      await controlAgent(agentToStop, 'stop');
+      setShowStopConfirm(false);
+      setAgentToStop(null);
+    }
+  }
+
+  async function executeStopAll() {
+    await controlAll('stop');
+    setShowStopAllConfirm(false);
   }
 
   async function rebalance() {
@@ -189,6 +219,8 @@ export function MultiAgent() {
       capital: agent.capital,
       max_position_pct: agent.max_position_pct || 0.1,
       kill_threshold: agent.kill_threshold || 3,
+      model: agent.model || 'default',
+      role: agent.role || 'executor',
     });
   }
 
@@ -337,7 +369,7 @@ export function MultiAgent() {
             </button>
 
             <button 
-              onClick={() => controlAll('stop')}
+              onClick={confirmStopAll}
               disabled={actionLoading === 'stop'}
               className="flex items-center justify-center gap-2 p-3 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50"
             >
@@ -554,6 +586,16 @@ export function MultiAgent() {
                           }`}>
                             {risk} risk
                           </span>
+                          {agent.model && agent.model !== 'default' && (
+                            <span className="px-2 py-0.5 rounded text-xs bg-purple-500/20 text-purple-400">
+                              {agent.model}
+                            </span>
+                          )}
+                          {agent.role && agent.role !== 'executor' && (
+                            <span className="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400">
+                              {agent.role}
+                            </span>
+                          )}
                           <span className="text-xs text-gray-500">
                             {agent.consecutive_losses || 0}/{agent.kill_threshold || 3} losses
                           </span>
@@ -628,7 +670,7 @@ export function MultiAgent() {
                       Configure
                     </button>
                     <button
-                      onClick={() => controlAgent(agent.name, 'stop')}
+                      onClick={() => confirmStopAgent(agent.name)}
                       disabled={actionLoading === `stop-${agent.name}`}
                       className="px-3 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50"
                     >
@@ -687,6 +729,44 @@ export function MultiAgent() {
                     onChange={(e) => setAgentConfig({...agentConfig, kill_threshold: parseInt(e.target.value)})}
                     className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2"
                   />
+                </div>
+
+                {/* Model Assignment */}
+                <div className="border-t border-dark-700 pt-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Brain size={16} className="text-purple-400" />
+                    AI Model Assignment
+                  </h4>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Model</label>
+                      <select
+                        value={agentConfig?.model || 'default'}
+                        onChange={(e) => setAgentConfig({...agentConfig, model: e.target.value})}
+                        className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2"
+                      >
+                        <option value="default">Default (System)</option>
+                        <option value="claude-sonnet">Claude 3.5 Sonnet</option>
+                        <option value="claude-opus">Claude 3 Opus</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="llama-70b">Llama 3 70B</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Agent Role</label>
+                      <select
+                        value={agentConfig?.role || 'executor'}
+                        onChange={(e) => setAgentConfig({...agentConfig, role: e.target.value})}
+                        className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2"
+                      >
+                        <option value="executor">Executor (Handles trades)</option>
+                        <option value="analyst">Analyst (Reviews & advises)</option>
+                        <option value="supervisor">Supervisor (Manages other agents)</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1001,6 +1081,83 @@ export function MultiAgent() {
                     }`}
                   />
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stop Agent Confirmation Modal */}
+        {showStopConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-dark-800 rounded-2xl border border-dark-600 max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="text-red-400" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Stop Agent?</h3>
+                  <p className="text-sm text-gray-400">This will immediately halt {agentToStop}</p>
+                </div>
+              </div>
+              
+              <p className="text-sm text-gray-300 mb-6">
+                Any open positions will remain active. The agent will stop scanning for new opportunities.
+              </p>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowStopConfirm(false)}
+                  className="flex-1 py-2.5 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={executeStopAgent}
+                  className="flex-1 py-2.5 bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Square size={16} />
+                  Stop Agent
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stop All Confirmation Modal */}
+        {showStopAllConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-dark-800 rounded-2xl border border-red-500/30 max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center animate-pulse">
+                  <AlertTriangle className="text-red-400" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-red-400">Stop All Agents?</h3>
+                  <p className="text-sm text-gray-400">This will halt the entire swarm</p>
+                </div>
+              </div>
+              
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-6">
+                <p className="text-sm text-gray-300">
+                  <strong>Warning:</strong> All {activeCount} active agents will be stopped immediately. 
+                  Open positions will remain but no new trades will be executed.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowStopAllConfirm(false)}
+                  className="flex-1 py-2.5 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={executeStopAll}
+                  className="flex-1 py-2.5 bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Square size={16} />
+                  Stop All Agents
+                </button>
               </div>
             </div>
           </div>

@@ -119,7 +119,7 @@
       ]
     },
     "scalping": {
-      "enabled": false,
+      "enabled": true,
       "name": "Scalping",
       "description": "Quick trades on small price movements",
       "timeframe": "1m",
