@@ -606,3 +606,492 @@ code, pre {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ============================================================================
+   ENHANCED UI - SKELETON LOADERS, ANIMATIONS, MODERN EFFECTS
+   ============================================================================ */
+
+/* Skeleton Loader Base */
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--bg-secondary) 25%,
+        var(--bg-hover) 50%,
+        var(--bg-secondary) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--border-radius);
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Skeleton Variants */
+.skeleton-text {
+    height: 1em;
+    margin-bottom: 0.5em;
+}
+
+.skeleton-text-sm { height: 0.75em; }
+.skeleton-text-lg { height: 1.5em; }
+.skeleton-title { height: 2em; width: 60%; }
+.skeleton-circle { border-radius: 50%; }
+.skeleton-card {
+    height: 120px;
+    margin-bottom: var(--spacing-md);
+}
+
+/* Skeleton Table Rows */
+.skeleton-row {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border);
+}
+
+.skeleton-row .skeleton-cell {
+    height: 1.2em;
+    flex: 1;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 14, 20, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-fast);
+}
+
+.loading-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Enhanced Micro-Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes slideInFromLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInFromRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes bounceIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+}
+
+@keyframes glow {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(63, 185, 80, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(63, 185, 80, 0.6);
+    }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* Animation Classes */
+.animate-fade-in-up { animation: fadeInUp 0.4s ease-out; }
+.animate-fade-in-scale { animation: fadeInScale 0.3s ease-out; }
+.animate-slide-left { animation: slideInFromLeft 0.4s ease-out; }
+.animate-slide-right { animation: slideInFromRight 0.4s ease-out; }
+.animate-bounce-in { animation: bounceIn 0.5s ease-out; }
+.animate-pulse { animation: pulse 2s infinite; }
+.animate-glow { animation: glow 2s infinite; }
+.animate-shake { animation: shake 0.3s ease-out; }
+
+/* Staggered Animation Delays */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+
+/* Live Indicator */
+.live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.live-indicator::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: var(--success);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+.live-indicator.offline::before {
+    background: var(--danger);
+    animation: none;
+}
+
+/* Price Change Animations */
+.price-up {
+    animation: flashGreen 0.5s ease-out;
+}
+
+.price-down {
+    animation: flashRed 0.5s ease-out;
+}
+
+@keyframes flashGreen {
+    0% { background: rgba(63, 185, 80, 0.3); }
+    100% { background: transparent; }
+}
+
+@keyframes flashRed {
+    0% { background: rgba(248, 81, 73, 0.3); }
+    100% { background: transparent; }
+}
+
+/* Trade Row Animations */
+.trade-row-new {
+    animation: fadeInUp 0.5s ease-out, highlightRow 2s ease-out 0.5s;
+}
+
+@keyframes highlightRow {
+    0% { background: rgba(88, 166, 255, 0.2); }
+    100% { background: transparent; }
+}
+
+/* Enhanced KPI Cards */
+.kpi-card-enhanced {
+    position: relative;
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    transition: all var(--transition-fast);
+}
+
+.kpi-card-enhanced::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--success), var(--info));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--transition-normal);
+}
+
+.kpi-card-enhanced:hover::before {
+    transform: scaleX(1);
+}
+
+.kpi-card-enhanced:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.kpi-icon {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-sm);
+    opacity: 0.8;
+}
+
+.kpi-trend {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.kpi-trend.up {
+    background: rgba(63, 185, 80, 0.2);
+    color: var(--success);
+}
+
+.kpi-trend.down {
+    background: rgba(248, 81, 73, 0.2);
+    color: var(--danger);
+}
+
+/* Modern Sparkline Container */
+.sparkline-container {
+    height: 40px;
+    position: relative;
+}
+
+.sparkline-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Enhanced Table Styles */
+.table-enhanced {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table-enhanced thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg-secondary);
+    backdrop-filter: blur(10px);
+}
+
+.table-enhanced tbody tr {
+    transition: all var(--transition-fast);
+}
+
+.table-enhanced tbody tr:hover {
+    background: var(--bg-hover);
+    transform: scale(1.005);
+}
+
+/* Progress Ring */
+.progress-ring {
+    transform: rotate(-90deg);
+}
+
+.progress-ring__circle {
+    transition: stroke-dashoffset var(--transition-slow);
+    transform-origin: 50% 50%;
+}
+
+/* Notification Badge */
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 18px;
+    height: 18px;
+    background: var(--danger);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: bounceIn 0.3s ease-out;
+}
+
+/* Toast Notifications Enhanced */
+.toast-enhanced {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    animation: slideInFromRight 0.3s ease-out;
+}
+
+.toast-enhanced.toast-success { border-left: 4px solid var(--success); }
+.toast-enhanced.toast-danger { border-left: 4px solid var(--danger); }
+.toast-enhanced.toast-warning { border-left: 4px solid var(--warning); }
+.toast-enhanced.toast-info { border-left: 4px solid var(--info); }
+
+/* Tooltip Enhanced */
+.tooltip-enhanced {
+    position: relative;
+}
+
+.tooltip-enhanced::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-5px);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.tooltip-enhanced:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Glassmorphism Card */
+.glass-card {
+    background: rgba(22, 27, 34, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius);
+}
+
+/* Gradient Buttons */
+.btn-gradient {
+    background: linear-gradient(135deg, var(--success-dark), var(--success));
+    border: none;
+    color: #000;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+}
+
+.btn-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(63, 185, 80, 0.4);
+}
+
+/* Status Indicators */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-indicator.online {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--success);
+}
+
+.status-indicator.offline {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--danger);
+}
+
+.status-indicator.warning {
+    background: rgba(210, 153, 34, 0.15);
+    color: var(--warning);
+}
+
+/* Real-time Data Pulse */
+.realtime-pulse {
+    position: relative;
+}
+
+.realtime-pulse::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 0;
+    width: 6px;
+    height: 6px;
+    background: var(--success);
+    border-radius: 50%;
+    animation: pulse 1s infinite;
+}
+
+/* Connection Status Bar */
+.connection-status {
+    height: 3px;
+    background: var(--success);
+    transition: all var(--transition-normal);
+}
+
+.connection-status.disconnected {
+    background: var(--danger);
+    animation: shake 0.3s ease-out;
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    min-height: 300px;
+}
+
+.chart-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+}
+
+/* Smooth Number Transitions */
+[data-smooth] {
+    transition: all var(--transition-normal);
+}
+
+/* Hide during initial load */
+[v-cloak] { display: none; }
+[js-loading] { opacity: 0; }

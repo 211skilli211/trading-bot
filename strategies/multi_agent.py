@@ -244,6 +244,43 @@ class MultiAgentSystem:
         except Exception as e:
             logger.error(f"[MultiAgent] Log error: {e}")
     
+    def rebalance_allocations(self) -> List[str]:
+        """Rebalance capital allocations between agents based on performance"""
+        rebalanced = []
+        
+        if not self.agents:
+            return rebalanced
+        
+        # Calculate total capital
+        total_capital = sum(a.capital for a in self.agents if a.status == "active")
+        
+        if total_capital == 0:
+            return rebalanced
+        
+        # Find best and worst performers
+        active_agents = [a for a in self.agents if a.status == "active"]
+        if len(active_agents) < 2:
+            return rebalanced
+        
+        # Sort by P&L
+        sorted_agents = sorted(active_agents, key=lambda a: a.total_pnl, reverse=True)
+        
+        # Rebalance: take from worst, give to best
+        best = sorted_agents[0]
+        worst = sorted_agents[-1]
+        
+        # Calculate reallocation amount (10% of worst's capital)
+        reallocation = worst.capital * 0.1
+        
+        if reallocation > 1.0:  # Minimum $1 reallocation
+            worst.capital -= reallocation
+            best.capital += reallocation
+            rebalanced.append(f"{worst.name} → ${reallocation:.2f} → {best.name}")
+            
+            logger.info(f"[MultiAgent] Rebalanced: {worst.name} lost ${reallocation:.2f}, {best.name} gained ${reallocation:.2f}")
+        
+        return rebalanced
+    
     def get_dashboard_data(self) -> Dict:
         """Get data for dashboard"""
         return {

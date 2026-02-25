@@ -1,8 +1,6 @@
 {
   "bot": {
-    "mode": "PAPER",
-    "monitor_interval": 120,
-    "max_concurrent_trades": 5
+    "mode": "LIVE"
   },
   "strategy": {
     "min_spread": 0.01
@@ -275,5 +273,2231 @@
     "default_days": 30,
     "fee_rate": 0.001,
     "initial_balance": 10000
-  }
+  },
+  "config": {
+    "alerts": {
+      "discord": {
+        "enabled": false,
+        "webhook_url": "YOUR_WEBHOOK_URL"
+      },
+      "enabled": true,
+      "on_daily_limit": true,
+      "on_stop_loss": true,
+      "on_trade": true,
+      "telegram": {
+        "bot_token": "YOUR_BOT_TOKEN",
+        "chat_id": "YOUR_CHAT_ID",
+        "enabled": false
+      }
+    },
+    "backtest": {
+      "default_days": 30,
+      "fee_rate": 0.001,
+      "initial_balance": 10000
+    },
+    "bot": {
+      "mode": "LIVE"
+    },
+    "config": {
+      "alerts": {
+        "discord": {
+          "enabled": false,
+          "webhook_url": "YOUR_WEBHOOK_URL"
+        },
+        "enabled": true,
+        "on_daily_limit": true,
+        "on_stop_loss": true,
+        "on_trade": true,
+        "telegram": {
+          "bot_token": "YOUR_BOT_TOKEN",
+          "chat_id": "YOUR_CHAT_ID",
+          "enabled": false
+        }
+      },
+      "backtest": {
+        "default_days": 30,
+        "fee_rate": 0.001,
+        "initial_balance": 10000
+      },
+      "bot": {
+        "mode": "LIVE"
+      },
+      "config": {
+        "alerts": {
+          "discord": {
+            "enabled": false,
+            "webhook_url": "YOUR_WEBHOOK_URL"
+          },
+          "enabled": true,
+          "on_daily_limit": true,
+          "on_stop_loss": true,
+          "on_trade": true,
+          "telegram": {
+            "bot_token": "YOUR_BOT_TOKEN",
+            "chat_id": "YOUR_CHAT_ID",
+            "enabled": false
+          }
+        },
+        "backtest": {
+          "default_days": 30,
+          "fee_rate": 0.001,
+          "initial_balance": 10000
+        },
+        "bot": {
+          "mode": "LIVE"
+        },
+        "config": {
+          "alerts": {
+            "discord": {
+              "enabled": false,
+              "webhook_url": "YOUR_WEBHOOK_URL"
+            },
+            "enabled": true,
+            "on_daily_limit": true,
+            "on_stop_loss": true,
+            "on_trade": true,
+            "telegram": {
+              "bot_token": "YOUR_BOT_TOKEN",
+              "chat_id": "YOUR_CHAT_ID",
+              "enabled": false
+            }
+          },
+          "backtest": {
+            "default_days": 30,
+            "fee_rate": 0.001,
+            "initial_balance": 10000
+          },
+          "bot": {
+            "mode": "LIVE"
+          },
+          "config": {
+            "alerts": {
+              "discord": {
+                "enabled": false,
+                "webhook_url": "YOUR_WEBHOOK_URL"
+              },
+              "enabled": true,
+              "on_daily_limit": true,
+              "on_stop_loss": true,
+              "on_trade": true,
+              "telegram": {
+                "bot_token": "YOUR_BOT_TOKEN",
+                "chat_id": "YOUR_CHAT_ID",
+                "enabled": false
+              }
+            },
+            "backtest": {
+              "default_days": 30,
+              "fee_rate": 0.001,
+              "initial_balance": 10000
+            },
+            "bot": {
+              "mode": "LIVE"
+            },
+            "config": {
+              "alerts": {
+                "discord": {
+                  "enabled": false,
+                  "webhook_url": "YOUR_WEBHOOK_URL"
+                },
+                "enabled": true,
+                "on_daily_limit": true,
+                "on_stop_loss": true,
+                "on_trade": true,
+                "telegram": {
+                  "bot_token": "YOUR_BOT_TOKEN",
+                  "chat_id": "YOUR_CHAT_ID",
+                  "enabled": false
+                }
+              },
+              "backtest": {
+                "default_days": 30,
+                "fee_rate": 0.001,
+                "initial_balance": 10000
+              },
+              "bot": {
+                "mode": "LIVE"
+              },
+              "config": {
+                "alerts": {
+                  "discord": {
+                    "enabled": false,
+                    "webhook_url": "YOUR_WEBHOOK_URL"
+                  },
+                  "enabled": true,
+                  "on_daily_limit": true,
+                  "on_stop_loss": true,
+                  "on_trade": true,
+                  "telegram": {
+                    "bot_token": "YOUR_BOT_TOKEN",
+                    "chat_id": "YOUR_CHAT_ID",
+                    "enabled": false
+                  }
+                },
+                "backtest": {
+                  "default_days": 30,
+                  "fee_rate": 0.001,
+                  "initial_balance": 10000
+                },
+                "bot": {
+                  "mode": "LIVE"
+                },
+                "config": {
+                  "alerts": {
+                    "discord": {
+                      "enabled": false,
+                      "webhook_url": "YOUR_WEBHOOK_URL"
+                    },
+                    "enabled": true,
+                    "on_daily_limit": true,
+                    "on_stop_loss": true,
+                    "on_trade": true,
+                    "telegram": {
+                      "bot_token": "YOUR_BOT_TOKEN",
+                      "chat_id": "YOUR_CHAT_ID",
+                      "enabled": false
+                    }
+                  },
+                  "backtest": {
+                    "default_days": 30,
+                    "fee_rate": 0.001,
+                    "initial_balance": 10000
+                  },
+                  "bot": {
+                    "max_concurrent_trades": 5,
+                    "mode": "PAPER",
+                    "monitor_interval": 120
+                  },
+                  "execution": {
+                    "max_retries": 3,
+                    "retry_delay": 1,
+                    "slippage_tolerance_pct": 0.1
+                  },
+                  "multi_agent": {
+                    "agents": [
+                      {
+                        "capital": 50,
+                        "name": "ArbBot",
+                        "risk": "low",
+                        "strategy": "binary_arbitrage"
+                      },
+                      {
+                        "capital": 50,
+                        "name": "SniperBot",
+                        "risk": "medium",
+                        "strategy": "sniper"
+                      },
+                      {
+                        "capital": 25,
+                        "name": "ContrarianBot",
+                        "risk": "medium",
+                        "strategy": "contrarian"
+                      },
+                      {
+                        "capital": 25,
+                        "name": "MomentumBot",
+                        "risk": "medium",
+                        "strategy": "momentum"
+                      },
+                      {
+                        "capital": 25,
+                        "name": "PairsBot",
+                        "risk": "low",
+                        "strategy": "pairs_trading"
+                      },
+                      {
+                        "capital": 10,
+                        "name": "YOLOBot",
+                        "risk": "very_high",
+                        "strategy": "high_risk"
+                      }
+                    ],
+                    "enabled": true,
+                    "kill_percentage": 0.2,
+                    "kill_threshold_losses": 3,
+                    "rebalance_frequency_hours": 24,
+                    "scale_winners_pct": 0.25
+                  },
+                  "risk": {
+                    "capital_pct_per_trade": 0.0125,
+                    "consecutive_loss_limit": 3,
+                    "daily_loss_limit_pct": 0.05,
+                    "max_position_btc": 0.05,
+                    "max_total_exposure_pct": 0.3,
+                    "stop_loss_pct": 0.02,
+                    "take_profit_pct": 0.06
+                  },
+                  "rl": {
+                    "agent_type": "ppo",
+                    "enabled": false,
+                    "learning_rate": 0.0003,
+                    "model_path": "models/ppo_agent.pkl",
+                    "train_episodes": 100
+                  },
+                  "solana": {
+                    "enabled": false,
+                    "min_spread": 0.005,
+                    "pairs": [
+                      {
+                        "cex_symbol": "SOLUSDT",
+                        "decimals": 9,
+                        "symbol": "SOL/USDC",
+                        "token": "SOL"
+                      },
+                      {
+                        "cex_symbol": "BTCUSDT",
+                        "decimals": 8,
+                        "symbol": "BTC/USDC",
+                        "token": "BTC"
+                      },
+                      {
+                        "cex_symbol": "ETHUSDT",
+                        "decimals": 8,
+                        "symbol": "ETH/USDC",
+                        "token": "ETH"
+                      }
+                    ],
+                    "rpc_url": "https://api.mainnet-beta.solana.com",
+                    "trade_amount_usd": 50,
+                    "wallet_file": "solana_wallet.json"
+                  },
+                  "strategies": {
+                    "binary_arbitrage": {
+                      "check_interval_seconds": 120,
+                      "description": "PolyMarket YES/NO arbitrage",
+                      "enabled": true,
+                      "max_concurrent_arbs": 3,
+                      "max_position_usd": 10,
+                      "min_spread_pct": 1,
+                      "name": "Binary Arbitrage"
+                    },
+                    "breakout": {
+                      "breakout_threshold_pct": 3,
+                      "description": "Trade breakouts from consolidation",
+                      "enabled": false,
+                      "lookback_period": 20,
+                      "max_position_usd": 10,
+                      "name": "Breakout",
+                      "stop_loss_pct": 0.0128,
+                      "symbols": [
+                        "BTC/USDT",
+                        "ETH/USDT",
+                        "SOL/USDT"
+                      ],
+                      "volume_confirm": true
+                    },
+                    "contrarian": {
+                      "description": "Mean reversion / fade the crowd",
+                      "enabled": false,
+                      "funding_threshold": 0.01,
+                      "max_position_usd": 10,
+                      "name": "Contrarian",
+                      "rsi_overbought": 70,
+                      "rsi_oversold": 30,
+                      "rsi_period": 14,
+                      "stop_loss_pct": 0.019200000000000002,
+                      "symbols": [
+                        "BTC/USDT",
+                        "ETH/USDT",
+                        "SOL/USDT"
+                      ],
+                      "take_profit_pct": 0.029399999999999996,
+                      "use_funding_rate": true
+                    },
+                    "dca": {
+                      "description": "Dollar Cost Averaging",
+                      "enabled": false,
+                      "interval_hours": 24,
+                      "investment_amount_usd": 10,
+                      "name": "DCA",
+                      "symbols": [
+                        "BTC/USDT",
+                        "ETH/USDT"
+                      ]
+                    },
+                    "grid_trading": {
+                      "description": "Buy low, sell high in price ranges",
+                      "enabled": false,
+                      "grid_levels": 10,
+                      "grid_range_pct": 5,
+                      "name": "Grid Trading",
+                      "order_size_usd": 10,
+                      "symbols": [
+                        "BTC/USDT",
+                        "ETH/USDT"
+                      ]
+                    },
+                    "high_risk": {
+                      "description": "High risk, high reward gambles",
+                      "enabled": false,
+                      "leverage": 3,
+                      "max_consecutive_losses": 2,
+                      "max_position_usd": 10,
+                      "name": "YOLO",
+                      "stop_loss_pct": 0.096,
+                      "symbols": [
+                        "BTC/USDT",
+                        "ETH/USDT",
+                        "SOL/USDT",
+                        "DOGE/USDT",
+                        "SHIB/USDT"
+                      ],
+                      "take_profit_pct": 0.147
+                    },
+                    "momentum": {
+                      "description": "Trend following with volume confirmation",
+                      "enabled": false,
+                      "max_position_usd": 10,
+                      "min_price_change_pct": 2,
+                      "name": "Momentum",
+                      "sma_fast": 20,
+                      "sma_slow": 50,
+                      "stop_loss_pct": 0.019200000000000002,
+                      "symbols": [
+                        "BTC/USDT",
+                        "ETH/USDT",
+                        "SOL/USDT",
+                        "BNB/USDT"
+                      ],
+                      "take_profit_pct": 0.0441,
+                      "volume_threshold": 1.5
+                    },
+                    "pairs_trading": {
+                      "description": "Statistical arbitrage between correlated pairs",
+                      "enabled": false,
+                      "entry_zscore": 2,
+                      "exit_zscore": 0.5,
+                      "lookback_period": 100,
+                      "max_position_usd": 10,
+                      "name": "Pairs Trading",
+                      "pair_1": "BTC/USDT",
+                      "pair_2": "ETH/USDT",
+                      "stop_loss_zscore": 3.5
+                    },
+                    "scalping": {
+                      "description": "Quick trades on small price movements",
+                      "enabled": false,
+                      "max_hold_time_minutes": 5,
+                      "max_position_usd": 10,
+                      "min_spread": 0.05,
+                      "name": "Scalping",
+                      "profit_target_pct": 0.1,
+                      "symbols": [
+                        "BTC/USDT",
+                        "ETH/USDT"
+                      ],
+                      "timeframe": "1m"
+                    },
+                    "sniper": {
+                      "allowed_tokens": [
+                        "BTC",
+                        "ETH",
+                        "SOL"
+                      ],
+                      "circuit_breaker_losses": 3,
+                      "description": "Momentum sniper for 15-min markets",
+                      "enabled": true,
+                      "entry_window_seconds": 60,
+                      "max_concurrent_trades": 3,
+                      "max_position_usd": 10,
+                      "momentum_threshold": 0.1,
+                      "name": "15-Min Sniper"
+                    },
+                    "vwap_reversion": {
+                      "description": "Mean reversion to VWAP",
+                      "enabled": true,
+                      "max_position_usd": 10,
+                      "name": "VWAP Reversion",
+                      "std_dev_entry": 2,
+                      "std_dev_exit": 0.5,
+                      "symbols": [
+                        "BTC/USDT",
+                        "ETH/USDT"
+                      ],
+                      "vwap_period": "1d"
+                    }
+                  },
+                  "strategy": {
+                    "min_spread": 0.01
+                  }
+                },
+                "execution": {
+                  "max_retries": 3,
+                  "retry_delay": 1,
+                  "slippage_tolerance_pct": 0.1
+                },
+                "multi_agent": {
+                  "agents": [
+                    {
+                      "capital": 50,
+                      "name": "ArbBot",
+                      "risk": "low",
+                      "strategy": "binary_arbitrage"
+                    },
+                    {
+                      "capital": 50,
+                      "name": "SniperBot",
+                      "risk": "medium",
+                      "strategy": "sniper"
+                    },
+                    {
+                      "capital": 25,
+                      "name": "ContrarianBot",
+                      "risk": "medium",
+                      "strategy": "contrarian"
+                    },
+                    {
+                      "capital": 25,
+                      "name": "MomentumBot",
+                      "risk": "medium",
+                      "strategy": "momentum"
+                    },
+                    {
+                      "capital": 25,
+                      "name": "PairsBot",
+                      "risk": "low",
+                      "strategy": "pairs_trading"
+                    },
+                    {
+                      "capital": 10,
+                      "name": "YOLOBot",
+                      "risk": "very_high",
+                      "strategy": "high_risk"
+                    }
+                  ],
+                  "enabled": true,
+                  "kill_percentage": 0.2,
+                  "kill_threshold_losses": 3,
+                  "rebalance_frequency_hours": 24,
+                  "scale_winners_pct": 0.25
+                },
+                "risk": {
+                  "capital_pct_per_trade": 0.0125,
+                  "consecutive_loss_limit": 3,
+                  "daily_loss_limit_pct": 0.05,
+                  "max_position_btc": 0.05,
+                  "max_total_exposure_pct": 0.3,
+                  "stop_loss_pct": 0.02,
+                  "take_profit_pct": 0.06
+                },
+                "rl": {
+                  "agent_type": "ppo",
+                  "enabled": false,
+                  "learning_rate": 0.0003,
+                  "model_path": "models/ppo_agent.pkl",
+                  "train_episodes": 100
+                },
+                "solana": {
+                  "enabled": false,
+                  "min_spread": 0.005,
+                  "pairs": [
+                    {
+                      "cex_symbol": "SOLUSDT",
+                      "decimals": 9,
+                      "symbol": "SOL/USDC",
+                      "token": "SOL"
+                    },
+                    {
+                      "cex_symbol": "BTCUSDT",
+                      "decimals": 8,
+                      "symbol": "BTC/USDC",
+                      "token": "BTC"
+                    },
+                    {
+                      "cex_symbol": "ETHUSDT",
+                      "decimals": 8,
+                      "symbol": "ETH/USDC",
+                      "token": "ETH"
+                    }
+                  ],
+                  "rpc_url": "https://api.mainnet-beta.solana.com",
+                  "trade_amount_usd": 50,
+                  "wallet_file": "solana_wallet.json"
+                },
+                "strategies": {
+                  "binary_arbitrage": {
+                    "check_interval_seconds": 120,
+                    "description": "PolyMarket YES/NO arbitrage",
+                    "enabled": true,
+                    "max_concurrent_arbs": 3,
+                    "max_position_usd": 10,
+                    "min_spread_pct": 1,
+                    "name": "Binary Arbitrage"
+                  },
+                  "breakout": {
+                    "breakout_threshold_pct": 3,
+                    "description": "Trade breakouts from consolidation",
+                    "enabled": false,
+                    "lookback_period": 20,
+                    "max_position_usd": 10,
+                    "name": "Breakout",
+                    "stop_loss_pct": 0.0128,
+                    "symbols": [
+                      "BTC/USDT",
+                      "ETH/USDT",
+                      "SOL/USDT"
+                    ],
+                    "volume_confirm": true
+                  },
+                  "contrarian": {
+                    "description": "Mean reversion / fade the crowd",
+                    "enabled": false,
+                    "funding_threshold": 0.01,
+                    "max_position_usd": 10,
+                    "name": "Contrarian",
+                    "rsi_overbought": 70,
+                    "rsi_oversold": 30,
+                    "rsi_period": 14,
+                    "stop_loss_pct": 0.019200000000000002,
+                    "symbols": [
+                      "BTC/USDT",
+                      "ETH/USDT",
+                      "SOL/USDT"
+                    ],
+                    "take_profit_pct": 0.029399999999999996,
+                    "use_funding_rate": true
+                  },
+                  "dca": {
+                    "description": "Dollar Cost Averaging",
+                    "enabled": false,
+                    "interval_hours": 24,
+                    "investment_amount_usd": 10,
+                    "name": "DCA",
+                    "symbols": [
+                      "BTC/USDT",
+                      "ETH/USDT"
+                    ]
+                  },
+                  "grid_trading": {
+                    "description": "Buy low, sell high in price ranges",
+                    "enabled": false,
+                    "grid_levels": 10,
+                    "grid_range_pct": 5,
+                    "name": "Grid Trading",
+                    "order_size_usd": 10,
+                    "symbols": [
+                      "BTC/USDT",
+                      "ETH/USDT"
+                    ]
+                  },
+                  "high_risk": {
+                    "description": "High risk, high reward gambles",
+                    "enabled": false,
+                    "leverage": 3,
+                    "max_consecutive_losses": 2,
+                    "max_position_usd": 10,
+                    "name": "YOLO",
+                    "stop_loss_pct": 0.096,
+                    "symbols": [
+                      "BTC/USDT",
+                      "ETH/USDT",
+                      "SOL/USDT",
+                      "DOGE/USDT",
+                      "SHIB/USDT"
+                    ],
+                    "take_profit_pct": 0.147
+                  },
+                  "momentum": {
+                    "description": "Trend following with volume confirmation",
+                    "enabled": false,
+                    "max_position_usd": 10,
+                    "min_price_change_pct": 2,
+                    "name": "Momentum",
+                    "sma_fast": 20,
+                    "sma_slow": 50,
+                    "stop_loss_pct": 0.019200000000000002,
+                    "symbols": [
+                      "BTC/USDT",
+                      "ETH/USDT",
+                      "SOL/USDT",
+                      "BNB/USDT"
+                    ],
+                    "take_profit_pct": 0.0441,
+                    "volume_threshold": 1.5
+                  },
+                  "pairs_trading": {
+                    "description": "Statistical arbitrage between correlated pairs",
+                    "enabled": false,
+                    "entry_zscore": 2,
+                    "exit_zscore": 0.5,
+                    "lookback_period": 100,
+                    "max_position_usd": 10,
+                    "name": "Pairs Trading",
+                    "pair_1": "BTC/USDT",
+                    "pair_2": "ETH/USDT",
+                    "stop_loss_zscore": 3.5
+                  },
+                  "scalping": {
+                    "description": "Quick trades on small price movements",
+                    "enabled": false,
+                    "max_hold_time_minutes": 5,
+                    "max_position_usd": 10,
+                    "min_spread": 0.05,
+                    "name": "Scalping",
+                    "profit_target_pct": 0.1,
+                    "symbols": [
+                      "BTC/USDT",
+                      "ETH/USDT"
+                    ],
+                    "timeframe": "1m"
+                  },
+                  "sniper": {
+                    "allowed_tokens": [
+                      "BTC",
+                      "ETH",
+                      "SOL"
+                    ],
+                    "circuit_breaker_losses": 3,
+                    "description": "Momentum sniper for 15-min markets",
+                    "enabled": true,
+                    "entry_window_seconds": 60,
+                    "max_concurrent_trades": 3,
+                    "max_position_usd": 10,
+                    "momentum_threshold": 0.1,
+                    "name": "15-Min Sniper"
+                  },
+                  "vwap_reversion": {
+                    "description": "Mean reversion to VWAP",
+                    "enabled": true,
+                    "max_position_usd": 10,
+                    "name": "VWAP Reversion",
+                    "std_dev_entry": 2,
+                    "std_dev_exit": 0.5,
+                    "symbols": [
+                      "BTC/USDT",
+                      "ETH/USDT"
+                    ],
+                    "vwap_period": "1d"
+                  }
+                },
+                "strategy": {
+                  "min_spread": 0.01
+                },
+                "success": true
+              },
+              "execution": {
+                "max_retries": 3,
+                "retry_delay": 1,
+                "slippage_tolerance_pct": 0.1
+              },
+              "multi_agent": {
+                "agents": [
+                  {
+                    "capital": 50,
+                    "name": "ArbBot",
+                    "risk": "low",
+                    "strategy": "binary_arbitrage"
+                  },
+                  {
+                    "capital": 50,
+                    "name": "SniperBot",
+                    "risk": "medium",
+                    "strategy": "sniper"
+                  },
+                  {
+                    "capital": 25,
+                    "name": "ContrarianBot",
+                    "risk": "medium",
+                    "strategy": "contrarian"
+                  },
+                  {
+                    "capital": 25,
+                    "name": "MomentumBot",
+                    "risk": "medium",
+                    "strategy": "momentum"
+                  },
+                  {
+                    "capital": 25,
+                    "name": "PairsBot",
+                    "risk": "low",
+                    "strategy": "pairs_trading"
+                  },
+                  {
+                    "capital": 10,
+                    "name": "YOLOBot",
+                    "risk": "very_high",
+                    "strategy": "high_risk"
+                  }
+                ],
+                "enabled": true,
+                "kill_percentage": 0.2,
+                "kill_threshold_losses": 3,
+                "rebalance_frequency_hours": 24,
+                "scale_winners_pct": 0.25
+              },
+              "risk": {
+                "capital_pct_per_trade": 0.0125,
+                "consecutive_loss_limit": 3,
+                "daily_loss_limit_pct": 0.05,
+                "max_position_btc": 0.05,
+                "max_total_exposure_pct": 0.3,
+                "stop_loss_pct": 0.02,
+                "take_profit_pct": 0.06
+              },
+              "rl": {
+                "agent_type": "ppo",
+                "enabled": false,
+                "learning_rate": 0.0003,
+                "model_path": "models/ppo_agent.pkl",
+                "train_episodes": 100
+              },
+              "solana": {
+                "enabled": false,
+                "min_spread": 0.005,
+                "pairs": [
+                  {
+                    "cex_symbol": "SOLUSDT",
+                    "decimals": 9,
+                    "symbol": "SOL/USDC",
+                    "token": "SOL"
+                  },
+                  {
+                    "cex_symbol": "BTCUSDT",
+                    "decimals": 8,
+                    "symbol": "BTC/USDC",
+                    "token": "BTC"
+                  },
+                  {
+                    "cex_symbol": "ETHUSDT",
+                    "decimals": 8,
+                    "symbol": "ETH/USDC",
+                    "token": "ETH"
+                  }
+                ],
+                "rpc_url": "https://api.mainnet-beta.solana.com",
+                "trade_amount_usd": 50,
+                "wallet_file": "solana_wallet.json"
+              },
+              "strategies": {
+                "binary_arbitrage": {
+                  "check_interval_seconds": 120,
+                  "description": "PolyMarket YES/NO arbitrage",
+                  "enabled": true,
+                  "max_concurrent_arbs": 3,
+                  "max_position_usd": 10,
+                  "min_spread_pct": 1,
+                  "name": "Binary Arbitrage"
+                },
+                "breakout": {
+                  "breakout_threshold_pct": 3,
+                  "description": "Trade breakouts from consolidation",
+                  "enabled": false,
+                  "lookback_period": 20,
+                  "max_position_usd": 10,
+                  "name": "Breakout",
+                  "stop_loss_pct": 0.0128,
+                  "symbols": [
+                    "BTC/USDT",
+                    "ETH/USDT",
+                    "SOL/USDT"
+                  ],
+                  "volume_confirm": true
+                },
+                "contrarian": {
+                  "description": "Mean reversion / fade the crowd",
+                  "enabled": false,
+                  "funding_threshold": 0.01,
+                  "max_position_usd": 10,
+                  "name": "Contrarian",
+                  "rsi_overbought": 70,
+                  "rsi_oversold": 30,
+                  "rsi_period": 14,
+                  "stop_loss_pct": 0.019200000000000002,
+                  "symbols": [
+                    "BTC/USDT",
+                    "ETH/USDT",
+                    "SOL/USDT"
+                  ],
+                  "take_profit_pct": 0.029399999999999996,
+                  "use_funding_rate": true
+                },
+                "dca": {
+                  "description": "Dollar Cost Averaging",
+                  "enabled": false,
+                  "interval_hours": 24,
+                  "investment_amount_usd": 10,
+                  "name": "DCA",
+                  "symbols": [
+                    "BTC/USDT",
+                    "ETH/USDT"
+                  ]
+                },
+                "grid_trading": {
+                  "description": "Buy low, sell high in price ranges",
+                  "enabled": false,
+                  "grid_levels": 10,
+                  "grid_range_pct": 5,
+                  "name": "Grid Trading",
+                  "order_size_usd": 10,
+                  "symbols": [
+                    "BTC/USDT",
+                    "ETH/USDT"
+                  ]
+                },
+                "high_risk": {
+                  "description": "High risk, high reward gambles",
+                  "enabled": false,
+                  "leverage": 3,
+                  "max_consecutive_losses": 2,
+                  "max_position_usd": 10,
+                  "name": "YOLO",
+                  "stop_loss_pct": 0.096,
+                  "symbols": [
+                    "BTC/USDT",
+                    "ETH/USDT",
+                    "SOL/USDT",
+                    "DOGE/USDT",
+                    "SHIB/USDT"
+                  ],
+                  "take_profit_pct": 0.147
+                },
+                "momentum": {
+                  "description": "Trend following with volume confirmation",
+                  "enabled": false,
+                  "max_position_usd": 10,
+                  "min_price_change_pct": 2,
+                  "name": "Momentum",
+                  "sma_fast": 20,
+                  "sma_slow": 50,
+                  "stop_loss_pct": 0.019200000000000002,
+                  "symbols": [
+                    "BTC/USDT",
+                    "ETH/USDT",
+                    "SOL/USDT",
+                    "BNB/USDT"
+                  ],
+                  "take_profit_pct": 0.0441,
+                  "volume_threshold": 1.5
+                },
+                "pairs_trading": {
+                  "description": "Statistical arbitrage between correlated pairs",
+                  "enabled": false,
+                  "entry_zscore": 2,
+                  "exit_zscore": 0.5,
+                  "lookback_period": 100,
+                  "max_position_usd": 10,
+                  "name": "Pairs Trading",
+                  "pair_1": "BTC/USDT",
+                  "pair_2": "ETH/USDT",
+                  "stop_loss_zscore": 3.5
+                },
+                "scalping": {
+                  "description": "Quick trades on small price movements",
+                  "enabled": false,
+                  "max_hold_time_minutes": 5,
+                  "max_position_usd": 10,
+                  "min_spread": 0.05,
+                  "name": "Scalping",
+                  "profit_target_pct": 0.1,
+                  "symbols": [
+                    "BTC/USDT",
+                    "ETH/USDT"
+                  ],
+                  "timeframe": "1m"
+                },
+                "sniper": {
+                  "allowed_tokens": [
+                    "BTC",
+                    "ETH",
+                    "SOL"
+                  ],
+                  "circuit_breaker_losses": 3,
+                  "description": "Momentum sniper for 15-min markets",
+                  "enabled": true,
+                  "entry_window_seconds": 60,
+                  "max_concurrent_trades": 3,
+                  "max_position_usd": 10,
+                  "momentum_threshold": 0.1,
+                  "name": "15-Min Sniper"
+                },
+                "vwap_reversion": {
+                  "description": "Mean reversion to VWAP",
+                  "enabled": true,
+                  "max_position_usd": 10,
+                  "name": "VWAP Reversion",
+                  "std_dev_entry": 2,
+                  "std_dev_exit": 0.5,
+                  "symbols": [
+                    "BTC/USDT",
+                    "ETH/USDT"
+                  ],
+                  "vwap_period": "1d"
+                }
+              },
+              "strategy": {
+                "min_spread": 0.01
+              },
+              "success": true
+            },
+            "execution": {
+              "max_retries": 3,
+              "retry_delay": 1,
+              "slippage_tolerance_pct": 0.1
+            },
+            "multi_agent": {
+              "agents": [
+                {
+                  "capital": 50,
+                  "name": "ArbBot",
+                  "risk": "low",
+                  "strategy": "binary_arbitrage"
+                },
+                {
+                  "capital": 50,
+                  "name": "SniperBot",
+                  "risk": "medium",
+                  "strategy": "sniper"
+                },
+                {
+                  "capital": 25,
+                  "name": "ContrarianBot",
+                  "risk": "medium",
+                  "strategy": "contrarian"
+                },
+                {
+                  "capital": 25,
+                  "name": "MomentumBot",
+                  "risk": "medium",
+                  "strategy": "momentum"
+                },
+                {
+                  "capital": 25,
+                  "name": "PairsBot",
+                  "risk": "low",
+                  "strategy": "pairs_trading"
+                },
+                {
+                  "capital": 10,
+                  "name": "YOLOBot",
+                  "risk": "very_high",
+                  "strategy": "high_risk"
+                }
+              ],
+              "enabled": true,
+              "kill_percentage": 0.2,
+              "kill_threshold_losses": 3,
+              "rebalance_frequency_hours": 24,
+              "scale_winners_pct": 0.25
+            },
+            "risk": {
+              "capital_pct_per_trade": 0.0125,
+              "consecutive_loss_limit": 3,
+              "daily_loss_limit_pct": 0.05,
+              "max_position_btc": 0.05,
+              "max_total_exposure_pct": 0.3,
+              "stop_loss_pct": 0.02,
+              "take_profit_pct": 0.06
+            },
+            "rl": {
+              "agent_type": "ppo",
+              "enabled": false,
+              "learning_rate": 0.0003,
+              "model_path": "models/ppo_agent.pkl",
+              "train_episodes": 100
+            },
+            "solana": {
+              "enabled": false,
+              "min_spread": 0.005,
+              "pairs": [
+                {
+                  "cex_symbol": "SOLUSDT",
+                  "decimals": 9,
+                  "symbol": "SOL/USDC",
+                  "token": "SOL"
+                },
+                {
+                  "cex_symbol": "BTCUSDT",
+                  "decimals": 8,
+                  "symbol": "BTC/USDC",
+                  "token": "BTC"
+                },
+                {
+                  "cex_symbol": "ETHUSDT",
+                  "decimals": 8,
+                  "symbol": "ETH/USDC",
+                  "token": "ETH"
+                }
+              ],
+              "rpc_url": "https://api.mainnet-beta.solana.com",
+              "trade_amount_usd": 50,
+              "wallet_file": "solana_wallet.json"
+            },
+            "strategies": {
+              "binary_arbitrage": {
+                "check_interval_seconds": 120,
+                "description": "PolyMarket YES/NO arbitrage",
+                "enabled": true,
+                "max_concurrent_arbs": 3,
+                "max_position_usd": 10,
+                "min_spread_pct": 1,
+                "name": "Binary Arbitrage"
+              },
+              "breakout": {
+                "breakout_threshold_pct": 3,
+                "description": "Trade breakouts from consolidation",
+                "enabled": false,
+                "lookback_period": 20,
+                "max_position_usd": 10,
+                "name": "Breakout",
+                "stop_loss_pct": 0.0128,
+                "symbols": [
+                  "BTC/USDT",
+                  "ETH/USDT",
+                  "SOL/USDT"
+                ],
+                "volume_confirm": true
+              },
+              "contrarian": {
+                "description": "Mean reversion / fade the crowd",
+                "enabled": false,
+                "funding_threshold": 0.01,
+                "max_position_usd": 10,
+                "name": "Contrarian",
+                "rsi_overbought": 70,
+                "rsi_oversold": 30,
+                "rsi_period": 14,
+                "stop_loss_pct": 0.019200000000000002,
+                "symbols": [
+                  "BTC/USDT",
+                  "ETH/USDT",
+                  "SOL/USDT"
+                ],
+                "take_profit_pct": 0.029399999999999996,
+                "use_funding_rate": true
+              },
+              "dca": {
+                "description": "Dollar Cost Averaging",
+                "enabled": false,
+                "interval_hours": 24,
+                "investment_amount_usd": 10,
+                "name": "DCA",
+                "symbols": [
+                  "BTC/USDT",
+                  "ETH/USDT"
+                ]
+              },
+              "grid_trading": {
+                "description": "Buy low, sell high in price ranges",
+                "enabled": false,
+                "grid_levels": 10,
+                "grid_range_pct": 5,
+                "name": "Grid Trading",
+                "order_size_usd": 10,
+                "symbols": [
+                  "BTC/USDT",
+                  "ETH/USDT"
+                ]
+              },
+              "high_risk": {
+                "description": "High risk, high reward gambles",
+                "enabled": false,
+                "leverage": 3,
+                "max_consecutive_losses": 2,
+                "max_position_usd": 10,
+                "name": "YOLO",
+                "stop_loss_pct": 0.096,
+                "symbols": [
+                  "BTC/USDT",
+                  "ETH/USDT",
+                  "SOL/USDT",
+                  "DOGE/USDT",
+                  "SHIB/USDT"
+                ],
+                "take_profit_pct": 0.147
+              },
+              "momentum": {
+                "description": "Trend following with volume confirmation",
+                "enabled": false,
+                "max_position_usd": 10,
+                "min_price_change_pct": 2,
+                "name": "Momentum",
+                "sma_fast": 20,
+                "sma_slow": 50,
+                "stop_loss_pct": 0.019200000000000002,
+                "symbols": [
+                  "BTC/USDT",
+                  "ETH/USDT",
+                  "SOL/USDT",
+                  "BNB/USDT"
+                ],
+                "take_profit_pct": 0.0441,
+                "volume_threshold": 1.5
+              },
+              "pairs_trading": {
+                "description": "Statistical arbitrage between correlated pairs",
+                "enabled": false,
+                "entry_zscore": 2,
+                "exit_zscore": 0.5,
+                "lookback_period": 100,
+                "max_position_usd": 10,
+                "name": "Pairs Trading",
+                "pair_1": "BTC/USDT",
+                "pair_2": "ETH/USDT",
+                "stop_loss_zscore": 3.5
+              },
+              "scalping": {
+                "description": "Quick trades on small price movements",
+                "enabled": false,
+                "max_hold_time_minutes": 5,
+                "max_position_usd": 10,
+                "min_spread": 0.05,
+                "name": "Scalping",
+                "profit_target_pct": 0.1,
+                "symbols": [
+                  "BTC/USDT",
+                  "ETH/USDT"
+                ],
+                "timeframe": "1m"
+              },
+              "sniper": {
+                "allowed_tokens": [
+                  "BTC",
+                  "ETH",
+                  "SOL"
+                ],
+                "circuit_breaker_losses": 3,
+                "description": "Momentum sniper for 15-min markets",
+                "enabled": true,
+                "entry_window_seconds": 60,
+                "max_concurrent_trades": 3,
+                "max_position_usd": 10,
+                "momentum_threshold": 0.1,
+                "name": "15-Min Sniper"
+              },
+              "vwap_reversion": {
+                "description": "Mean reversion to VWAP",
+                "enabled": true,
+                "max_position_usd": 10,
+                "name": "VWAP Reversion",
+                "std_dev_entry": 2,
+                "std_dev_exit": 0.5,
+                "symbols": [
+                  "BTC/USDT",
+                  "ETH/USDT"
+                ],
+                "vwap_period": "1d"
+              }
+            },
+            "strategy": {
+              "min_spread": 0.01
+            },
+            "success": true
+          },
+          "execution": {
+            "max_retries": 3,
+            "retry_delay": 1,
+            "slippage_tolerance_pct": 0.1
+          },
+          "multi_agent": {
+            "agents": [
+              {
+                "capital": 50,
+                "name": "ArbBot",
+                "risk": "low",
+                "strategy": "binary_arbitrage"
+              },
+              {
+                "capital": 50,
+                "name": "SniperBot",
+                "risk": "medium",
+                "strategy": "sniper"
+              },
+              {
+                "capital": 25,
+                "name": "ContrarianBot",
+                "risk": "medium",
+                "strategy": "contrarian"
+              },
+              {
+                "capital": 25,
+                "name": "MomentumBot",
+                "risk": "medium",
+                "strategy": "momentum"
+              },
+              {
+                "capital": 25,
+                "name": "PairsBot",
+                "risk": "low",
+                "strategy": "pairs_trading"
+              },
+              {
+                "capital": 10,
+                "name": "YOLOBot",
+                "risk": "very_high",
+                "strategy": "high_risk"
+              }
+            ],
+            "enabled": true,
+            "kill_percentage": 0.2,
+            "kill_threshold_losses": 3,
+            "rebalance_frequency_hours": 24,
+            "scale_winners_pct": 0.25
+          },
+          "risk": {
+            "capital_pct_per_trade": 0.0125,
+            "consecutive_loss_limit": 3,
+            "daily_loss_limit_pct": 0.05,
+            "max_position_btc": 0.05,
+            "max_total_exposure_pct": 0.3,
+            "stop_loss_pct": 0.02,
+            "take_profit_pct": 0.06
+          },
+          "rl": {
+            "agent_type": "ppo",
+            "enabled": false,
+            "learning_rate": 0.0003,
+            "model_path": "models/ppo_agent.pkl",
+            "train_episodes": 100
+          },
+          "solana": {
+            "enabled": false,
+            "min_spread": 0.005,
+            "pairs": [
+              {
+                "cex_symbol": "SOLUSDT",
+                "decimals": 9,
+                "symbol": "SOL/USDC",
+                "token": "SOL"
+              },
+              {
+                "cex_symbol": "BTCUSDT",
+                "decimals": 8,
+                "symbol": "BTC/USDC",
+                "token": "BTC"
+              },
+              {
+                "cex_symbol": "ETHUSDT",
+                "decimals": 8,
+                "symbol": "ETH/USDC",
+                "token": "ETH"
+              }
+            ],
+            "rpc_url": "https://api.mainnet-beta.solana.com",
+            "trade_amount_usd": 50,
+            "wallet_file": "solana_wallet.json"
+          },
+          "strategies": {
+            "binary_arbitrage": {
+              "check_interval_seconds": 120,
+              "description": "PolyMarket YES/NO arbitrage",
+              "enabled": true,
+              "max_concurrent_arbs": 3,
+              "max_position_usd": 10,
+              "min_spread_pct": 1,
+              "name": "Binary Arbitrage"
+            },
+            "breakout": {
+              "breakout_threshold_pct": 3,
+              "description": "Trade breakouts from consolidation",
+              "enabled": false,
+              "lookback_period": 20,
+              "max_position_usd": 10,
+              "name": "Breakout",
+              "stop_loss_pct": 0.0128,
+              "symbols": [
+                "BTC/USDT",
+                "ETH/USDT",
+                "SOL/USDT"
+              ],
+              "volume_confirm": true
+            },
+            "contrarian": {
+              "description": "Mean reversion / fade the crowd",
+              "enabled": false,
+              "funding_threshold": 0.01,
+              "max_position_usd": 10,
+              "name": "Contrarian",
+              "rsi_overbought": 70,
+              "rsi_oversold": 30,
+              "rsi_period": 14,
+              "stop_loss_pct": 0.019200000000000002,
+              "symbols": [
+                "BTC/USDT",
+                "ETH/USDT",
+                "SOL/USDT"
+              ],
+              "take_profit_pct": 0.029399999999999996,
+              "use_funding_rate": true
+            },
+            "dca": {
+              "description": "Dollar Cost Averaging",
+              "enabled": false,
+              "interval_hours": 24,
+              "investment_amount_usd": 10,
+              "name": "DCA",
+              "symbols": [
+                "BTC/USDT",
+                "ETH/USDT"
+              ]
+            },
+            "grid_trading": {
+              "description": "Buy low, sell high in price ranges",
+              "enabled": false,
+              "grid_levels": 10,
+              "grid_range_pct": 5,
+              "name": "Grid Trading",
+              "order_size_usd": 10,
+              "symbols": [
+                "BTC/USDT",
+                "ETH/USDT"
+              ]
+            },
+            "high_risk": {
+              "description": "High risk, high reward gambles",
+              "enabled": false,
+              "leverage": 3,
+              "max_consecutive_losses": 2,
+              "max_position_usd": 10,
+              "name": "YOLO",
+              "stop_loss_pct": 0.096,
+              "symbols": [
+                "BTC/USDT",
+                "ETH/USDT",
+                "SOL/USDT",
+                "DOGE/USDT",
+                "SHIB/USDT"
+              ],
+              "take_profit_pct": 0.147
+            },
+            "momentum": {
+              "description": "Trend following with volume confirmation",
+              "enabled": false,
+              "max_position_usd": 10,
+              "min_price_change_pct": 2,
+              "name": "Momentum",
+              "sma_fast": 20,
+              "sma_slow": 50,
+              "stop_loss_pct": 0.019200000000000002,
+              "symbols": [
+                "BTC/USDT",
+                "ETH/USDT",
+                "SOL/USDT",
+                "BNB/USDT"
+              ],
+              "take_profit_pct": 0.0441,
+              "volume_threshold": 1.5
+            },
+            "pairs_trading": {
+              "description": "Statistical arbitrage between correlated pairs",
+              "enabled": false,
+              "entry_zscore": 2,
+              "exit_zscore": 0.5,
+              "lookback_period": 100,
+              "max_position_usd": 10,
+              "name": "Pairs Trading",
+              "pair_1": "BTC/USDT",
+              "pair_2": "ETH/USDT",
+              "stop_loss_zscore": 3.5
+            },
+            "scalping": {
+              "description": "Quick trades on small price movements",
+              "enabled": false,
+              "max_hold_time_minutes": 5,
+              "max_position_usd": 10,
+              "min_spread": 0.05,
+              "name": "Scalping",
+              "profit_target_pct": 0.1,
+              "symbols": [
+                "BTC/USDT",
+                "ETH/USDT"
+              ],
+              "timeframe": "1m"
+            },
+            "sniper": {
+              "allowed_tokens": [
+                "BTC",
+                "ETH",
+                "SOL"
+              ],
+              "circuit_breaker_losses": 3,
+              "description": "Momentum sniper for 15-min markets",
+              "enabled": true,
+              "entry_window_seconds": 60,
+              "max_concurrent_trades": 3,
+              "max_position_usd": 10,
+              "momentum_threshold": 0.1,
+              "name": "15-Min Sniper"
+            },
+            "vwap_reversion": {
+              "description": "Mean reversion to VWAP",
+              "enabled": true,
+              "max_position_usd": 10,
+              "name": "VWAP Reversion",
+              "std_dev_entry": 2,
+              "std_dev_exit": 0.5,
+              "symbols": [
+                "BTC/USDT",
+                "ETH/USDT"
+              ],
+              "vwap_period": "1d"
+            }
+          },
+          "strategy": {
+            "min_spread": 0.01
+          },
+          "success": true
+        },
+        "execution": {
+          "max_retries": 3,
+          "retry_delay": 1,
+          "slippage_tolerance_pct": 0.1
+        },
+        "multi_agent": {
+          "agents": [
+            {
+              "capital": 50,
+              "name": "ArbBot",
+              "risk": "low",
+              "strategy": "binary_arbitrage"
+            },
+            {
+              "capital": 50,
+              "name": "SniperBot",
+              "risk": "medium",
+              "strategy": "sniper"
+            },
+            {
+              "capital": 25,
+              "name": "ContrarianBot",
+              "risk": "medium",
+              "strategy": "contrarian"
+            },
+            {
+              "capital": 25,
+              "name": "MomentumBot",
+              "risk": "medium",
+              "strategy": "momentum"
+            },
+            {
+              "capital": 25,
+              "name": "PairsBot",
+              "risk": "low",
+              "strategy": "pairs_trading"
+            },
+            {
+              "capital": 10,
+              "name": "YOLOBot",
+              "risk": "very_high",
+              "strategy": "high_risk"
+            }
+          ],
+          "enabled": true,
+          "kill_percentage": 0.2,
+          "kill_threshold_losses": 3,
+          "rebalance_frequency_hours": 24,
+          "scale_winners_pct": 0.25
+        },
+        "risk": {
+          "capital_pct_per_trade": 0.0125,
+          "consecutive_loss_limit": 3,
+          "daily_loss_limit_pct": 0.05,
+          "max_position_btc": 0.05,
+          "max_total_exposure_pct": 0.3,
+          "stop_loss_pct": 0.02,
+          "take_profit_pct": 0.06
+        },
+        "rl": {
+          "agent_type": "ppo",
+          "enabled": false,
+          "learning_rate": 0.0003,
+          "model_path": "models/ppo_agent.pkl",
+          "train_episodes": 100
+        },
+        "solana": {
+          "enabled": false,
+          "min_spread": 0.005,
+          "pairs": [
+            {
+              "cex_symbol": "SOLUSDT",
+              "decimals": 9,
+              "symbol": "SOL/USDC",
+              "token": "SOL"
+            },
+            {
+              "cex_symbol": "BTCUSDT",
+              "decimals": 8,
+              "symbol": "BTC/USDC",
+              "token": "BTC"
+            },
+            {
+              "cex_symbol": "ETHUSDT",
+              "decimals": 8,
+              "symbol": "ETH/USDC",
+              "token": "ETH"
+            }
+          ],
+          "rpc_url": "https://api.mainnet-beta.solana.com",
+          "trade_amount_usd": 50,
+          "wallet_file": "solana_wallet.json"
+        },
+        "strategies": {
+          "binary_arbitrage": {
+            "check_interval_seconds": 120,
+            "description": "PolyMarket YES/NO arbitrage",
+            "enabled": true,
+            "max_concurrent_arbs": 3,
+            "max_position_usd": 10,
+            "min_spread_pct": 1,
+            "name": "Binary Arbitrage"
+          },
+          "breakout": {
+            "breakout_threshold_pct": 3,
+            "description": "Trade breakouts from consolidation",
+            "enabled": false,
+            "lookback_period": 20,
+            "max_position_usd": 10,
+            "name": "Breakout",
+            "stop_loss_pct": 0.0128,
+            "symbols": [
+              "BTC/USDT",
+              "ETH/USDT",
+              "SOL/USDT"
+            ],
+            "volume_confirm": true
+          },
+          "contrarian": {
+            "description": "Mean reversion / fade the crowd",
+            "enabled": false,
+            "funding_threshold": 0.01,
+            "max_position_usd": 10,
+            "name": "Contrarian",
+            "rsi_overbought": 70,
+            "rsi_oversold": 30,
+            "rsi_period": 14,
+            "stop_loss_pct": 0.019200000000000002,
+            "symbols": [
+              "BTC/USDT",
+              "ETH/USDT",
+              "SOL/USDT"
+            ],
+            "take_profit_pct": 0.029399999999999996,
+            "use_funding_rate": true
+          },
+          "dca": {
+            "description": "Dollar Cost Averaging",
+            "enabled": false,
+            "interval_hours": 24,
+            "investment_amount_usd": 10,
+            "name": "DCA",
+            "symbols": [
+              "BTC/USDT",
+              "ETH/USDT"
+            ]
+          },
+          "grid_trading": {
+            "description": "Buy low, sell high in price ranges",
+            "enabled": false,
+            "grid_levels": 10,
+            "grid_range_pct": 5,
+            "name": "Grid Trading",
+            "order_size_usd": 10,
+            "symbols": [
+              "BTC/USDT",
+              "ETH/USDT"
+            ]
+          },
+          "high_risk": {
+            "description": "High risk, high reward gambles",
+            "enabled": false,
+            "leverage": 3,
+            "max_consecutive_losses": 2,
+            "max_position_usd": 10,
+            "name": "YOLO",
+            "stop_loss_pct": 0.096,
+            "symbols": [
+              "BTC/USDT",
+              "ETH/USDT",
+              "SOL/USDT",
+              "DOGE/USDT",
+              "SHIB/USDT"
+            ],
+            "take_profit_pct": 0.147
+          },
+          "momentum": {
+            "description": "Trend following with volume confirmation",
+            "enabled": false,
+            "max_position_usd": 10,
+            "min_price_change_pct": 2,
+            "name": "Momentum",
+            "sma_fast": 20,
+            "sma_slow": 50,
+            "stop_loss_pct": 0.019200000000000002,
+            "symbols": [
+              "BTC/USDT",
+              "ETH/USDT",
+              "SOL/USDT",
+              "BNB/USDT"
+            ],
+            "take_profit_pct": 0.0441,
+            "volume_threshold": 1.5
+          },
+          "pairs_trading": {
+            "description": "Statistical arbitrage between correlated pairs",
+            "enabled": false,
+            "entry_zscore": 2,
+            "exit_zscore": 0.5,
+            "lookback_period": 100,
+            "max_position_usd": 10,
+            "name": "Pairs Trading",
+            "pair_1": "BTC/USDT",
+            "pair_2": "ETH/USDT",
+            "stop_loss_zscore": 3.5
+          },
+          "scalping": {
+            "description": "Quick trades on small price movements",
+            "enabled": false,
+            "max_hold_time_minutes": 5,
+            "max_position_usd": 10,
+            "min_spread": 0.05,
+            "name": "Scalping",
+            "profit_target_pct": 0.1,
+            "symbols": [
+              "BTC/USDT",
+              "ETH/USDT"
+            ],
+            "timeframe": "1m"
+          },
+          "sniper": {
+            "allowed_tokens": [
+              "BTC",
+              "ETH",
+              "SOL"
+            ],
+            "circuit_breaker_losses": 3,
+            "description": "Momentum sniper for 15-min markets",
+            "enabled": true,
+            "entry_window_seconds": 60,
+            "max_concurrent_trades": 3,
+            "max_position_usd": 10,
+            "momentum_threshold": 0.1,
+            "name": "15-Min Sniper"
+          },
+          "vwap_reversion": {
+            "description": "Mean reversion to VWAP",
+            "enabled": true,
+            "max_position_usd": 10,
+            "name": "VWAP Reversion",
+            "std_dev_entry": 2,
+            "std_dev_exit": 0.5,
+            "symbols": [
+              "BTC/USDT",
+              "ETH/USDT"
+            ],
+            "vwap_period": "1d"
+          }
+        },
+        "strategy": {
+          "min_spread": 0.01
+        },
+        "success": true
+      },
+      "execution": {
+        "max_retries": 3,
+        "retry_delay": 1,
+        "slippage_tolerance_pct": 0.1
+      },
+      "multi_agent": {
+        "agents": [
+          {
+            "capital": 50,
+            "name": "ArbBot",
+            "risk": "low",
+            "strategy": "binary_arbitrage"
+          },
+          {
+            "capital": 50,
+            "name": "SniperBot",
+            "risk": "medium",
+            "strategy": "sniper"
+          },
+          {
+            "capital": 25,
+            "name": "ContrarianBot",
+            "risk": "medium",
+            "strategy": "contrarian"
+          },
+          {
+            "capital": 25,
+            "name": "MomentumBot",
+            "risk": "medium",
+            "strategy": "momentum"
+          },
+          {
+            "capital": 25,
+            "name": "PairsBot",
+            "risk": "low",
+            "strategy": "pairs_trading"
+          },
+          {
+            "capital": 10,
+            "name": "YOLOBot",
+            "risk": "very_high",
+            "strategy": "high_risk"
+          }
+        ],
+        "enabled": true,
+        "kill_percentage": 0.2,
+        "kill_threshold_losses": 3,
+        "rebalance_frequency_hours": 24,
+        "scale_winners_pct": 0.25
+      },
+      "risk": {
+        "capital_pct_per_trade": 0.0125,
+        "consecutive_loss_limit": 3,
+        "daily_loss_limit_pct": 0.05,
+        "max_position_btc": 0.05,
+        "max_total_exposure_pct": 0.3,
+        "stop_loss_pct": 0.02,
+        "take_profit_pct": 0.06
+      },
+      "rl": {
+        "agent_type": "ppo",
+        "enabled": false,
+        "learning_rate": 0.0003,
+        "model_path": "models/ppo_agent.pkl",
+        "train_episodes": 100
+      },
+      "solana": {
+        "enabled": false,
+        "min_spread": 0.005,
+        "pairs": [
+          {
+            "cex_symbol": "SOLUSDT",
+            "decimals": 9,
+            "symbol": "SOL/USDC",
+            "token": "SOL"
+          },
+          {
+            "cex_symbol": "BTCUSDT",
+            "decimals": 8,
+            "symbol": "BTC/USDC",
+            "token": "BTC"
+          },
+          {
+            "cex_symbol": "ETHUSDT",
+            "decimals": 8,
+            "symbol": "ETH/USDC",
+            "token": "ETH"
+          }
+        ],
+        "rpc_url": "https://api.mainnet-beta.solana.com",
+        "trade_amount_usd": 50,
+        "wallet_file": "solana_wallet.json"
+      },
+      "strategies": {
+        "binary_arbitrage": {
+          "check_interval_seconds": 120,
+          "description": "PolyMarket YES/NO arbitrage",
+          "enabled": true,
+          "max_concurrent_arbs": 3,
+          "max_position_usd": 10,
+          "min_spread_pct": 1,
+          "name": "Binary Arbitrage"
+        },
+        "breakout": {
+          "breakout_threshold_pct": 3,
+          "description": "Trade breakouts from consolidation",
+          "enabled": false,
+          "lookback_period": 20,
+          "max_position_usd": 10,
+          "name": "Breakout",
+          "stop_loss_pct": 0.0128,
+          "symbols": [
+            "BTC/USDT",
+            "ETH/USDT",
+            "SOL/USDT"
+          ],
+          "volume_confirm": true
+        },
+        "contrarian": {
+          "description": "Mean reversion / fade the crowd",
+          "enabled": false,
+          "funding_threshold": 0.01,
+          "max_position_usd": 10,
+          "name": "Contrarian",
+          "rsi_overbought": 70,
+          "rsi_oversold": 30,
+          "rsi_period": 14,
+          "stop_loss_pct": 0.019200000000000002,
+          "symbols": [
+            "BTC/USDT",
+            "ETH/USDT",
+            "SOL/USDT"
+          ],
+          "take_profit_pct": 0.029399999999999996,
+          "use_funding_rate": true
+        },
+        "dca": {
+          "description": "Dollar Cost Averaging",
+          "enabled": false,
+          "interval_hours": 24,
+          "investment_amount_usd": 10,
+          "name": "DCA",
+          "symbols": [
+            "BTC/USDT",
+            "ETH/USDT"
+          ]
+        },
+        "grid_trading": {
+          "description": "Buy low, sell high in price ranges",
+          "enabled": false,
+          "grid_levels": 10,
+          "grid_range_pct": 5,
+          "name": "Grid Trading",
+          "order_size_usd": 10,
+          "symbols": [
+            "BTC/USDT",
+            "ETH/USDT"
+          ]
+        },
+        "high_risk": {
+          "description": "High risk, high reward gambles",
+          "enabled": false,
+          "leverage": 3,
+          "max_consecutive_losses": 2,
+          "max_position_usd": 10,
+          "name": "YOLO",
+          "stop_loss_pct": 0.096,
+          "symbols": [
+            "BTC/USDT",
+            "ETH/USDT",
+            "SOL/USDT",
+            "DOGE/USDT",
+            "SHIB/USDT"
+          ],
+          "take_profit_pct": 0.147
+        },
+        "momentum": {
+          "description": "Trend following with volume confirmation",
+          "enabled": false,
+          "max_position_usd": 10,
+          "min_price_change_pct": 2,
+          "name": "Momentum",
+          "sma_fast": 20,
+          "sma_slow": 50,
+          "stop_loss_pct": 0.019200000000000002,
+          "symbols": [
+            "BTC/USDT",
+            "ETH/USDT",
+            "SOL/USDT",
+            "BNB/USDT"
+          ],
+          "take_profit_pct": 0.0441,
+          "volume_threshold": 1.5
+        },
+        "pairs_trading": {
+          "description": "Statistical arbitrage between correlated pairs",
+          "enabled": false,
+          "entry_zscore": 2,
+          "exit_zscore": 0.5,
+          "lookback_period": 100,
+          "max_position_usd": 10,
+          "name": "Pairs Trading",
+          "pair_1": "BTC/USDT",
+          "pair_2": "ETH/USDT",
+          "stop_loss_zscore": 3.5
+        },
+        "scalping": {
+          "description": "Quick trades on small price movements",
+          "enabled": false,
+          "max_hold_time_minutes": 5,
+          "max_position_usd": 10,
+          "min_spread": 0.05,
+          "name": "Scalping",
+          "profit_target_pct": 0.1,
+          "symbols": [
+            "BTC/USDT",
+            "ETH/USDT"
+          ],
+          "timeframe": "1m"
+        },
+        "sniper": {
+          "allowed_tokens": [
+            "BTC",
+            "ETH",
+            "SOL"
+          ],
+          "circuit_breaker_losses": 3,
+          "description": "Momentum sniper for 15-min markets",
+          "enabled": true,
+          "entry_window_seconds": 60,
+          "max_concurrent_trades": 3,
+          "max_position_usd": 10,
+          "momentum_threshold": 0.1,
+          "name": "15-Min Sniper"
+        },
+        "vwap_reversion": {
+          "description": "Mean reversion to VWAP",
+          "enabled": true,
+          "max_position_usd": 10,
+          "name": "VWAP Reversion",
+          "std_dev_entry": 2,
+          "std_dev_exit": 0.5,
+          "symbols": [
+            "BTC/USDT",
+            "ETH/USDT"
+          ],
+          "vwap_period": "1d"
+        }
+      },
+      "strategy": {
+        "min_spread": 0.01
+      },
+      "success": true
+    },
+    "execution": {
+      "max_retries": 3,
+      "retry_delay": 1,
+      "slippage_tolerance_pct": 0.1
+    },
+    "multi_agent": {
+      "agents": [
+        {
+          "capital": 50,
+          "name": "ArbBot",
+          "risk": "low",
+          "strategy": "binary_arbitrage"
+        },
+        {
+          "capital": 50,
+          "name": "SniperBot",
+          "risk": "medium",
+          "strategy": "sniper"
+        },
+        {
+          "capital": 25,
+          "name": "ContrarianBot",
+          "risk": "medium",
+          "strategy": "contrarian"
+        },
+        {
+          "capital": 25,
+          "name": "MomentumBot",
+          "risk": "medium",
+          "strategy": "momentum"
+        },
+        {
+          "capital": 25,
+          "name": "PairsBot",
+          "risk": "low",
+          "strategy": "pairs_trading"
+        },
+        {
+          "capital": 10,
+          "name": "YOLOBot",
+          "risk": "very_high",
+          "strategy": "high_risk"
+        }
+      ],
+      "enabled": true,
+      "kill_percentage": 0.2,
+      "kill_threshold_losses": 3,
+      "rebalance_frequency_hours": 24,
+      "scale_winners_pct": 0.25
+    },
+    "risk": {
+      "capital_pct_per_trade": 0.0125,
+      "consecutive_loss_limit": 3,
+      "daily_loss_limit_pct": 0.05,
+      "max_position_btc": 0.05,
+      "max_total_exposure_pct": 0.3,
+      "stop_loss_pct": 0.02,
+      "take_profit_pct": 0.06
+    },
+    "rl": {
+      "agent_type": "ppo",
+      "enabled": false,
+      "learning_rate": 0.0003,
+      "model_path": "models/ppo_agent.pkl",
+      "train_episodes": 100
+    },
+    "solana": {
+      "enabled": false,
+      "min_spread": 0.005,
+      "pairs": [
+        {
+          "cex_symbol": "SOLUSDT",
+          "decimals": 9,
+          "symbol": "SOL/USDC",
+          "token": "SOL"
+        },
+        {
+          "cex_symbol": "BTCUSDT",
+          "decimals": 8,
+          "symbol": "BTC/USDC",
+          "token": "BTC"
+        },
+        {
+          "cex_symbol": "ETHUSDT",
+          "decimals": 8,
+          "symbol": "ETH/USDC",
+          "token": "ETH"
+        }
+      ],
+      "rpc_url": "https://api.mainnet-beta.solana.com",
+      "trade_amount_usd": 50,
+      "wallet_file": "solana_wallet.json"
+    },
+    "strategies": {
+      "binary_arbitrage": {
+        "check_interval_seconds": 120,
+        "description": "PolyMarket YES/NO arbitrage",
+        "enabled": true,
+        "max_concurrent_arbs": 3,
+        "max_position_usd": 10,
+        "min_spread_pct": 1,
+        "name": "Binary Arbitrage"
+      },
+      "breakout": {
+        "breakout_threshold_pct": 3,
+        "description": "Trade breakouts from consolidation",
+        "enabled": false,
+        "lookback_period": 20,
+        "max_position_usd": 10,
+        "name": "Breakout",
+        "stop_loss_pct": 0.0128,
+        "symbols": [
+          "BTC/USDT",
+          "ETH/USDT",
+          "SOL/USDT"
+        ],
+        "volume_confirm": true
+      },
+      "contrarian": {
+        "description": "Mean reversion / fade the crowd",
+        "enabled": false,
+        "funding_threshold": 0.01,
+        "max_position_usd": 10,
+        "name": "Contrarian",
+        "rsi_overbought": 70,
+        "rsi_oversold": 30,
+        "rsi_period": 14,
+        "stop_loss_pct": 0.019200000000000002,
+        "symbols": [
+          "BTC/USDT",
+          "ETH/USDT",
+          "SOL/USDT"
+        ],
+        "take_profit_pct": 0.029399999999999996,
+        "use_funding_rate": true
+      },
+      "dca": {
+        "description": "Dollar Cost Averaging",
+        "enabled": false,
+        "interval_hours": 24,
+        "investment_amount_usd": 10,
+        "name": "DCA",
+        "symbols": [
+          "BTC/USDT",
+          "ETH/USDT"
+        ]
+      },
+      "grid_trading": {
+        "description": "Buy low, sell high in price ranges",
+        "enabled": false,
+        "grid_levels": 10,
+        "grid_range_pct": 5,
+        "name": "Grid Trading",
+        "order_size_usd": 10,
+        "symbols": [
+          "BTC/USDT",
+          "ETH/USDT"
+        ]
+      },
+      "high_risk": {
+        "description": "High risk, high reward gambles",
+        "enabled": false,
+        "leverage": 3,
+        "max_consecutive_losses": 2,
+        "max_position_usd": 10,
+        "name": "YOLO",
+        "stop_loss_pct": 0.096,
+        "symbols": [
+          "BTC/USDT",
+          "ETH/USDT",
+          "SOL/USDT",
+          "DOGE/USDT",
+          "SHIB/USDT"
+        ],
+        "take_profit_pct": 0.147
+      },
+      "momentum": {
+        "description": "Trend following with volume confirmation",
+        "enabled": false,
+        "max_position_usd": 10,
+        "min_price_change_pct": 2,
+        "name": "Momentum",
+        "sma_fast": 20,
+        "sma_slow": 50,
+        "stop_loss_pct": 0.019200000000000002,
+        "symbols": [
+          "BTC/USDT",
+          "ETH/USDT",
+          "SOL/USDT",
+          "BNB/USDT"
+        ],
+        "take_profit_pct": 0.0441,
+        "volume_threshold": 1.5
+      },
+      "pairs_trading": {
+        "description": "Statistical arbitrage between correlated pairs",
+        "enabled": false,
+        "entry_zscore": 2,
+        "exit_zscore": 0.5,
+        "lookback_period": 100,
+        "max_position_usd": 10,
+        "name": "Pairs Trading",
+        "pair_1": "BTC/USDT",
+        "pair_2": "ETH/USDT",
+        "stop_loss_zscore": 3.5
+      },
+      "scalping": {
+        "description": "Quick trades on small price movements",
+        "enabled": false,
+        "max_hold_time_minutes": 5,
+        "max_position_usd": 10,
+        "min_spread": 0.05,
+        "name": "Scalping",
+        "profit_target_pct": 0.1,
+        "symbols": [
+          "BTC/USDT",
+          "ETH/USDT"
+        ],
+        "timeframe": "1m"
+      },
+      "sniper": {
+        "allowed_tokens": [
+          "BTC",
+          "ETH",
+          "SOL"
+        ],
+        "circuit_breaker_losses": 3,
+        "description": "Momentum sniper for 15-min markets",
+        "enabled": true,
+        "entry_window_seconds": 60,
+        "max_concurrent_trades": 3,
+        "max_position_usd": 10,
+        "momentum_threshold": 0.1,
+        "name": "15-Min Sniper"
+      },
+      "vwap_reversion": {
+        "description": "Mean reversion to VWAP",
+        "enabled": true,
+        "max_position_usd": 10,
+        "name": "VWAP Reversion",
+        "std_dev_entry": 2,
+        "std_dev_exit": 0.5,
+        "symbols": [
+          "BTC/USDT",
+          "ETH/USDT"
+        ],
+        "vwap_period": "1d"
+      }
+    },
+    "strategy": {
+      "min_spread": 0.01
+    },
+    "success": true
+  },
+  "success": true
 }
