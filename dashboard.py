@@ -1088,6 +1088,133 @@ def zeroclaw_trade():
         print(f"[ZeroClaw Trade] Error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route("/api/zeroclaw/sessions")
+def zeroclaw_sessions():
+    """Get list of ZeroClaw chat sessions"""
+    try:
+        sessions = []
+        # Try to get sessions from memory system
+        try:
+            from .zeroclaw.memory_system import MemorySystem
+            mem = MemorySystem()
+            recent = mem.get_recent_memories(limit=20)
+            
+            # Group by thread
+            threads = {}
+            for m in recent:
+                thread_id = m.get('thread_id', 'default')
+                if thread_id not in threads:
+                    threads[thread_id] = {
+                        "id": thread_id,
+                        "created_at": m.get('timestamp', ''),
+                        "message_count": 0,
+                        "last_message": ""
+                    }
+                threads[thread_id]["message_count"] += 1
+                threads[thread_id]["last_message"] = m.get('content', '')[:50]
+            
+            sessions = list(threads.values())
+        except:
+            pass
+        
+        if not sessions:
+            # Return default session
+            sessions = [{"id": "default", "created_at": datetime.now().isoformat(), "message_count": 0, "last_message": ""}]
+        
+        return jsonify({"success": True, "sessions": sessions})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "sessions": []})
+
+@app.route("/api/zeroclaw/session", methods=["POST"])
+def zeroclaw_create_session():
+    """Create a new ZeroClaw chat session"""
+    try:
+        data = request.json or {}
+        message = data.get('message', '')
+        thread_id = data.get('thread_id', f"session_{int(time.time())}")
+        
+        # Process the message via AI chat
+        chat_data = {"message": message, "history": []}
+        
+        # Call the existing chat endpoint
+        from flask import g
+        
+        # Get AI response
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/ai_agent.py', message],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env={**os.environ, 'PYTHONPATH': '/root/trading-bot/.zeroclaw'}
+        )
+        
+        if result.returncode == 0:
+            try:
+                agent_result = json.loads(result.stdout)
+                response_text = agent_result.get("response", "No response")
+            except:
+                response_text = result.stdout.strip()
+        else:
+            response_text = f"Error: {result.stderr[:100]}"
+        
+        return jsonify({
+            "success": True,
+            "session_id": thread_id,
+            "response": response_text,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/zeroclaw/session/<session_id>")
+def zeroclaw_get_session(session_id):
+    """Get ZeroClaw session details"""
+    try:
+        # Return session info
+        return jsonify({
+            "success": True,
+            "session": {
+                "id": session_id,
+                "created_at": datetime.now().isoformat(),
+                "messages": []
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/zeroclaw/session/<session_id>/response", methods=["POST"])
+def zeroclaw_submit_response(session_id):
+    """Submit user response in a session"""
+    try:
+        data = request.json or {}
+        response = data.get('response', '')
+        
+        # Process via AI
+        result = subprocess.run(
+            ['python3', '/root/trading-bot/.zeroclaw/ai_agent.py', response],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env={**os.environ, 'PYTHONPATH': '/root/trading-bot/.zeroclaw'}
+        )
+        
+        if result.returncode == 0:
+            try:
+                agent_result = json.loads(result.stdout)
+                response_text = agent_result.get("response", "No response")
+            except:
+                response_text = result.stdout.strip()
+        else:
+            response_text = f"Error: {result.stderr[:100]}"
+        
+        return jsonify({
+            "success": True,
+            "response": response_text,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/api/zeroclaw/skill", methods=["POST"])
 def zeroclaw_skill():
     """Execute a ZeroClaw skill directly"""
@@ -2622,6 +2749,90 @@ If you're seeing this, the integration is working! ✅
 # ============================================================================
 # REACT FRONTEND API ROUTES (Port 5000 compatibility)
 # ============================================================================
+
+@app.route("/api/bot/status")
+def api_bot_status():
+    """Get bot operational status for React frontend"""
+    try:
+        mode = get_trading_mode()
+        
+        # Get portfolio info
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get today's stats
+            cursor.execute("""
+                SELECT COUNT(*) as total_trades, 
+                       SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) as winning_trades,
+                       SUM(net_pnl) as total_pnl
+                FROM trades 
+                WHERE timestamp >= date('now')
+            """)
+            today = cursor.fetchone()
+            
+            cursor.execute("""
+                SELECT COUNT(*) as total_trades, 
+                       SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) as winning_trades,
+                       SUM(net_pnl) as total_pnl
+                FROM trades
+            """)
+            all_time = cursor.fetchone()
+            
+            conn.close()
+            
+            total_trades = today['total_trades'] or 0
+            winning_trades = today['winning_trades'] or 0
+            today_pnl = today['total_pnl'] or 0
+            all_trades = all_time['total_trades'] or 0
+            all_wins = all_time['winning_trades'] or 0
+            all_pnl = all_time['total_pnl'] or 0
+            
+            win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+            total_win_rate = (all_wins / all_trades * 100) if all_trades > 0 else 0
+        except Exception as e:
+            print(f"[Bot Status] DB error: {e}")
+            total_trades = 0
+            winning_trades = 0
+            today_pnl = 0
+            all_trades = 0
+            all_wins = 0
+            all_pnl = 0
+            win_rate = 0
+            total_win_rate = 0
+        
+        # Check ZeroClaw status
+        zeroclaw_running = False
+        try:
+            import requests
+            resp = requests.get('http://127.0.0.1:3000/health', timeout=2)
+            zeroclaw_running = resp.status_code == 200
+        except:
+            pass
+        
+        return jsonify({
+            "status": "running",
+            "mode": mode,
+            "uptime": "Running",
+            "autonomousEnabled": False,
+            "zeroclawConnected": zeroclaw_running,
+            "today": {
+                "trades": total_trades,
+                "winRate": round(win_rate, 1),
+                "pnl": round(today_pnl, 2)
+            },
+            "allTime": {
+                "trades": all_trades,
+                "winRate": round(total_win_rate, 1),
+                "pnl": round(all_pnl, 2)
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "mode": "PAPER",
+            "error": str(e)
+        })
 
 @app.route("/api/prices")
 def api_prices():
