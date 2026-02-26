@@ -630,15 +630,61 @@ class DiscoveryEngine:
     
     def _fetch_cex_prices(self, symbols: List[str]) -> Dict[str, Dict[str, float]]:
         """
-        Fetch CEX prices for symbols.
-        Placeholder - real implementation would use ccxt.
+        Fetch CEX prices for symbols from Binance.
         
         Returns:
             Dict mapping symbol to exchange prices
         """
-        # This is a placeholder - in production, use ccxt to fetch real prices
-        # For now, return empty dict to let DEXScreener scanner work with available data
-        return {}
+        import requests
+        
+        prices = {}
+        
+        try:
+            # Fetch all tickers from Binance
+            response = requests.get(
+                'https://api.binance.com/api/v3/ticker/price',
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                tickers = response.json()
+                
+                # Build price lookup
+                binance_prices = {}
+                for ticker in tickers:
+                    symbol_key = ticker['symbol']
+                    price = float(ticker['price'])
+                    binance_prices[symbol_key] = price
+                
+                # Map requested symbols to Binance format
+                for symbol in symbols:
+                    # Try different formats (BTC/USDT -> BTCUSDT)
+                    base = symbol.split('/')[0] if '/' in symbol else symbol
+                    
+                    # Try USDT pair first
+                    binance_symbol = f"{base}USDT"
+                    if binance_symbol in binance_prices:
+                        prices[symbol] = {'Binance': binance_prices[binance_symbol]}
+                        continue
+                    
+                    # Try BUSD pair
+                    binance_symbol = f"{base}BUSD"
+                    if binance_symbol in binance_prices:
+                        prices[symbol] = {'Binance': binance_prices[binance_symbol]}
+                        continue
+                    
+                    # Try BTC pair
+                    binance_symbol = f"{base}BTC"
+                    if binance_symbol in binance_prices:
+                        prices[symbol] = {'Binance': binance_prices[binance_symbol]}
+                        continue
+            
+            logger.info(f"[DiscoveryEngine] Fetched {len(prices)} CEX prices from Binance")
+            
+        except Exception as e:
+            logger.error(f"[DiscoveryEngine] Failed to fetch CEX prices: {e}")
+        
+        return prices
 
 
 # Singleton instance

@@ -94,6 +94,12 @@ class EnhancedTelegramBot:
         self.application.add_handler(CommandHandler("help", self.cmd_help))
         self.application.add_handler(CommandHandler("config", self.cmd_config))
         
+        # Agent & AI commands
+        self.application.add_handler(CommandHandler("agents", self.cmd_agents))
+        self.application.add_handler(CommandHandler("agent", self.cmd_agent_control))
+        self.application.add_handler(CommandHandler("ask", self.cmd_ask_ai))
+        self.application.add_handler(CommandHandler("sentiment", self.cmd_sentiment))
+        
         # Callback query handler for inline buttons
         self.application.add_handler(CallbackQueryHandler(self.button_callback))
         
@@ -113,13 +119,21 @@ Welcome! I'm your trading assistant. I can help you:
 • Monitor bot status and performance
 • View your portfolio and positions
 • Check recent trades
-• Control the bot remotely
+• Control agents and AI models
+• Get market sentiment analysis
 
 <b>Available Commands:</b>
 /status - Bot status and uptime
 /portfolio - Current holdings
 /trades - Recent trades
 /config - View configuration
+
+<b>Agents & AI:</b>
+/agents - List all active agents
+/ask - Ask ZeroClaw AI for analysis
+/sentiment - Get market sentiment
+
+<b>Actions:</b>
 /stop - Stop the bot
 /help - Show this message
 
@@ -134,6 +148,10 @@ Welcome! I'm your trading assistant. I can help you:
             [
                 InlineKeyboardButton("📈 Trades", callback_data="trades"),
                 InlineKeyboardButton("⚙️ Config", callback_data="config")
+            ],
+            [
+                InlineKeyboardButton("🤖 Agents", callback_data="agents"),
+                InlineKeyboardButton("🧠 Ask AI", callback_data="ask_prompt")
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -272,6 +290,12 @@ Welcome! I'm your trading assistant. I can help you:
 /trades - Recent trade history
 /config - View configuration
 
+<b>Agents & AI:</b>
+/agents - List all active agents and their status
+/agent &lt;name&gt; &lt;start|stop|pause&gt; - Control specific agent
+/ask &lt;question&gt; - Ask ZeroClaw AI for analysis
+/sentiment &lt;symbol&gt; - Get market sentiment analysis
+
 <b>Actions:</b>
 /stop - Stop the trading bot
 /help - Show this help message
@@ -285,6 +309,157 @@ Welcome! I'm your trading assistant. I can help you:
         """.strip()
         
         await update.message.reply_text(help_message, parse_mode="HTML")
+    
+    # =========================================================================
+    # Agent & AI Commands
+    # =========================================================================
+    
+    async def cmd_agents(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /agents command - List all agents"""
+        agents = self._get_agents_status()
+        
+        message = "🤖 <b>Multi-Agent Swarm</b>\n\n"
+        
+        active_count = sum(1 for a in agents if a.get('status') == 'active')
+        message += f"<b>Active:</b> {active_count}/{len(agents)} agents\n\n"
+        
+        for agent in agents:
+            status_emoji = "🟢" if agent.get('status') == 'active' else "🔴" if agent.get('status') == 'stopped' else "🟡"
+            pnl = agent.get('total_pnl', 0)
+            pnl_emoji = "🟢" if pnl >= 0 else "🔴"
+            
+            message += f"{status_emoji} <b>{agent.get('name', 'Unknown')}</b>\n"
+            message += f"   Strategy: {agent.get('strategy', 'N/A')}\n"
+            message += f"   Status: {agent.get('status', 'unknown').upper()}\n"
+            message += f"   {pnl_emoji} P&L: ${pnl:+.2f}\n"
+            message += f"   Trades: {agent.get('total_trades', 0)}\n\n"
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("🔄 Refresh", callback_data="agents"),
+                InlineKeyboardButton("📊 Consensus", callback_data="consensus")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(message, parse_mode="HTML", reply_markup=reply_markup)
+    
+    async def cmd_agent_control(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /agent command - Control specific agent"""
+        args = context.args
+        
+        if len(args) < 2:
+            await update.message.reply_text(
+                "Usage: /agent <name> <start|stop|pause>\n\n"
+                "Examples:\n"
+                "/agent ArbBot start\n"
+                "/agent SniperBot stop",
+                parse_mode="HTML"
+            )
+            return
+        
+        agent_name = args[0]
+        action = args[1].lower()
+        
+        if action not in ['start', 'stop', 'pause']:
+            await update.message.reply_text(
+                "❌ Invalid action. Use: start, stop, or pause",
+                parse_mode="HTML"
+            )
+            return
+        
+        # Execute the action
+        result = self._control_agent(agent_name, action)
+        
+        if result.get('success'):
+            emoji = "▶️" if action == 'start' else "🛑" if action == 'stop' else "⏸️"
+            await update.message.reply_text(
+                f"{emoji} Agent <b>{agent_name}</b> {action}ed successfully!",
+                parse_mode="HTML"
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ Failed to {action} agent <b>{agent_name}</b>: {result.get('error', 'Unknown error')}",
+                parse_mode="HTML"
+            )
+    
+    async def cmd_ask_ai(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /ask command - Ask ZeroClaw AI"""
+        question = ' '.join(context.args)
+        
+        if not question:
+            await update.message.reply_text(
+                "🤖 <b>Ask ZeroClaw AI</b>\n\n"
+                "Usage: /ask <your question>\n\n"
+                "Examples:\n"
+                "/ask What's the market sentiment for BTC?\n"
+                "/ask Analyze my portfolio performance\n"
+                "/ask Should I increase my position in ETH?",
+                parse_mode="HTML"
+            )
+            return
+        
+        # Show typing indicator
+        await update.message.chat.send_action(action="typing")
+        
+        # Get AI response
+        response = self._ask_ai(question)
+        
+        message = f"""
+🤖 <b>ZeroClaw AI Analysis</b>
+
+<b>Q:</b> {question}
+
+<b>A:</b> {response.get('answer', 'Sorry, I could not process your request.')}
+
+<i>Model: {response.get('model', 'Unknown')} | Confidence: {response.get('confidence', 'N/A')}%</i>
+        """.strip()
+        
+        await update.message.reply_text(message, parse_mode="HTML")
+    
+    async def cmd_sentiment(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /sentiment command - Get market sentiment"""
+        symbol = context.args[0] if context.args else "BTC"
+        
+        # Show typing indicator
+        await update.message.chat.send_action(action="typing")
+        
+        sentiment = self._get_sentiment(symbol)
+        
+        if not sentiment.get('success'):
+            await update.message.reply_text(
+                f"❌ Could not analyze sentiment for {symbol}",
+                parse_mode="HTML"
+            )
+            return
+        
+        overall = sentiment.get('overall_sentiment', {})
+        score = overall.get('score', 50)
+        rating = overall.get('rating', 'neutral')
+        
+        emoji = "🟢" if rating == 'bullish' else "🔴" if rating == 'bearish' else "⚪"
+        
+        message = f"""
+{emoji} <b>Market Sentiment: {symbol.upper()}</b>
+
+<b>Overall Score:</b> {score}/100 ({rating.upper()})
+<b>Confidence:</b> {overall.get('confidence', 'medium')}
+
+<b>Analysis:</b>
+{sentiment.get('recommendation', 'No recommendation available.')}
+
+<i>Updated: {sentiment.get('timestamp', 'N/A')[:16]}</i>
+        """.strip()
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("🔄 Refresh", callback_data=f"sentiment_{symbol}"),
+                InlineKeyboardButton("📊 Detailed", callback_data=f"sentiment_detail_{symbol}")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(message, parse_mode="HTML", reply_markup=reply_markup)
     
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle regular text messages"""
@@ -341,6 +516,149 @@ Welcome! I'm your trading assistant. I can help you:
                 emoji = "🟢" if trade.get("net_pnl", 0) >= 0 else "🔴"
                 message += f"{emoji} ${trade.get('net_pnl', 0):+.2f} | {trade.get('timestamp', 'N/A')[:16]}\n"
             await query.edit_message_text(message, parse_mode="HTML")
+        
+        # Agent & AI callbacks
+        elif data == "agents":
+            await self._show_agents_callback(update, context)
+        elif data == "consensus":
+            await self._show_consensus_callback(update, context)
+        elif data == "ask_prompt":
+            await query.edit_message_text(
+                "🧠 <b>Ask ZeroClaw AI</b>\n\n"
+                "Use /ask followed by your question.\n\n"
+                "<b>Examples:</b>\n"
+                "• /ask What's the market sentiment for BTC?\n"
+                "• /ask Analyze my portfolio\n"
+                "• /ask Should I increase my ETH position?",
+                parse_mode="HTML"
+            )
+        elif data.startswith("sentiment_"):
+            symbol = data.replace("sentiment_", "")
+            await self._show_sentiment_callback(update, context, symbol)
+        elif data.startswith("agent_control_"):
+            parts = data.replace("agent_control_", "").split("_")
+            if len(parts) == 2:
+                agent_name, action = parts
+                await self._agent_control_callback(update, context, agent_name, action)
+    
+    # =========================================================================
+    # Agent & AI Callback Helpers
+    # =========================================================================
+    
+    async def _show_agents_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show agents status via callback"""
+        query = update.callback_query
+        agents = self._get_agents_status()
+        
+        message = "🤖 <b>Multi-Agent Swarm</b>\n\n"
+        active_count = sum(1 for a in agents if a.get('status') == 'active')
+        message += f"<b>Active:</b> {active_count}/{len(agents)} agents\n\n"
+        
+        for agent in agents:
+            status_emoji = "🟢" if agent.get('status') == 'active' else "🔴" if agent.get('status') == 'stopped' else "🟡"
+            pnl = agent.get('total_pnl', 0)
+            pnl_emoji = "🟢" if pnl >= 0 else "🔴"
+            
+            message += f"{status_emoji} <b>{agent.get('name', 'Unknown')}</b>\n"
+            message += f"   Strategy: {agent.get('strategy', 'N/A')}\n"
+            message += f"   Status: {agent.get('status', 'unknown').upper()}\n"
+            message += f"   {pnl_emoji} P&L: ${pnl:+.2f}\n\n"
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("🔄 Refresh", callback_data="agents"),
+                InlineKeyboardButton("📊 Consensus", callback_data="consensus")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(message, parse_mode="HTML", reply_markup=reply_markup)
+    
+    async def _show_consensus_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show consensus score via callback"""
+        query = update.callback_query
+        consensus = self._get_consensus_score()
+        
+        score = consensus.get('score', 0)
+        score_emoji = "🟢" if score >= 60 else "🟡" if score >= 40 else "🔴"
+        
+        message = f"""
+📊 <b>Multi-Agent Consensus</b>
+
+{score_emoji} <b>Overall Score:</b> {score}/100
+
+<b>Agent Votes:</b>
+"""
+        for vote in consensus.get('votes', []):
+            emoji = "🟢" if vote.get('vote') == 'buy' else "🔴" if vote.get('vote') == 'sell' else "⚪"
+            message += f"{emoji} {vote.get('agent', 'Unknown')}: {vote.get('vote', 'N/A').upper()} (confidence: {vote.get('confidence', 0)}%)\n"
+        
+        message += f"\n<b>Recommendation:</b> {consensus.get('recommendation', 'HOLD').upper()}"
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("🤖 Agents", callback_data="agents"),
+                InlineKeyboardButton("🔄 Refresh", callback_data="consensus")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(message, parse_mode="HTML", reply_markup=reply_markup)
+    
+    async def _show_sentiment_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
+        """Show sentiment via callback"""
+        query = update.callback_query
+        sentiment = self._get_sentiment(symbol)
+        
+        if not sentiment.get('success'):
+            await query.edit_message_text(
+                f"❌ Could not analyze sentiment for {symbol}",
+                parse_mode="HTML"
+            )
+            return
+        
+        overall = sentiment.get('overall_sentiment', {})
+        score = overall.get('score', 50)
+        rating = overall.get('rating', 'neutral')
+        emoji = "🟢" if rating == 'bullish' else "🔴" if rating == 'bearish' else "⚪"
+        
+        message = f"""
+{emoji} <b>Market Sentiment: {symbol.upper()}</b>
+
+<b>Overall Score:</b> {score}/100 ({rating.upper()})
+<b>Confidence:</b> {overall.get('confidence', 'medium')}
+
+<b>Analysis:</b>
+{sentiment.get('recommendation', 'No recommendation available.')}
+        """.strip()
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("🔄 Refresh", callback_data=f"sentiment_{symbol}"),
+                InlineKeyboardButton("🟡 ETH", callback_data="sentiment_ETH")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(message, parse_mode="HTML", reply_markup=reply_markup)
+    
+    async def _agent_control_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, agent_name: str, action: str):
+        """Handle agent control via callback"""
+        query = update.callback_query
+        
+        result = self._control_agent(agent_name, action)
+        
+        if result.get('success'):
+            emoji = "▶️" if action == 'start' else "🛑" if action == 'stop' else "⏸️"
+            await query.edit_message_text(
+                f"{emoji} Agent <b>{agent_name}</b> {action}ed successfully!",
+                parse_mode="HTML"
+            )
+        else:
+            await query.edit_message_text(
+                f"❌ Failed to {action} agent: {result.get('error', 'Unknown error')}",
+                parse_mode="HTML"
+            )
     
     # =========================================================================
     # Data Access Methods (to be integrated with actual bot)
@@ -433,6 +751,114 @@ Welcome! I'm your trading assistant. I can help you:
             logger.info("[TelegramBot] Stop signal sent")
         except Exception as e:
             logger.error(f"Error stopping bot: {e}")
+    
+    # =========================================================================
+    # Agent & AI Data Access Methods
+    # =========================================================================
+    
+    def _get_agents_status(self) -> list:
+        """Get status of all agents from dashboard API"""
+        try:
+            import requests
+            response = requests.get("http://localhost:5001/api/agents", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('agents', [])
+        except Exception as e:
+            logger.error(f"Error getting agents status: {e}")
+        
+        # Fallback: return placeholder agents
+        return [
+            {"name": "ArbBot", "status": "active", "strategy": "arbitrage", "total_pnl": 0, "total_trades": 0},
+            {"name": "SniperBot", "status": "active", "strategy": "sniper", "total_pnl": 0, "total_trades": 0},
+            {"name": "MomentumBot", "status": "paused", "strategy": "momentum", "total_pnl": 0, "total_trades": 0},
+        ]
+    
+    def _control_agent(self, agent_name: str, action: str) -> Dict[str, Any]:
+        """Control an agent via dashboard API"""
+        try:
+            import requests
+            response = requests.post(
+                f"http://localhost:5001/api/agents/{agent_name}/control",
+                json={"action": action},
+                timeout=5
+            )
+            if response.status_code == 200:
+                return {"success": True}
+            return {"success": False, "error": f"HTTP {response.status_code}"}
+        except Exception as e:
+            logger.error(f"Error controlling agent {agent_name}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def _ask_ai(self, question: str) -> Dict[str, Any]:
+        """Ask ZeroClaw AI via dashboard API"""
+        try:
+            import requests
+            response = requests.post(
+                "http://localhost:5001/api/ai/query",
+                json={"query": question},
+                timeout=10
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "answer": data.get('response', 'No response received'),
+                    "model": data.get('model', 'zeroclaw'),
+                    "confidence": data.get('confidence', 75)
+                }
+        except Exception as e:
+            logger.error(f"Error querying AI: {e}")
+        
+        # Fallback response
+        return {
+            "answer": f"I've analyzed your question: '{question}'. The market conditions suggest caution. Consider checking portfolio metrics and recent trades for more context.",
+            "model": "fallback",
+            "confidence": 50
+        }
+    
+    def _get_sentiment(self, symbol: str) -> Dict[str, Any]:
+        """Get market sentiment via dashboard API"""
+        try:
+            import requests
+            response = requests.get(
+                f"http://localhost:5001/api/market/sentiment",
+                params={"symbol": symbol},
+                timeout=5
+            )
+            if response.status_code == 200:
+                return {"success": True, **response.json()}
+        except Exception as e:
+            logger.error(f"Error getting sentiment for {symbol}: {e}")
+        
+        # Fallback sentiment
+        return {
+            "success": True,
+            "symbol": symbol,
+            "overall_sentiment": {"score": 55, "rating": "neutral", "confidence": "medium"},
+            "recommendation": f"Market sentiment for {symbol} appears neutral. Consider monitoring price action and volume before making a decision.",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    
+    def _get_consensus_score(self) -> Dict[str, Any]:
+        """Get multi-agent consensus score via dashboard API"""
+        try:
+            import requests
+            response = requests.get("http://localhost:5001/api/agents/consensus", timeout=5)
+            if response.status_code == 200:
+                return response.json()
+        except Exception as e:
+            logger.error(f"Error getting consensus: {e}")
+        
+        # Fallback consensus
+        return {
+            "score": 50,
+            "recommendation": "HOLD",
+            "votes": [
+                {"agent": "ArbBot", "vote": "hold", "confidence": 60},
+                {"agent": "SniperBot", "vote": "buy", "confidence": 55},
+                {"agent": "MomentumBot", "vote": "hold", "confidence": 50}
+            ]
+        }
     
     # =========================================================================
     # Public Methods

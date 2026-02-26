@@ -83,48 +83,134 @@ class BaseWallet(ABC):
 
 
 class SolanaWallet(BaseWallet):
-    """Solana wallet implementation"""
+    """Solana wallet implementation with real RPC queries"""
+    
+    # Token mint addresses
+    TOKEN_MINTS = {
+        'USDC': 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        'USDT': 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+        'BONK': 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+        'stSOL': '7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj',
+        'mSOL': 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
+        'JitoSOL': 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
+    }
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         self.rpc_url = config.get("rpc_url", "https://api.mainnet-beta.solana.com")
-        self._address = None
-        self._load_wallet()
+        self._address = config.get("address") or self._load_wallet_address()
+        self._balances = {}
     
-    def _load_wallet(self):
-        """Load wallet from file"""
+    def _load_wallet_address(self) -> Optional[str]:
+        """Load wallet address from file"""
         try:
             if os.path.exists("solana_wallet_live.json"):
                 with open("solana_wallet_live.json", "r") as f:
                     wallet_data = json.load(f)
-                    self._address = wallet_data.get("public_key")
-                    self._balance_sol = wallet_data.get("balance_sol", 0)
-                    self._balance_usdc = wallet_data.get("balance_usdc", 0)
+                    return wallet_data.get("public_key")
         except Exception as e:
             print(f"[SolanaWallet] Error loading wallet: {e}")
+        return None
+    
+    def _rpc_call(self, method: str, params: list) -> Optional[dict]:
+        """Make RPC call to Solana node"""
+        try:
+            import requests
+            response = requests.post(
+                self.rpc_url,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": method,
+                    "params": params
+                },
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("result")
+        except Exception as e:
+            print(f"[SolanaWallet] RPC error: {e}")
+        return None
+    
+    def _fetch_sol_balance(self) -> float:
+        """Fetch SOL balance from RPC"""
+        if not self._address:
+            return 0.0
+        
+        result = self._rpc_call("getBalance", [self._address])
+        if result and 'value' in result:
+            lamports = result['value']
+            return lamports / 1e9  # Convert lamports to SOL
+        return 0.0
+    
+    def _fetch_token_balance(self, mint: str) -> float:
+        """Fetch SPL token balance from RPC"""
+        if not self._address:
+            return 0.0
+        
+        # Get token account
+        result = self._rpc_call("getTokenAccountsByOwner", [
+            self._address,
+            {"mint": mint},
+            {"encoding": "jsonParsed"}
+        ])
+        
+        if result and 'value' in result and len(result['value']) > 0:
+            account = result['value'][0]
+            parsed = account.get('account', {}).get('data', {}).get('parsed', {})
+            info = parsed.get('info', {})
+            amount = info.get('tokenAmount', {}).get('uiAmount', 0)
+            return float(amount)
+        return 0.0
     
     def get_address(self) -> Optional[str]:
         return self._address
     
     def get_balances(self) -> List[TokenBalance]:
+        """Fetch all token balances from blockchain"""
         balances = []
-        if self._address:
-            balances.append(TokenBalance("SOL", self._balance_sol, 9))
-            balances.append(TokenBalance("USDC", self._balance_usdc, 6))
+        
+        if not self._address:
+            return balances
+        
+        # Fetch SOL balance
+        sol_balance = self._fetch_sol_balance()
+        if sol_balance > 0:
+            balances.append(TokenBalance("SOL", sol_balance, 9))
+        
+        # Fetch token balances
+        decimals_map = {'USDC': 6, 'USDT': 6, 'BONK': 5, 'stSOL': 9, 'mSOL': 9, 'JitoSOL': 9}
+        
+        for symbol, mint in self.TOKEN_MINTS.items():
+            balance = self._fetch_token_balance(mint)
+            if balance > 0:
+                decimals = decimals_map.get(symbol, 6)
+                balances.append(TokenBalance(symbol, balance, decimals))
+        
         return balances
     
     def get_balance(self, token: str) -> float:
-        if token.upper() == "SOL":
-            return self._balance_sol
-        elif token.upper() == "USDC":
-            return self._balance_usdc
+        """Get specific token balance"""
+        if not self._address:
+            return 0.0
+        
+        token = token.upper()
+        
+        if token == "SOL":
+            return self._fetch_sol_balance()
+        elif token in self.TOKEN_MINTS:
+            return self._fetch_token_balance(self.TOKEN_MINTS[token])
+        
         return 0.0
     
     def is_connected(self) -> bool:
         return self._address is not None
     
     def send_transaction(self, to: str, amount: float, token: str) -> Optional[str]:
-        # This would integrate with solathon for actual transaction signing
+        """Send a transaction - requires private key"""
+        print(f"[SolanaWallet] Transaction signing not implemented in this version")
         print(f"[SolanaWallet] Would send {amount} {token} to {to}")
         return None
 

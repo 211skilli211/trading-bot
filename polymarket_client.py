@@ -134,8 +134,34 @@ class PolyMarketClient:
             data = self.get_markets(limit=200, active=True, closed=False)
             
             for m in data:
-                yes_price = float(m.get("yesPrice", 0) or 0)
-                no_price = float(m.get("noPrice", 0) or 0)
+                # Handle different price formats from API
+                yes_price = 0.0
+                no_price = 0.0
+                
+                # Try outcomePrices first (format: '["0.0295", "0.9705"]' - JSON string)
+                outcome_prices = m.get("outcomePrices", [])
+                if outcome_prices:
+                    try:
+                        if isinstance(outcome_prices, str):
+                            import json
+                            prices = json.loads(outcome_prices)
+                        elif isinstance(outcome_prices, list):
+                            prices = outcome_prices
+                        else:
+                            prices = []
+                        
+                        if len(prices) >= 2:
+                            yes_price = float(prices[0])
+                            no_price = float(prices[1])
+                    except (ValueError, TypeError, json.JSONDecodeError) as e:
+                        logger.warning(f"Could not parse outcomePrices: {outcome_prices}")
+                
+                # Fallback to yesPrice/noPrice fields (if present)
+                if yes_price == 0:
+                    yes_price = float(m.get("yesPrice", 0) or 0)
+                if no_price == 0:
+                    no_price = float(m.get("noPrice", 0) or 0)
+                
                 liquidity = float(m.get("liquidity", 0) or 0)
                 volume = float(m.get("volume", 0) or 0)
                 
@@ -165,8 +191,8 @@ class PolyMarketClient:
                 )
                 markets.append(market)
             
-            # Sort by arbitrage potential
-            markets.sort(key=lambda x: x.arbitrage_percent, reverse=True)
+            # Sort by liquidity (most active first)
+            markets.sort(key=lambda x: x.liquidity, reverse=True)
             
         except Exception as e:
             logger.error(f"Error getting binary markets: {e}")
