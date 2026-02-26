@@ -34,6 +34,16 @@ from risk_manager import RiskManager
 from strategies.multi_agent import MultiAgentSystem
 from zeroclaw_integration import ZeroClawIntegration
 
+# Data Broker Layer - Institutional-grade enriched data
+try:
+    from data_broker_layer import DataBrokerLayer, EnrichedData, create_data_broker_layer
+    DATA_BROKER_AVAILABLE = True
+except ImportError:
+    DATA_BROKER_AVAILABLE = False
+    DataBrokerLayer = None
+    create_data_broker_layer = None
+    logger.warning("[AutonomousController] DataBrokerLayer not available - install data_broker_layer.py")
+
 try:
     from websocket_price_feed import WebSocketPriceFeed, WEBSOCKET_AVAILABLE
 except ImportError:
@@ -111,35 +121,56 @@ class AutonomousController:
         'max_single_position_usd': 500,
         'emergency_pnl_threshold': -0.10,  # -10% triggers emergency
         'volatility_scaling_factor': 1.0,
+        
+        # Data Broker Layer settings
+        'use_enriched_data': True,
+        'min_signal_confidence': 0.6,
+        'whale_watch_enabled': True,
+        'sentiment_weight': 0.2,
+        'onchain_weight': 0.3,
+        'technical_weight': 0.5,
     }
     
     def __init__(self, config: Optional[Dict] = None):
         """
         Initialize autonomous controller.
-        
+
         Args:
             config: Override default configuration
         """
         self.config = {**self.DEFAULT_CONFIG, **(config or {})}
         self.running = False
         self._lock = threading.RLock()
-        
+
         # Initialize components
         self.zeroclaw = ZeroClawIntegration()
         self.regime_detector = RegimeDetector()
         self.risk_manager = RiskManager()
         self.multi_agent = MultiAgentSystem({})
-        
+
+        # Data Broker Layer - enriched market data
+        self.data_broker: Optional[DataBrokerLayer] = None
+        if DATA_BROKER_AVAILABLE and self.config.get('use_enriched_data'):
+            try:
+                self.data_broker = create_data_broker_layer()
+                logger.info("[AutonomousController] DataBrokerLayer enabled")
+            except Exception as e:
+                logger.warning(f"[AutonomousController] DataBrokerLayer init failed: {e}")
+
         # WebSocket for real-time data
         self.price_feed: Optional[WebSocketPriceFeed] = None
-        
+
         # State tracking
         self.current_regime: MarketRegime = 'NEUTRAL'
         self.last_regime_change: Optional[str] = None
         self.daily_changes_count = 0
         self.last_reset_date: str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         self.decisions_today: List[AutonomousDecision] = []
-        
+
+        # Enriched data cache
+        self._enriched_data_cache: Dict[str, EnrichedData] = {}
+        self._whale_alerts: List[Dict] = []
+
         # Statistics
         self.stats = {
             'total_decisions': 0,
@@ -147,20 +178,23 @@ class AutonomousController:
             'rejected_decisions': 0,
             'escalated_decisions': 0,
             'failed_executions': 0,
-            'avg_confidence': 0.0
+            'avg_confidence': 0.0,
+            'enriched_data_signals': 0,
+            'whale_alerts_24h': 0,
         }
-        
+
         # Callbacks
         self.on_decision: Optional[Callable[[AutonomousDecision], None]] = None
         self.on_alert: Optional[Callable[[str, str], None]] = None
-        
+
         # Initialize database
         self._init_database()
-        
+
         logger.info("[AutonomousController] Initialized")
         logger.info(f"  Enabled: {self.config['enabled']}")
         logger.info(f"  Mode: {'PAPER ONLY' if self.config['paper_mode_only'] else 'LIVE ALLOWED'}")
         logger.info(f"  Check interval: {self.config['check_interval_seconds']}s")
+        logger.info(f"  Enriched Data: {'ENABLED' if self.data_broker else 'DISABLED'}")
     
     def _init_database(self):
         """Initialize SQLite database for decision logging."""
@@ -351,26 +385,57 @@ class AutonomousController:
             'portfolio': {},
             'recent_trades': [],
             'open_positions': [],
-            'system_health': {}
+            'system_health': {},
+            'enriched_data': {},
+            'whale_alerts': [],
+            'signal_scores': {}
         }
-        
+
         # Get prices from WebSocket feed
         if self.price_feed:
             data['prices'] = self.price_feed.prices
-        
+
+        # Get enriched data from Data Broker Layer
+        if self.data_broker:
+            symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
+            for symbol in symbols:
+                enriched = self.data_broker.get_enriched_data(
+                    symbol,
+                    include_onchain=self.config.get('whale_watch_enabled', True),
+                    include_sentiment=True
+                )
+                if enriched:
+                    self._enriched_data_cache[symbol] = enriched
+                    data['enriched_data'][symbol] = enriched.to_dict()
+                    data['signal_scores'][symbol] = {
+                        'signal_score': enriched.signal_score,
+                        'confidence': enriched.confidence,
+                        'signals': enriched.signals
+                    }
+                    self.stats['enriched_data_signals'] += 1
+            
+            # Get whale alerts
+            if self.config.get('whale_watch_enabled'):
+                try:
+                    self._whale_alerts = self.data_broker.get_whale_watch("solana", min_usd=50000)
+                    data['whale_alerts'] = self._whale_alerts[:10]  # Last 10
+                    self.stats['whale_alerts_24h'] = len(self._whale_alerts)
+                except Exception as e:
+                    logger.warning(f"[AutonomousController] Failed to get whale alerts: {e}")
+
         # Get portfolio summary
         try:
             data['portfolio'] = self.zeroclaw.get_portfolio_summary()
         except Exception as e:
             logger.warning(f"[AutonomousController] Failed to get portfolio: {e}")
-        
+
         # Get recent trades from database
         try:
             conn = sqlite3.connect('trades.db')
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT * FROM trades 
+                SELECT * FROM trades
                 WHERE timestamp > datetime('now', '-1 hour')
                 ORDER BY timestamp DESC
             """)
@@ -378,31 +443,36 @@ class AutonomousController:
             conn.close()
         except Exception as e:
             logger.warning(f"[AutonomousController] Failed to get trades: {e}")
-        
+
         return data
     
     async def _evaluate_conditions(self, market_data: Dict) -> List[AutonomousDecision]:
         """Evaluate conditions and generate decisions."""
         decisions = []
-        
+
         # Check emergency conditions
         emergency_decision = await self._check_emergency_conditions(market_data)
         if emergency_decision:
             decisions.append(emergency_decision)
             return decisions  # Emergency takes precedence
-        
+
+        # Evaluate enriched data signals (if available)
+        if self.data_broker and market_data.get('enriched_data'):
+            enriched_decisions = await self._evaluate_enriched_signals(market_data)
+            decisions.extend(enriched_decisions)
+
         # Check strategy performance
         strategy_decisions = await self._evaluate_strategies(market_data)
         decisions.extend(strategy_decisions)
-        
+
         # Check risk parameters
         risk_decisions = await self._evaluate_risk_parameters(market_data)
         decisions.extend(risk_decisions)
-        
+
         # Check multi-agent system
         agent_decisions = await self._evaluate_multi_agent(market_data)
         decisions.extend(agent_decisions)
-        
+
         return decisions
     
     async def _check_emergency_conditions(self, market_data: Dict) -> Optional[AutonomousDecision]:
@@ -425,7 +495,86 @@ class AutonomousController:
             )
         
         return None
-    
+
+    async def _evaluate_enriched_signals(self, market_data: Dict) -> List[AutonomousDecision]:
+        """Evaluate enriched data signals from Data Broker Layer."""
+        decisions = []
+        
+        signal_scores = market_data.get('signal_scores', {})
+        whale_alerts = market_data.get('whale_alerts', [])
+        
+        for symbol, signals in signal_scores.items():
+            signal_score = signals.get('signal_score', 0)
+            confidence = signals.get('confidence', 0)
+            signal_details = signals.get('signals', {})
+            
+            # Skip if confidence too low
+            if confidence < self.config.get('min_signal_confidence', 0.6):
+                logger.debug(f"[AutonomousController] Skipping {symbol} - low confidence ({confidence:.2f})")
+                continue
+            
+            # Strong buy signal
+            if signal_score > 0.6:
+                decisions.append(AutonomousDecision(
+                    decision_id=f"enriched_buy_{symbol}_{int(time.time())}",
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                    decision_type=DecisionType.STRATEGY_PARAM_ADJUST.value,
+                    description=f"Strong buy signal for {symbol} from enriched data",
+                    confidence=confidence,
+                    market_regime=self.current_regime,
+                    trigger_reason=f"Signal score: {signal_score:.2f}, Sentiment: {signal_details.get('sentiment', 'N/A')}, Exchange flow: {signal_details.get('exchange_flow', 'N/A')}",
+                    proposed_action={
+                        'symbol': symbol,
+                        'action': 'increase_position_size',
+                        'signal_score': signal_score,
+                        'sentiment': signal_details.get('sentiment'),
+                        'onchain_flow': signal_details.get('exchange_flow'),
+                        'whale_activity': signal_details.get('whale_activity', 'normal')
+                    },
+                    status=DecisionStatus.PENDING.value
+                ))
+            
+            # Strong sell signal
+            elif signal_score < -0.6:
+                decisions.append(AutonomousDecision(
+                    decision_id=f"enriched_sell_{symbol}_{int(time.time())}",
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                    decision_type=DecisionType.STRATEGY_PARAM_ADJUST.value,
+                    description=f"Strong sell signal for {symbol} from enriched data",
+                    confidence=confidence,
+                    market_regime=self.current_regime,
+                    trigger_reason=f"Signal score: {signal_score:.2f}, Sentiment: {signal_details.get('sentiment', 'N/A')}, Exchange flow: {signal_details.get('exchange_flow', 'N/A')}",
+                    proposed_action={
+                        'symbol': symbol,
+                        'action': 'reduce_position_size',
+                        'signal_score': signal_score,
+                        'sentiment': signal_details.get('sentiment'),
+                        'onchain_flow': signal_details.get('exchange_flow'),
+                        'whale_activity': signal_details.get('whale_activity', 'normal')
+                    },
+                    status=DecisionStatus.PENDING.value
+                ))
+        
+        # Check for unusual whale activity
+        if len(whale_alerts) > 5:
+            decisions.append(AutonomousDecision(
+                decision_id=f"whale_alert_{int(time.time())}",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                decision_type=DecisionType.ALERT_CONFIG_ADJUST.value,
+                description=f"Unusual whale activity detected: {len(whale_alerts)} large transactions",
+                confidence=0.8,
+                market_regime=self.current_regime,
+                trigger_reason=f"{len(whale_alerts)} whale transactions detected (threshold: 5)",
+                proposed_action={
+                    'action': 'increase_monitoring',
+                    'whale_count': len(whale_alerts),
+                    'largest_tx': max(whale_alerts, key=lambda x: x.get('value', 0)) if whale_alerts else None
+                },
+                status=DecisionStatus.PENDING.value
+            ))
+        
+        return decisions
+
     async def _evaluate_strategies(self, market_data: Dict) -> List[AutonomousDecision]:
         """Evaluate strategy performance and suggest adjustments."""
         decisions = []
@@ -669,7 +818,14 @@ Use /approve {decision.decision_id} or /reject {decision.decision_id}
             'config': {
                 'check_interval_seconds': self.config['check_interval_seconds'],
                 'min_confidence_threshold': self.config['min_confidence_threshold'],
-                'paper_mode_only': self.config['paper_mode_only']
+                'paper_mode_only': self.config['paper_mode_only'],
+                'use_enriched_data': self.config['use_enriched_data'],
+                'whale_watch_enabled': self.config['whale_watch_enabled']
+            },
+            'enriched_data': {
+                'available': self.data_broker is not None,
+                'cached_symbols': list(self._enriched_data_cache.keys()),
+                'whale_alerts_count': len(self._whale_alerts)
             }
         }
     

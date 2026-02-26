@@ -7,6 +7,7 @@ Free tier available, paid for bulk data.
 
 import requests
 import time
+import os
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
@@ -17,27 +18,31 @@ BIRDEYE_API_BASE = "https://public-api.birdeye.so"
 class BirdeyeConnector:
     """
     Birdeye.so API connector for Solana market data.
-    
+
     Features:
     - Historical OHLCV data
     - Token metadata
     - Liquidity information
     - Price history
     """
-    
+
     def __init__(self, api_key: Optional[str] = None):
         """
         Initialize Birdeye connector.
-        
+
         Args:
             api_key: Birdeye API key (optional for public endpoints)
         """
+        # Load from env if not provided
+        if api_key is None:
+            api_key = os.getenv('BIRDEYE_API_KEY')
+        
         self.api_key = api_key
         self.headers = {
             "Accept": "application/json",
             "X-API-KEY": api_key or ""
         }
-        print(f"[Birdeye] Initialized")
+        print(f"[Birdeye] Initialized{'with API key' if api_key else ' (no API key, limited access)'}")
     
     def get_ohlcv(
         self,

@@ -1381,6 +1381,251 @@ def api_polymarket_market(condition_id):
         print(f"[PolyMarket Market Error] {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+
+# ============================================================================
+# DATA BROKER LAYER API ENDPOINTS
+# ============================================================================
+
+@app.route("/api/data-broker/status")
+def api_data_broker_status():
+    """Get data broker layer status and available providers"""
+    try:
+        from data_broker_layer import create_data_broker_layer
+        
+        broker = create_data_broker_layer()
+        
+        # Check which providers are available
+        providers = {
+            'coinapi': broker.coinapi is not None,
+            'amberdata': broker.amberdata is not None,
+            'sentiment': broker.sentiment is not None
+        }
+        
+        return jsonify({
+            "success": True,
+            "available": True,
+            "providers": providers,
+            "cache_size": len(broker._cache)
+        })
+    except ImportError:
+        return jsonify({
+            "success": True,
+            "available": False,
+            "error": "DataBrokerLayer not installed"
+        })
+    except Exception as e:
+        print(f"[Data Broker Status Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/data-broker/enriched/<symbol>")
+def api_data_broker_enriched(symbol):
+    """Get enriched data for a symbol (e.g., BTC/USDT)"""
+    try:
+        from data_broker_layer import create_data_broker_layer
+        
+        # Parse symbol (handle URL encoding)
+        symbol = symbol.replace("%2F", "/")
+        
+        broker = create_data_broker_layer()
+        enriched = broker.get_enriched_data(
+            symbol,
+            include_onchain=True,
+            include_sentiment=True
+        )
+        
+        if not enriched:
+            return jsonify({
+                "success": False,
+                "error": "No data available (API keys not configured?)"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "data": enriched.to_dict()
+        })
+    except ImportError:
+        return jsonify({
+            "success": False,
+            "error": "DataBrokerLayer not installed"
+        }), 500
+    except Exception as e:
+        print(f"[Data Broker Enriched Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/data-broker/whale-watch")
+def api_data_broker_whale_watch():
+    """Get recent whale transactions on Solana"""
+    try:
+        from data_broker_layer import create_data_broker_layer
+        
+        min_usd = request.args.get('min_usd', 50000, type=float)
+        blockchain = request.args.get('blockchain', 'solana')
+        
+        broker = create_data_broker_layer()
+        
+        if not broker.amberdata:
+            return jsonify({
+                "success": False,
+                "error": "Amberdata API key not configured"
+            }), 400
+        
+        whales = broker.get_whale_watch(blockchain, min_usd)
+        
+        return jsonify({
+            "success": True,
+            "count": len(whales),
+            "data": whales
+        })
+    except ImportError:
+        return jsonify({
+            "success": False,
+            "error": "DataBrokerLayer not installed"
+        }), 500
+    except Exception as e:
+        print(f"[Data Broker Whale Watch Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/data-broker/sentiment/<token>")
+def api_data_broker_sentiment(token):
+    """Get sentiment data for a token"""
+    try:
+        from data_broker_layer import create_data_broker_layer
+        
+        broker = create_data_broker_layer()
+        
+        if not broker.sentiment:
+            return jsonify({
+                "success": False,
+                "error": "Sentiment analyzer not configured"
+            }), 400
+        
+        sentiment = broker.sentiment.get_sentiment(token.upper())
+        
+        if not sentiment:
+            return jsonify({
+                "success": False,
+                "error": "No sentiment data available"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "data": sentiment.__dict__ if hasattr(sentiment, '__dict__') else sentiment
+        })
+    except ImportError:
+        return jsonify({
+            "success": False,
+            "error": "DataBrokerLayer not installed"
+        }), 500
+    except Exception as e:
+        print(f"[Data Broker Sentiment Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/data-broker/arbitrage-scan")
+def api_data_broker_arbitrage():
+    """Scan for arbitrage opportunities across exchanges"""
+    try:
+        from data_broker_layer import create_data_broker_layer
+        
+        symbol = request.args.get('symbol', 'BTC/USDT')
+        min_spread = request.args.get('min_spread_pct', 0.5, type=float)
+        
+        broker = create_data_broker_layer()
+        
+        if not broker.coinapi:
+            return jsonify({
+                "success": False,
+                "error": "CoinAPI key not configured"
+            }), 400
+        
+        opportunities = broker.scan_arbitrage_opportunities(
+            symbol,
+            min_spread_pct=min_spread
+        )
+        
+        return jsonify({
+            "success": True,
+            "count": len(opportunities),
+            "data": opportunities
+        })
+    except ImportError:
+        return jsonify({
+            "success": False,
+            "error": "DataBrokerLayer not installed"
+        }), 500
+    except Exception as e:
+        print(f"[Data Broker Arbitrage Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/data-broker/market-overview")
+def api_data_broker_overview():
+    """Get enriched market overview for multiple symbols"""
+    try:
+        from data_broker_layer import create_data_broker_layer
+        
+        symbols = request.args.getlist('symbol')
+        if not symbols:
+            symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT']
+        
+        broker = create_data_broker_layer()
+        overview = broker.get_market_overview(symbols)
+        
+        return jsonify({
+            "success": True,
+            "count": len(overview),
+            "data": {symbol: data.to_dict() for symbol, data in overview.items()}
+        })
+    except ImportError:
+        return jsonify({
+            "success": False,
+            "error": "DataBrokerLayer not installed"
+        }), 500
+    except Exception as e:
+        print(f"[Data Broker Overview Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/data-broker/config", methods=["GET", "POST"])
+def api_data_broker_config():
+    """Get or update data broker configuration"""
+    try:
+        if request.method == "POST":
+            # Update configuration
+            data = request.get_json() or {}
+            
+            # Validate and update environment variables
+            updates = []
+            for key in ['COINAPI_KEY', 'AMBERDATA_KEY', 'LUNARCRUSH_API_KEY']:
+                if key in data:
+                    os.environ[key] = data[key]
+                    updates.append(key)
+            
+            return jsonify({
+                "success": True,
+                "message": f"Updated {len(updates)} API key(s)",
+                "updated": updates
+            })
+        else:
+            # Get current config (without exposing actual keys)
+            return jsonify({
+                "success": True,
+                "config": {
+                    "coinapi_configured": bool(os.getenv('COINAPI_KEY')),
+                    "amberdata_configured": bool(os.getenv('AMBERDATA_KEY')),
+                    "lunarcrush_configured": bool(os.getenv('LUNARCRUSH_API_KEY')),
+                    "twitter_configured": bool(os.getenv('TWITTER_API_KEY')),
+                    "news_configured": bool(os.getenv('NEWS_API_KEY'))
+                }
+            })
+    except Exception as e:
+        print(f"[Data Broker Config Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 if __name__ == "__main__":
     print("[Dashboard] Starting Flask server...")
     app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)
