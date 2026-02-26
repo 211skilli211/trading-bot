@@ -2655,6 +2655,185 @@ def ai_tools_execute():
         return jsonify({"success": False, "error": str(e)})
 
 # ============================================================================
+# TELEGRAM BOT CONTROL API
+# ============================================================================
+
+@app.route("/api/telegram/status")
+def telegram_status():
+    """Get Telegram bot status"""
+    try:
+        import os
+        token = os.getenv('TELEGRAM_BOT_TOKEN')
+        chat_id = os.getenv('TELEGRAM_CHAT_ID')
+        
+        return jsonify({
+            "success": True,
+            "enabled": bool(token and chat_id),
+            "configured": bool(token and chat_id),
+            "bot_token_set": bool(token),
+            "chat_id_set": bool(chat_id)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/telegram/command", methods=["POST"])
+def telegram_command():
+    """Execute command via Telegram bot"""
+    try:
+        data = request.json
+        command = data.get('command')
+        params = data.get('params', {})
+        
+        # Command handlers
+        if command == 'status':
+            return jsonify({
+                "success": True,
+                "response": {
+                    "bot_status": "running" if get_bot_process() else "stopped",
+                    "mode": get_trading_mode(),
+                    "portfolio": "check /api/portfolio",
+                    "active_agents": 6,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            })
+        
+        elif command == 'stop':
+            # Stop the bot
+            result = stop_bot()
+            return jsonify({
+                "success": True,
+                "response": {"message": "Bot stopped successfully", "status": "stopped"}
+            })
+        
+        elif command == 'start':
+            # Start the bot
+            result = start_bot()
+            return jsonify({
+                "success": True,
+                "response": {"message": "Bot started successfully", "status": "running"}
+            })
+        
+        elif command == 'trade':
+            symbol = params.get('symbol')
+            side = params.get('side')
+            amount = params.get('amount')
+            
+            if not all([symbol, side, amount]):
+                return jsonify({"success": False, "error": "Missing parameters: symbol, side, amount"})
+            
+            return jsonify({
+                "success": True,
+                "response": {
+                    "message": f"Trade signal received: {side} {amount} {symbol}",
+                    "status": "pending_approval",
+                    "trade_id": f"tel_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+                }
+            })
+        
+        elif command == 'portfolio':
+            portfolio = get_portfolio_data()
+            return jsonify({
+                "success": True,
+                "response": portfolio
+            })
+        
+        elif command == 'alert':
+            message = params.get('message', 'Test alert from Telegram')
+            send_telegram_alert(message, 'info')
+            return jsonify({
+                "success": True,
+                "response": {"message": "Alert sent to Telegram"}
+            })
+        
+        elif command == 'help':
+            return jsonify({
+                "success": True,
+                "response": {
+                    "commands": [
+                        "/status - Check bot status and mode",
+                        "/stop - Stop all trading",
+                        "/start - Start trading bot",
+                        "/trade <symbol> <side> <amount> - Execute trade",
+                        "/portfolio - View portfolio summary",
+                        "/alert <message> - Send custom alert",
+                        "/help - Show this help message"
+                    ]
+                }
+            })
+        
+        else:
+            return jsonify({"success": False, "error": f"Unknown command: {command}"})
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+    """Receive webhook from Telegram bot"""
+    try:
+        data = request.json
+        
+        # Extract message info
+        message = data.get('message', {})
+        text = message.get('text', '')
+        chat_id = message.get('chat', {}).get('id')
+        
+        # Parse command
+        if text.startswith('/'):
+            parts = text.split()
+            command = parts[0][1:]  # Remove leading /
+            args = parts[1:]
+            
+            # Execute command
+            result = handle_telegram_command(command, args, chat_id)
+            
+            # Send response back
+            send_telegram_message(chat_id, result.get('message', 'Command executed'))
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+def handle_telegram_command(command: str, args: list, chat_id: int) -> dict:
+    """Handle Telegram bot commands"""
+    if command == 'status':
+        return {
+            "message": f"🤖 Bot Status\nMode: {get_trading_mode()}\nPortfolio: Check dashboard\nActive Agents: 6"
+        }
+    elif command == 'stop':
+        stop_bot()
+        return {"message": "🛑 Bot stopped. No new trades will be executed."}
+    elif command == 'start':
+        start_bot()
+        return {"message": "▶️ Bot started. Monitoring markets..."}
+    elif command == 'portfolio':
+        portfolio = get_portfolio_data()
+        return {"message": f"💰 Portfolio Value: ${portfolio.get('totalUsdValue', 0):,.2f}"}
+    elif command == 'trade':
+        if len(args) < 3:
+            return {"message": "Usage: /trade <symbol> <buy|sell> <amount>"}
+        return {"message": f"📊 Trade signal: {args[1].upper()} {args[2]} {args[0]}\nWaiting for approval..."}
+    elif command == 'help':
+        return {"message": "Available commands:\n/status - Bot status\n/stop - Stop trading\n/start - Start trading\n/portfolio - View portfolio\n/trade - Execute trade"}
+    else:
+        return {"message": f"Unknown command: {command}. Type /help for available commands."}
+
+def send_telegram_message(chat_id: int, message: str):
+    """Send message to Telegram chat"""
+    try:
+        import requests
+        import os
+        
+        token = os.getenv('TELEGRAM_BOT_TOKEN')
+        if not token:
+            return
+        
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        requests.post(url, json={"chat_id": chat_id, "text": message, "parse_mode": "HTML"}, timeout=10)
+    except:
+        pass
+
+# ============================================================================
 # SCHEDULED POSTS API
 # ============================================================================
 

@@ -8,6 +8,7 @@ import { Header } from '../components/Header';
 import { PositionCard } from '../components/PositionCard';
 import { AlertBadge } from '../components/AlertBadge';
 import { CryptoIcon } from '../components/CryptoIcon';
+import { PortfolioChart } from '../components/PortfolioChart';
 import { api } from '../api/client';
 import { Portfolio, Price, Position, Alert, BotStatus, CurrencyBalance } from '../types';
 import { formatUSD, formatCrypto, formatPercent, getCurrencyConfig } from '../utils/format';
@@ -143,6 +144,9 @@ export function Home() {
             <div className="text-sm">API Keys & Config</div>
           </a>
         </div>
+
+        {/* Portfolio Analytics Charts */}
+        <PortfolioChart />
 
         {/* Multi-Currency Portfolio Summary */}
         <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-5 text-white">

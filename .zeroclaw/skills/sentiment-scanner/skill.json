@@ -1,0 +1,31 @@
+{
+  "name": "sentiment-scanner",
+  "version": "1.0.0",
+  "description": "Analyzes market sentiment from news, social media, and market signals",
+  "author": "ZeroClaw AI",
+  "parameters": {
+    "symbol": {
+      "type": "string",
+      "description": "Trading pair to analyze (e.g., BTC/USDT)",
+      "required": false
+    }
+  },
+  "capabilities": [
+    "sentiment-analysis",
+    "market-sentiment",
+    "news-analysis",
+    "trading-signals"
+  ],
+  "dependencies": [
+    "textblob"
+  ],
+  "handler": "handler.py",
+  "entry_point": "SentimentScanner.handle",
+  "triggers": [
+    "analyze sentiment",
+    "market sentiment",
+    "sentiment analysis",
+    "news sentiment",
+    "bullish or bearish"
+  ]
+}

@@ -516,6 +516,242 @@ export function Settings() {
           </div>
         </section>
 
+        {/* Appearance & Theme */}
+        <section className="bg-dark-800 rounded-xl p-5 border border-dark-700">
+          <div className="flex items-center gap-2 mb-4">
+            <Settings2 size={20} className="text-purple-400" />
+            <h2 className="text-lg font-semibold">Appearance</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Theme</label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, theme: 'dark' }))}
+                  className={`p-3 rounded-lg border text-sm transition-colors ${
+                    (settings as any).theme === 'dark' || !(settings as any).theme
+                      ? 'bg-blue-600 border-blue-500 text-white' 
+                      : 'bg-dark-900 border-dark-700 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="w-full h-4 bg-gray-900 rounded mb-2" />
+                  Dark
+                </button>
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, theme: 'light' }))}
+                  className={`p-3 rounded-lg border text-sm transition-colors ${
+                    (settings as any).theme === 'light'
+                      ? 'bg-blue-600 border-blue-500 text-white' 
+                      : 'bg-dark-900 border-dark-700 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="w-full h-4 bg-gray-100 rounded mb-2" />
+                  Light
+                </button>
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, theme: 'system' }))}
+                  className={`p-3 rounded-lg border text-sm transition-colors ${
+                    (settings as any).theme === 'system'
+                      ? 'bg-blue-600 border-blue-500 text-white' 
+                      : 'bg-dark-900 border-dark-700 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="w-full h-4 bg-gradient-to-r from-gray-900 to-gray-100 rounded mb-2" />
+                  System
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm">Compact Mode</span>
+                <input
+                  type="checkbox"
+                  checked={(settings as any).compactMode || false}
+                  onChange={(e) => setSettings(prev => ({ ...prev, compactMode: e.target.checked }))}
+                  className="w-5 h-5 rounded accent-blue-500"
+                />
+              </label>
+              <p className="text-xs text-gray-500 mt-1">Reduce padding and font sizes for denser layout</p>
+            </div>
+
+            <div>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm">Animations</span>
+                <input
+                  type="checkbox"
+                  checked={(settings as any).animations !== false}
+                  onChange={(e) => setSettings(prev => ({ ...prev, animations: e.target.checked }))}
+                  className="w-5 h-5 rounded accent-blue-500"
+                />
+              </label>
+              <p className="text-xs text-gray-500 mt-1">Enable transition animations throughout the app</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Notification Preferences */}
+        <section className="bg-dark-800 rounded-xl p-5 border border-dark-700">
+          <div className="flex items-center gap-2 mb-4">
+            <RefreshCw size={20} className="text-yellow-400" />
+            <h2 className="text-lg font-semibold">Notifications</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Trade Executions</div>
+                <div className="text-sm text-gray-400">Get notified when trades are opened/closed</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={(settings as any).tradeNotifications !== false}
+                onChange={(e) => setSettings(prev => ({ ...prev, tradeNotifications: e.target.checked }))}
+                className="w-5 h-5 rounded accent-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Price Alerts</div>
+                <div className="text-sm text-gray-400">Notify on significant price movements</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={(settings as any).priceAlerts || false}
+                onChange={(e) => setSettings(prev => ({ ...prev, priceAlerts: e.target.checked }))}
+                className="w-5 h-5 rounded accent-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Agent Decisions</div>
+                <div className="text-sm text-gray-400">Notify when AI agents make decisions</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={(settings as any).agentNotifications !== false}
+                onChange={(e) => setSettings(prev => ({ ...prev, agentNotifications: e.target.checked }))}
+                className="w-5 h-5 rounded accent-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Risk Alerts</div>
+                <div className="text-sm text-gray-400">Critical alerts for stop losses, liquidations</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={(settings as any).riskAlerts !== false}
+                onChange={(e) => setSettings(prev => ({ ...prev, riskAlerts: e.target.checked }))}
+                className="w-5 h-5 rounded accent-blue-500"
+              />
+            </div>
+
+            <div className="pt-3 border-t border-dark-700">
+              <label className="block text-sm text-gray-400 mb-2">Notification Channels</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, telegramEnabled: !(settings as any).telegramEnabled }))}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm border transition-colors ${
+                    (settings as any).telegramEnabled
+                      ? 'bg-blue-600 border-blue-500 text-white'
+                      : 'bg-dark-900 border-dark-700 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  Telegram
+                </button>
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, discordEnabled: !(settings as any).discordEnabled }))}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm border transition-colors ${
+                    (settings as any).discordEnabled
+                      ? 'bg-indigo-600 border-indigo-500 text-white'
+                      : 'bg-dark-900 border-dark-700 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  Discord
+                </button>
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, emailEnabled: !(settings as any).emailEnabled }))}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm border transition-colors ${
+                    (settings as any).emailEnabled
+                      ? 'bg-green-600 border-green-500 text-white'
+                      : 'bg-dark-900 border-dark-700 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  Email
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Accessibility */}
+        <section className="bg-dark-800 rounded-xl p-5 border border-dark-700">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield size={20} className="text-pink-400" />
+            <h2 className="text-lg font-semibold">Accessibility</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm">High Contrast Mode</span>
+                <input
+                  type="checkbox"
+                  checked={(settings as any).highContrast || false}
+                  onChange={(e) => setSettings(prev => ({ ...prev, highContrast: e.target.checked }))}
+                  className="w-5 h-5 rounded accent-blue-500"
+                />
+              </label>
+              <p className="text-xs text-gray-500 mt-1">Increase contrast for better visibility</p>
+            </div>
+
+            <div>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm">Large Text</span>
+                <input
+                  type="checkbox"
+                  checked={(settings as any).largeText || false}
+                  onChange={(e) => setSettings(prev => ({ ...prev, largeText: e.target.checked }))}
+                  className="w-5 h-5 rounded accent-blue-500"
+                />
+              </label>
+              <p className="text-xs text-gray-500 mt-1">Increase font sizes throughout the app</p>
+            </div>
+
+            <div>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm">Reduce Motion</span>
+                <input
+                  type="checkbox"
+                  checked={(settings as any).reduceMotion || false}
+                  onChange={(e) => setSettings(prev => ({ ...prev, reduceMotion: e.target.checked }))}
+                  className="w-5 h-5 rounded accent-blue-500"
+                />
+              </label>
+              <p className="text-xs text-gray-500 mt-1">Minimize animations and transitions</p>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Refresh Rate</label>
+              <select
+                value={settings.refreshInterval}
+                onChange={(e) => setSettings(prev => ({ ...prev, refreshInterval: parseInt(e.target.value) }))}
+                className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value={10}>10 seconds (High)</option>
+                <option value={30}>30 seconds (Default)</option>
+                <option value={60}>1 minute (Low)</option>
+                <option value={300}>5 minutes (Minimal)</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
         {/* Save Button */}
         <button
           onClick={handleSave}
