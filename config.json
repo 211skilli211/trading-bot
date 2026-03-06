@@ -159,6 +159,26 @@
         "DOGE/USDT",
         "SHIB/USDT"
       ]
+    },
+    "minervini_sea": {
+      "id": "minervini_sea",
+      "name": "Minervini SEA",
+      "description": "Mark Minervini's Specific Entry Point Analysis - momentum strategy with VCP entries",
+      "enabled": false,
+      "risk": "high",
+      "max_position_usd": 10000,
+      "check_interval_seconds": 300,
+      "stop_loss_pct": 0.07,
+      "take_profit_pct": 0.3,
+      "max_concurrent": 6,
+      "params": {
+        "account_size": 100000,
+        "risk_per_trade": 1.0,
+        "min_rs_rating": 70,
+        "vcp_min_contractions": 2,
+        "volume_surge_ratio": 1.4,
+        "trailing_stop_activation": 2.5
+      }
     }
   },
   "multi_agent": {

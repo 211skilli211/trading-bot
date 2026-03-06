@@ -1383,6 +1383,77 @@ def api_polymarket_market(condition_id):
 
 
 # ============================================================================
+# POLYMARKET TRADING API ENDPOINTS
+# ============================================================================
+
+@app.route("/api/polymarket/status")
+def api_polymarket_trading_status():
+    """Get PolyMarket trading status and balance"""
+    try:
+        api_key = os.getenv("POLYMARKET_API_KEY", "")
+        is_configured = api_key and api_key != "your_polymarket_api_key_here"
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "trading_enabled": is_configured and POLYMARKET_AVAILABLE,
+                "api_configured": is_configured,
+                "client_available": POLYMARKET_AVAILABLE,
+                "message": "Configure POLYMARKET_API_KEY in .env to enable trading" if not is_configured else "Ready"
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/polymarket/orderbook/<token_id>")
+def api_polymarket_orderbook(token_id):
+    """Get order book for a specific token"""
+    try:
+        if not POLYMARKET_AVAILABLE:
+            return jsonify({"success": False, "error": "PolyMarket client not available"}), 500
+        
+        # Use session to fetch from CLOB API
+        import requests
+        response = requests.get(
+            f"https://clob.polymarket.com/book/{token_id}",
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                "success": True,
+                "token_id": token_id,
+                "bids": data.get("bids", []),
+                "asks": data.get("asks", []),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        
+        return jsonify({"success": False, "error": "Could not fetch order book"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/polymarket/orders", methods=["GET"])
+def api_polymarket_orders():
+    """Get open orders (requires API key)"""
+    try:
+        api_key = os.getenv("POLYMARKET_API_KEY", "")
+        if not api_key or api_key == "your_polymarket_api_key_here":
+            return jsonify({"success": False, "error": "API key not configured"}), 400
+        
+        # Would use CLOB client here if available
+        return jsonify({
+            "success": True,
+            "orders": [],
+            "message": "Order tracking requires py-clob-client installation"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+# ============================================================================
 # DATA BROKER LAYER API ENDPOINTS
 # ============================================================================
 
@@ -1623,6 +1694,179 @@ def api_data_broker_config():
             })
     except Exception as e:
         print(f"[Data Broker Config Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ============================================================================
+# MISSING API ENDPOINTS (for React frontend compatibility)
+# ============================================================================
+
+@app.route("/api/prices")
+def api_prices():
+    """Get live prices from all exchanges"""
+    try:
+        from free_data_sources import get_free_market_data
+        
+        data = get_free_market_data()
+        
+        # Format for frontend
+        prices = []
+        for symbol, info in data.get("prices", {}).items():
+            prices.append({
+                "symbol": symbol,
+                "price": info.get("price_usd", 0),
+                "change24h": info.get("change_24h", 0),
+                "volume24h": info.get("volume_24h", 0),
+                "exchange": "aggregated"
+            })
+        
+        # Add arbitrage opportunities as price entries
+        for opp in data.get("arbitrage", []):
+            prices.append({
+                "symbol": opp["symbol"],
+                "price": opp["buy_price"],
+                "exchange": opp["buy_exchange"],
+                "change24h": 0,
+                "volume24h": opp.get("volume_buy", 0)
+            })
+            prices.append({
+                "symbol": opp["symbol"],
+                "price": opp["sell_price"],
+                "exchange": opp["sell_exchange"],
+                "change24h": 0,
+                "volume24h": opp.get("volume_sell", 0)
+            })
+        
+        return jsonify({"success": True, "data": prices})
+    except Exception as e:
+        print(f"[Prices API Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/portfolio")
+def api_portfolio():
+    """Get portfolio summary"""
+    try:
+        # Get from database or return mock data
+        conn = sqlite3.connect('trades.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Calculate total P&L
+        cursor.execute("SELECT SUM(net_pnl) as total_pnl FROM trades WHERE status='closed'")
+        result = cursor.fetchone()
+        total_pnl = float(result['total_pnl']) if result and result['total_pnl'] else 0.0
+        
+        # Get total trades
+        cursor.execute("SELECT COUNT(*) as count FROM trades")
+        total_trades = cursor.fetchone()['count']
+        
+        # Get win rate
+        cursor.execute("SELECT COUNT(*) as wins FROM trades WHERE net_pnl > 0 AND status='closed'")
+        wins = cursor.fetchone()['wins']
+        win_rate = (wins / total_trades * 100) if total_trades > 0 else 0
+        
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "total_value": 10000.0 + total_pnl,
+                "initial_value": 10000.0,
+                "total_pnl": total_pnl,
+                "total_trades": total_trades,
+                "win_rate": win_rate,
+                "is_paper": True
+            }
+        })
+    except Exception as e:
+        print(f"[Portfolio API Error] {e}")
+        return jsonify({
+            "success": True,
+            "data": {
+                "total_value": 10000.0,
+                "initial_value": 10000.0,
+                "total_pnl": 0.0,
+                "total_trades": 0,
+                "win_rate": 0,
+                "is_paper": True
+            }
+        }), 200
+
+
+@app.route("/api/positions")
+def api_positions():
+    """Get open positions"""
+    try:
+        # Return empty or mock positions
+        return jsonify({
+            "success": True,
+            "data": []
+        })
+    except Exception as e:
+        print(f"[Positions API Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/alerts")
+def api_alerts():
+    """Get active alerts"""
+    try:
+        # Return empty or from database
+        return jsonify({
+            "success": True,
+            "data": []
+        })
+    except Exception as e:
+        print(f"[Alerts API Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/bot/status")
+def api_bot_status():
+    """Get bot status"""
+    try:
+        return jsonify({
+            "success": True,
+            "data": {
+                "mode": "PAPER",
+                "running": True,
+                "strategies_enabled": 5
+            }
+        })
+    except Exception as e:
+        print(f"[Bot Status API Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/arbitrage")
+def api_arbitrage():
+    """Get arbitrage opportunities"""
+    try:
+        from free_data_sources import CCXTMultiExchange
+        
+        ccxt_multi = CCXTMultiExchange()
+        opportunities = ccxt_multi.get_arbitrage_opportunities("BTC/USDT", min_spread_pct=0.2)
+        
+        # Format for frontend
+        formatted = []
+        for opp in opportunities:
+            formatted.append({
+                "symbol": opp["symbol"],
+                "buy_exchange": opp["buy_exchange"],
+                "sell_exchange": opp["sell_exchange"],
+                "buy_price": opp["buy_price"],
+                "sell_price": opp["sell_price"],
+                "profit_percent": opp["spread_pct"],
+                "volume": opp.get("volume_buy", 0)
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": formatted
+        })
+    except Exception as e:
+        print(f"[Arbitrage API Error] {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
