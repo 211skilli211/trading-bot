@@ -1,4 +1,6 @@
-api_key = "enc2:3a7aeabf32bd38eac67ca83cbb29c4f3d215095b1e4494267d77eb65455fe1f6e3e0821875223dc43536845a7fb4e0a1b3ec3e18a82c05234044b49b3850c4f4fdf438e3ceb58f26813f46d4af4dd963ac6e3c2c2b350fccb3a10a10e0c0ca142bbe000f61"
+# ZeroClaw Personal Configuration
+# NOTE: Sensitive values loaded from environment variables
+
 default_provider = "openrouter"
 default_model = "openrouter/openrouter/auto"
 default_temperature = 0.7
@@ -14,12 +16,10 @@ hint = "fast"
 provider = "openrouter"
 model = "arcee-ai/trinity-large-preview:free"
 
-model_routes = []
-
 [observability]
 backend = "none"
 
-# INCREASED RATE LIMITS
+# RATE LIMITS - ENABLED
 [autonomy]
 level = "supervised"
 workspace_only = true
@@ -36,6 +36,7 @@ allowed_commands = [
     "wc",
     "head",
     "tail",
+    "python3",
 ]
 forbidden_paths = [
     "/etc",
@@ -61,148 +62,80 @@ max_actions_per_hour = 200
 max_cost_per_day_cents = 2500
 require_approval_for_medium_risk = true
 block_high_risk_commands = true
-auto_approve = [
-    "file_read",
-    "memory_recall",
-]
-always_ask = []
 
 [runtime]
 kind = "native"
 
-[runtime.docker]
-image = "alpine:3.20"
-network = "none"
-memory_limit_mb = 512
-cpu_limit = 1.0
-read_only_rootfs = true
-mount_workspace = true
-allowed_workspace_roots = []
-
 [reliability]
 provider_retries = 2
 provider_backoff_ms = 500
-fallback_providers = []
-api_keys = []
 channel_initial_backoff_secs = 2
 channel_max_backoff_secs = 60
 scheduler_poll_secs = 15
 scheduler_retries = 2
-
-[reliability.model_fallbacks]
 
 [scheduler]
 enabled = true
 max_tasks = 64
 max_concurrent = 4
 
-# CONTEXT COMPRESSION ENABLED
+# CONTEXT COMPRESSION + BOOTSTRAP LIMITS
 [agent]
 compact_context = true
 max_tool_iterations = 50
 max_history_messages = 20
-parallel_tools = false
-tool_dispatcher = "auto"
-
-[query_classification]
-enabled = false
-rules = []
+bootstrap_max_chars = 6000
+bootstrap_total_max_chars = 30000
 
 [heartbeat]
 enabled = false
 interval_minutes = 30
 
+# CRON HARDENING
 [cron]
 enabled = true
 max_run_history = 50
+max_concurrent_jobs = 1
+retry_attempts = 2
+retry_backoff_secs = 30
 
 [channels_config]
 cli = true
 
+# TELEGRAM (loaded from env vars)
 [channels_config.telegram]
-bot_token = "8539644338:AAG5We86Wqcrzbj0ijn01-IO6YUC_BKVCSk"
-allowed_users = ["7745772764"]
+bot_token = "${TELEGRAM_BOT_TOKEN}"
+allowed_users = ["${TELEGRAM_CHAT_ID}"]
 stream_mode = "off"
-draft_update_interval_ms = 1000
-mention_only = false
+rate_limit_per_minute = 10
+interrupt_on_new_message = false
+message_retry_attempts = 2
 
-# OBSIDIAN VAULT CONFIGURED
+# OBSIDIAN VAULT
 [memory]
 backend = "markdown"
 auto_save = true
 hygiene_enabled = true
 archive_after_days = 7
 purge_after_days = 30
-conversation_retention_days = 30
-embedding_provider = "none"
-embedding_model = "text-embedding-3-small"
-embedding_dimensions = 1536
-vector_weight = 0.7
-keyword_weight = 0.3
-min_relevance_score = 0.4
-embedding_cache_size = 10000
-chunk_max_tokens = 512
-response_cache_enabled = false
-response_cache_ttl_minutes = 60
-response_cache_max_entries = 5000
-snapshot_enabled = false
-snapshot_on_hygiene = false
-auto_hydrate = true
 
 [memory.markdown]
 vault_path = "/storage/emulated/0/Obsidian_notes/211"
 memory_subfolder = "zeroclaw-memory"
 sync_on_write = true
 
-[storage.provider.config]
-provider = ""
-schema = "public"
-table = "memories"
-
-[tunnel]
-provider = "ngrok"
-
-[tunnel.ngrok]
-auth_token = "39x8iB5QIRIB4chS11pEC8mqdSP_2WppjgC4dNkeqExDDNMCs"
-
 [gateway]
 port = 3000
 host = "127.0.0.1"
 require_pairing = true
 allow_public_bind = false
-paired_tokens = []
-pair_rate_limit_per_minute = 10
-webhook_rate_limit_per_minute = 60
-trust_forwarded_headers = false
-rate_limit_max_keys = 10000
-idempotency_ttl_secs = 300
-idempotency_max_keys = 10000
 
-[composio]
-enabled = false
-entity_id = "default"
-
-[secrets]
-encrypt = true
-
-[browser]
-enabled = false
-allowed_domains = []
-backend = "agent_browser"
-native_headless = true
-native_webdriver_url = "http://127.0.0.1:9515"
-
-[browser.computer_use]
-endpoint = "http://127.0.0.1:8787/v1/actions"
-timeout_ms = 15000
-allow_remote_endpoint = false
-window_allowlist = []
-
-[http_request]
-enabled = false
-allowed_domains = []
-max_response_size = 0
-timeout_secs = 0
+# COST TRACKING
+[cost]
+enabled = true
+daily_limit_usd = 25.00
+warn_at_percent = 80
+allow_override = true
 
 [web_search]
 enabled = true
@@ -210,72 +143,14 @@ provider = "duckduckgo"
 max_results = 5
 timeout_secs = 15
 
-[proxy]
-enabled = false
-no_proxy = []
-scope = "zeroclaw"
-services = []
+# AGENT MODEL REGISTRATION (Required for OpenRouter)
+[agents.defaults]
+model.primary = "openrouter/openrouter/auto"
+model.fallbacks = [
+    "openrouter/anthropic/claude-haiku-3.5",
+    "arcee-ai/trinity-large-preview:free"
+]
 
-[identity]
-format = "openclaw"
-
-# COST TRACKING ENABLED
-[cost]
-enabled = true
-daily_limit_usd = 25.0
-monthly_limit_usd = 100.0
-warn_at_percent = 80
-allow_override = true
-
-[cost.prices."google/gemini-2.0-flash"]
-input = 0.1
-output = 0.4
-
-[cost.prices."anthropic/claude-opus-4-20250514"]
-input = 15.0
-output = 75.0
-
-[cost.prices."openai/gpt-4o"]
-input = 5.0
-output = 15.0
-
-[cost.prices."anthropic/claude-sonnet-4-20250514"]
-input = 3.0
-output = 15.0
-
-[cost.prices."openai/o1-preview"]
-input = 15.0
-output = 60.0
-
-[cost.prices."openai/gpt-4o-mini"]
-input = 0.15
-output = 0.6
-
-[cost.prices."anthropic/claude-3.5-sonnet"]
-input = 3.0
-output = 15.0
-
-[cost.prices."anthropic/claude-3-haiku"]
-input = 0.25
-output = 1.25
-
-[cost.prices."google/gemini-1.5-pro"]
-input = 1.25
-output = 5.0
-
-[peripherals]
-enabled = false
-boards = []
-
-[agents]
-
-[hardware]
-enabled = false
-transport = "None"
-baud_rate = 115200
-workspace_datasheets = false
-
-[channels_config.telegram.handler]
-type = "script"
-script = "/root/.zeroclaw/telegram_handler.sh"
-disable_ai = true
+[agents.defaults.models."openrouter/openrouter/auto"]
+[agents.defaults.models."openrouter/anthropic/claude-haiku-3.5"]
+[agents.defaults.models."arcee-ai/trinity-large-preview:free"]

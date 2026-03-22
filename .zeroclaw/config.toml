@@ -1,7 +1,8 @@
 # ZeroClaw Configuration for Trading Bot
 # Updated: March 2026 - Security & Performance Fixes
+# NOTE: Sensitive values loaded from environment variables
 
-api_key = "enc2:08b5a77c80d4557029e108da9a056d9d65d52ca2b5d7bb9f0826f5a125ed2b0aa099adde813b96c45e6fc1e83d72133b2afe3827ebd1692872b5575185780c568163c5937b892a0a63507f4246d1083c14b4bf292eb0dee33cf5c76603446559c153a91673"
+# API key loaded from ZEROCLAW_API_KEY env var
 default_provider = "openrouter"
 default_model = "openrouter/openrouter/auto"
 default_temperature = 0.7
@@ -25,10 +26,10 @@ runtime_trace_mode = "none"
 runtime_trace_path = "state/runtime-trace.jsonl"
 runtime_trace_max_entries = 200
 
-# INCREASED RATE LIMITS (was 20/hr, $5/day)
+# RATE LIMITS (200/hr, $25/day)
 [autonomy]
 level = "supervised"
-workspace_only = false
+workspace_only = true  # SECURITY: Enabled workspace isolation
 allowed_commands = [
     "python3",
     "pip",
@@ -50,6 +51,10 @@ forbidden_paths = [
     "/proc",
     "/sys",
     "/var",
+    "/root",
+    "/home",
+    "~/.ssh",
+    "~/.gnupg",
 ]
 max_actions_per_hour = 200
 max_cost_per_day_cents = 2500
@@ -81,11 +86,13 @@ enabled = true
 max_tasks = 32
 max_concurrent = 4
 
-# CONTEXT COMPRESSION ENABLED
+# CONTEXT COMPRESSION + BOOTSTRAP LIMITS
 [agent]
 compact_context = true
 max_tool_iterations = 50
 max_history_messages = 20
+bootstrap_max_chars = 6000
+bootstrap_total_max_chars = 30000
 
 [skills]
 open_skills_enabled = false
@@ -96,20 +103,29 @@ auto_load = true
 enabled = true
 interval_minutes = 5
 
+# CRON HARDENING
 [cron]
 enabled = true
 max_run_history = 50
+max_concurrent_jobs = 1
+retry_attempts = 2
+retry_backoff_secs = 30
+log_path = ".zeroclaw/logs/cron.jsonl"
 
 [channels_config]
 cli = true
 message_timeout_secs = 300
 
+# TELEGRAM (loaded from env vars)
 [channels_config.telegram]
-bot_token = "8795904321:AAEDGfDZDsHtMo9337mnSZW96d_iOx5n3As"
-allowed_users = ["8797355217"]
+bot_token = "${TELEGRAM_BOT_TOKEN}"
+allowed_users = ["${TELEGRAM_CHAT_ID}"]
 stream_mode = "off"
+rate_limit_per_minute = 10
+interrupt_on_new_message = false
+message_retry_attempts = 2
 
-# OBSIDIAN VAULT CONFIGURED
+# OBSIDIAN VAULT
 [memory]
 backend = "markdown"
 auto_save = true
@@ -160,3 +176,23 @@ max_results = 5
 enabled = true
 allowed_domains = ["*"]
 timeout_secs = 30
+
+# COST TRACKING
+[cost]
+enabled = true
+daily_limit_usd = 25.00
+warn_at_percent = 80
+log_path = ".zeroclaw/cost-trace.jsonl"
+allow_override = true
+
+# AGENT MODEL REGISTRATION (Required for OpenRouter)
+[agents.defaults]
+model.primary = "openrouter/openrouter/auto"
+model.fallbacks = [
+    "openrouter/anthropic/claude-haiku-3.5",
+    "arcee-ai/trinity-large-preview:free"
+]
+
+[agents.defaults.models."openrouter/openrouter/auto"]
+[agents.defaults.models."openrouter/anthropic/claude-haiku-3.5"]
+[agents.defaults.models."arcee-ai/trinity-large-preview:free"]

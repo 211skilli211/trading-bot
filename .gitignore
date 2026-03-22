@@ -61,3 +61,20 @@ Cargo.lock
 .zeroclaw/config.toml
 .zeroclaw/*.toml
 .env
+
+# ZeroClaw sensitive files
+.encrypted_keys
+.zeroclaw/config.toml
+.zeroclaw/config_personal.toml
+
+# Obsidian vault (if local)
+/storage/emulated/0/Obsidian_notes/
+
+# ZeroClaw logs
+.zeroclaw/audit.log
+.zeroclaw/cost-trace.jsonl
+.zeroclaw/logs/
+
+# Bot PID files
+bot.pid
+dash.pid
