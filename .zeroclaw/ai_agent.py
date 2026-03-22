@@ -63,7 +63,7 @@ class ZeroClawAIAgent:
     def __init__(self):
         self.config = self._load_config()
         self.provider = self.config.get('default_provider', 'openrouter')
-        self.model = self.config.get('default_model', 'arcee-ai/trinity-large-preview:free')
+        self.model = self.config.get('default_model', 'openrouter/openrouter/auto')
         self.api_key = os.getenv('OPENROUTER_API_KEY', self.config.get('api_key', ''))
         self.tools = ToolRegistry()
         self.conversation_history: List[Dict] = []
@@ -81,7 +81,7 @@ class ZeroClawAIAgent:
         except:
             return {
                 'default_provider': 'openrouter',
-                'default_model': 'arcee-ai/trinity-large-preview:free',
+                'default_model': 'openrouter/openrouter/auto',
             }
     
     def _execute_tool(self, tool: str, params: Dict) -> Dict:

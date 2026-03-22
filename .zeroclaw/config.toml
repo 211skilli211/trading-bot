@@ -1,0 +1,162 @@
+# ZeroClaw Configuration for Trading Bot
+# Updated: March 2026 - Security & Performance Fixes
+
+api_key = "enc2:08b5a77c80d4557029e108da9a056d9d65d52ca2b5d7bb9f0826f5a125ed2b0aa099adde813b96c45e6fc1e83d72133b2afe3827ebd1692872b5575185780c568163c5937b892a0a63507f4246d1083c14b4bf292eb0dee33cf5c76603446559c153a91673"
+default_provider = "openrouter"
+default_model = "openrouter/openrouter/auto"
+default_temperature = 0.7
+
+# Model routing for OpenRouter
+[[model_routes]]
+hint = "default"
+provider = "openrouter"
+model = "openrouter/openrouter/auto"
+
+[[model_routes]]
+hint = "fast"
+provider = "openrouter"
+model = "arcee-ai/trinity-large-preview:free"
+
+[model_providers]
+
+[observability]
+backend = "none"
+runtime_trace_mode = "none"
+runtime_trace_path = "state/runtime-trace.jsonl"
+runtime_trace_max_entries = 200
+
+# INCREASED RATE LIMITS (was 20/hr, $5/day)
+[autonomy]
+level = "supervised"
+workspace_only = false
+allowed_commands = [
+    "python3",
+    "pip",
+    "curl",
+    "grep",
+    "cat",
+    "echo",
+    "date",
+]
+forbidden_paths = [
+    "/etc",
+    "/usr",
+    "/bin",
+    "/sbin",
+    "/lib",
+    "/opt",
+    "/boot",
+    "/dev",
+    "/proc",
+    "/sys",
+    "/var",
+]
+max_actions_per_hour = 200
+max_cost_per_day_cents = 2500
+require_approval_for_medium_risk = true
+block_high_risk_commands = true
+
+[security.sandbox]
+backend = "none"
+
+[security.resources]
+max_memory_mb = 1024
+max_cpu_time_seconds = 120
+max_subprocesses = 20
+
+[security.audit]
+enabled = true
+log_path = ".zeroclaw/audit.log"
+max_size_mb = 100
+
+[reliability]
+provider_retries = 2
+provider_backoff_ms = 500
+channel_initial_backoff_secs = 2
+channel_max_backoff_secs = 60
+scheduler_poll_secs = 15
+
+[scheduler]
+enabled = true
+max_tasks = 32
+max_concurrent = 4
+
+# CONTEXT COMPRESSION ENABLED
+[agent]
+compact_context = true
+max_tool_iterations = 50
+max_history_messages = 20
+
+[skills]
+open_skills_enabled = false
+skills_dir = ".zeroclaw/skills"
+auto_load = true
+
+[heartbeat]
+enabled = true
+interval_minutes = 5
+
+[cron]
+enabled = true
+max_run_history = 50
+
+[channels_config]
+cli = true
+message_timeout_secs = 300
+
+[channels_config.telegram]
+bot_token = "8795904321:AAEDGfDZDsHtMo9337mnSZW96d_iOx5n3As"
+allowed_users = ["8797355217"]
+stream_mode = "off"
+
+# OBSIDIAN VAULT CONFIGURED
+[memory]
+backend = "markdown"
+auto_save = true
+hygiene_enabled = true
+archive_after_days = 7
+purge_after_days = 30
+
+[memory.markdown]
+vault_path = "/storage/emulated/0/Obsidian_notes/211"
+memory_subfolder = "zeroclaw-memory"
+sync_on_write = true
+
+[gateway]
+port = 3001
+host = "127.0.0.1"
+require_pairing = false
+allow_public_bind = false
+
+[trading]
+enabled = true
+mode = "paper"
+data_source = "trades.db"
+config_file = "config.json"
+log_file = "trading_bot.log"
+
+[trading.exchanges]
+binance = true
+coinbase = false
+solana_dex = true
+
+[trading.risk]
+max_position_pct = 0.1
+stop_loss_pct = 0.02
+daily_loss_limit_pct = 0.05
+
+[composio]
+enabled = false
+
+[browser]
+enabled = false
+
+[web_search]
+enabled = true
+provider = "duckduckgo"
+max_results = 5
+
+[web_fetch]
+enabled = true
+allowed_domains = ["*"]
+timeout_secs = 30

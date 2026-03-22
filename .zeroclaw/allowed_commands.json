@@ -1,0 +1,109 @@
+{
+  "version": "1.0",
+  "description": "Whitelist of allowed commands for ZeroClaw agent",
+  "enabled": true,
+  "commands": {
+    "trading": {
+      "allowed": true,
+      "require_risk_approval": true,
+      "max_daily_trades": 10,
+      "max_position_usd": 100,
+      "description": "Execute buy/sell orders on DEX/CEX"
+    },
+    "buy": {
+      "allowed": true,
+      "require_risk_approval": true,
+      "max_usd": 100,
+      "description": "Buy crypto assets"
+    },
+    "sell": {
+      "allowed": true,
+      "require_risk_approval": true,
+      "description": "Sell crypto assets"
+    },
+    "swap": {
+      "allowed": true,
+      "require_risk_approval": true,
+      "max_usd": 100,
+      "description": "Swap tokens on Solana DEX"
+    },
+    "check_price": {
+      "allowed": true,
+      "require_risk_approval": false,
+      "description": "Check current crypto prices"
+    },
+    "check_portfolio": {
+      "allowed": true,
+      "require_risk_approval": false,
+      "description": "View portfolio status"
+    },
+    "get_balance": {
+      "allowed": true,
+      "require_risk_approval": false,
+      "description": "Get wallet balance"
+    },
+    "cancel_order": {
+      "allowed": true,
+      "require_risk_approval": true,
+      "description": "Cancel pending orders"
+    },
+    "set_stop_loss": {
+      "allowed": true,
+      "require_risk_approval": false,
+      "description": "Set stop loss for position"
+    },
+    "set_take_profit": {
+      "allowed": true,
+      "require_risk_approval": false,
+      "description": "Set take profit for position"
+    },
+    "view_trades": {
+      "allowed": true,
+      "require_risk_approval": false,
+      "description": "View trade history"
+    },
+    "analytics": {
+      "allowed": true,
+      "require_risk_approval": false,
+      "description": "View trading analytics"
+    },
+    "scan_arbitrage": {
+      "allowed": true,
+      "require_risk_approval": false,
+      "description": "Scan for arbitrage opportunities"
+    },
+    "ml_predict": {
+      "allowed": true,
+      "require_risk_approval": false,
+      "description": "Get ML-based price predictions"
+    }
+  },
+  "forbidden": {
+    "description": "Commands that are explicitly forbidden",
+    "commands": [
+      "withdraw",
+      "transfer",
+      "send",
+      "delegate",
+      "stake",
+      "create_token",
+      "mint",
+      "bridge",
+      "execute_external",
+      "run_shell",
+      "exec",
+      "system"
+    ]
+  },
+  "rate_limits": {
+    "trading": {
+      "max_per_minute": 5,
+      "max_per_hour": 50,
+      "max_per_day": 100
+    },
+    "default": {
+      "max_per_minute": 30,
+      "max_per_hour": 200
+    }
+  }
+}

@@ -2,12 +2,38 @@
 """
 ZeroClaw Skill Executor for Dashboard
 Routes skill commands to appropriate handlers with multi-agent support
+Includes JSONL audit logging for all agent actions
 """
 
 import sys
 import json
 import subprocess
 import os
+from datetime import datetime
+
+# JSONL Audit Log Path
+AUDIT_LOG = "/sdcard/zeroclaw-workspace/trading-bot/logs/agent_audit.jsonl"
+
+def log_agent_action(command: str, result: str, status: str = "success"):
+    """Log agent actions to JSONL audit file"""
+    log_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "command": command,
+        "status": status,
+        "result": result[:500] if len(result) > 500 else result,  # Truncate long results
+    }
+    
+    # Ensure log directory exists
+    log_dir = os.path.dirname(AUDIT_LOG)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir, exist_ok=True)
+    
+    try:
+        with open(AUDIT_LOG, 'a') as f:
+            f.write(json.dumps(log_entry) + '\n')
+    except Exception as e:
+        print(f"Warning: Failed to write audit log: {e}")
+
 
 def execute_skill(command):
     """Execute a skill command and return result"""
@@ -34,8 +60,12 @@ def execute_skill(command):
                     output += "\n\n💡 Additional Insights:\n"
                     for insight in result['supporting_insights'][:2]:
                         output += f"\n{insight['agent']}:\n{insight['result'][:200]}"
+                
+                # Log the action
+                log_agent_action(command, output, "success")
                 return output
         except Exception as e:
+            log_agent_action(command, str(e), "error")
             pass  # Fall through to direct execution
     
     # Map commands to telegram handlers
@@ -87,10 +117,16 @@ def execute_skill(command):
         if '$0' in output and 'price' in cmd_lower:
             output = fetch_live_prices()
         
-        return output if output else f"✅ Command executed: {command}"
+        result = output if output else f"✅ Command executed: {command}"
+        
+        # Log the action
+        log_agent_action(command, result, "success")
+        return result
             
     except Exception as e:
-        return f"⚠️ Error: {str(e)}"
+        error_msg = f"⚠️ Error: {str(e)}"
+        log_agent_action(command, error_msg, "error")
+        return error_msg
 
 def fetch_live_prices():
     """Fetch live prices directly"""

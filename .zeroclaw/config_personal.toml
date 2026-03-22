@@ -1,12 +1,25 @@
 api_key = "enc2:3a7aeabf32bd38eac67ca83cbb29c4f3d215095b1e4494267d77eb65455fe1f6e3e0821875223dc43536845a7fb4e0a1b3ec3e18a82c05234044b49b3850c4f4fdf438e3ceb58f26813f46d4af4dd963ac6e3c2c2b350fccb3a10a10e0c0ca142bbe000f61"
 default_provider = "openrouter"
-default_model = "arcee-ai/trinity-large-preview:free"
+default_model = "openrouter/openrouter/auto"
 default_temperature = 0.7
+
+# Model routing for OpenRouter
+[[model_routes]]
+hint = "default"
+provider = "openrouter"
+model = "openrouter/openrouter/auto"
+
+[[model_routes]]
+hint = "fast"
+provider = "openrouter"
+model = "arcee-ai/trinity-large-preview:free"
+
 model_routes = []
 
 [observability]
 backend = "none"
 
+# INCREASED RATE LIMITS
 [autonomy]
 level = "supervised"
 workspace_only = true
@@ -44,8 +57,8 @@ forbidden_paths = [
     "~/.aws",
     "~/.config",
 ]
-max_actions_per_hour = 20
-max_cost_per_day_cents = 500
+max_actions_per_hour = 200
+max_cost_per_day_cents = 2500
 require_approval_for_medium_risk = true
 block_high_risk_commands = true
 auto_approve = [
@@ -83,10 +96,11 @@ enabled = true
 max_tasks = 64
 max_concurrent = 4
 
+# CONTEXT COMPRESSION ENABLED
 [agent]
-compact_context = false
+compact_context = true
 max_tool_iterations = 50
-max_history_messages = 50
+max_history_messages = 20
 parallel_tools = false
 tool_dispatcher = "auto"
 
@@ -112,8 +126,9 @@ stream_mode = "off"
 draft_update_interval_ms = 1000
 mention_only = false
 
+# OBSIDIAN VAULT CONFIGURED
 [memory]
-backend = "sqlite"
+backend = "markdown"
 auto_save = true
 hygiene_enabled = true
 archive_after_days = 7
@@ -133,6 +148,11 @@ response_cache_max_entries = 5000
 snapshot_enabled = false
 snapshot_on_hygiene = false
 auto_hydrate = true
+
+[memory.markdown]
+vault_path = "/storage/emulated/0/Obsidian_notes/211"
+memory_subfolder = "zeroclaw-memory"
+sync_on_write = true
 
 [storage.provider.config]
 provider = ""
@@ -199,12 +219,13 @@ services = []
 [identity]
 format = "openclaw"
 
+# COST TRACKING ENABLED
 [cost]
-enabled = false
-daily_limit_usd = 10.0
+enabled = true
+daily_limit_usd = 25.0
 monthly_limit_usd = 100.0
 warn_at_percent = 80
-allow_override = false
+allow_override = true
 
 [cost.prices."google/gemini-2.0-flash"]
 input = 0.1
