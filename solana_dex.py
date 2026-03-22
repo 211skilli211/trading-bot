@@ -25,14 +25,22 @@ except ImportError:
 JUPITER_QUOTE = "https://quote-api.jup.ag/v6/quote"
 JUPITER_SWAP = "https://quote-api.jup.ag/v6/swap"
 
+# DexScreener fallback API
+DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/tokens"
+
 # Token mint addresses (Solana mainnet)
 TOKENS = {
     'USDC': 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
     'USDT': 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
     'SOL': 'So11111111111111111111111111111111111111112',
-    'BTC': '3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmLJ',
-    'ETH': '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs',
+    'BTC': '9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E',  # SoBTC
+    'ETH': '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs',  # WETH (Wormhole)
     'BONK': 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+}
+
+# Tokens without reliable USDC pairs - skip in arbitrage
+TOKENS_REQUIRES_WRAPPED_PRICE = {
+    'BTC',  # Wrapped BTC quotes are to SOL, not USD
 }
 
 
@@ -131,6 +139,91 @@ class SolanaDEX:
         except Exception as e:
             print(f"[SolanaDEX] Balance error: {e}")
             return None
+
+    def get_price_dexscreener(self, token_address: str) -> Optional[Dict]:
+        """
+        Get price from DexScreener as fallback when Jupiter is unavailable.
+        
+        Args:
+            token_address: Solana token mint address
+            
+        Returns:
+            Dict with price info or None
+        """
+        try:
+            url = f"{DEXSCREENER_API}/{token_address}"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get('pairs') and len(data['pairs']) > 0:
+                # Priority: USDC > USDT > other stablecoins > highest liquidity
+                best_pair = None
+                best_score = -1
+                
+                for pair in data['pairs']:
+                    quote_symbol = pair.get('quoteToken', {}).get('symbol', '')
+                    liquidity = float(pair.get('liquidity', {}).get('usd', 0))
+                    
+                    # Score: USDC=100, USDT=90, other=50, then add liquidity factor
+                    if quote_symbol == 'USDC':
+                        score = 100 + liquidity / 1000000
+                    elif quote_symbol == 'USDT':
+                        score = 90 + liquidity / 1000000
+                    elif 'USD' in quote_symbol:
+                        score = 80 + liquidity / 1000000
+                    else:
+                        score = liquidity / 1000000
+                    
+                    if score > best_score:
+                        best_score = score
+                        best_pair = pair
+                
+                if best_pair:
+                    return {
+                        'price_usd': float(best_pair.get('priceUsd', 0)),
+                        'liquidity': float(best_pair.get('liquidity', {}).get('usd', 0)),
+                        'volume_24h': float(best_pair.get('volume', {}).get('h24', 0)),
+                        'dex': best_pair.get('dexId', 'unknown'),
+                        'quote_token': best_pair.get('quoteToken', {}).get('symbol', 'UNKNOWN')
+                    }
+            return None
+        except Exception as e:
+            print(f"[SolanaDEX] DexScreener error: {e}")
+            return None
+    
+    def get_token_price(self, token_symbol: str) -> Optional[float]:
+        """
+        Get token price using Jupiter (primary) or DexScreener (fallback).
+        
+        Args:
+            token_symbol: Token symbol (SOL, BTC, ETH, etc.)
+            
+        Returns:
+            Price in USD or None
+        """
+        # Try Jupiter first
+        if token_symbol in TOKENS:
+            try:
+                # Try to get a small quote to get the price
+                amount = 1000000  # 1 USDC in lamports
+                quote = self.get_quote(
+                    input_mint=TOKENS['USDC'],
+                    output_mint=TOKENS[token_symbol],
+                    amount=amount
+                )
+                if quote and quote.out_amount > 0:
+                    return amount / quote.out_amount
+            except:
+                pass
+        
+        # Fallback to DexScreener
+        if token_symbol in TOKENS:
+            price_data = self.get_price_dexscreener(TOKENS[token_symbol])
+            if price_data:
+                return price_data['price_usd']
+        
+        return None
     
     def get_quote(
         self,

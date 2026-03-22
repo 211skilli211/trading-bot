@@ -22,7 +22,7 @@ def execute_skill(command):
         # Use multi-agent orchestrator
         try:
             proc = subprocess.run(
-                ['python3', '/root/trading-bot/.zeroclaw/multi_agent_orchestrator.py', command],
+                ['python3', '/sdcard/zeroclaw-workspace/trading-bot/.zeroclaw/multi_agent_orchestrator.py', command],
                 capture_output=True,
                 text=True,
                 timeout=30
@@ -67,7 +67,7 @@ def execute_skill(command):
     try:
         env = os.environ.copy()
         if 'trading_zeroclaw' in handler:
-            env['HOME'] = '/tmp/trading_zeroclaw'
+            env['HOME'] = '/sdcard/zeroclaw-workspace/trading-bot'
         else:
             env['HOME'] = '/root'
         

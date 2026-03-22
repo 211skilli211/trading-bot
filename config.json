@@ -2,6 +2,32 @@
   "bot": {
     "mode": "LIVE"
   },
+  "autonomy": {
+    "enabled": true,
+    "paper_mode": {
+      "auto_execute": true,
+      "max_position_usd": 100,
+      "require_confirmation": false,
+      "max_daily_trades": 10
+    },
+    "live_mode": {
+      "auto_execute": false,
+      "max_position_usd": 10,
+      "require_confirmation": true,
+      "max_daily_trades": 3,
+      "notify_channels": [
+        "telegram"
+      ]
+    }
+  },
+  "clean_chart": {
+    "enabled": true,
+    "min_confidence": 40,
+    "min_volume_ratio": 1.0,
+    "avoid_liquidity_grabs": true,
+    "trend_filter": true,
+    "volume_confirmation": true
+  },
   "strategy": {
     "min_spread": 0.01
   },
@@ -10,6 +36,7 @@
       "enabled": true,
       "name": "Binary Arbitrage",
       "description": "PolyMarket YES/NO arbitrage",
+      "prompt": "Monitors PolyMarket for YES/NO discrepancies. Buys YES on one outcome and NO on another when spread > threshold. Profit when markets converge.",
       "min_spread_pct": 1.0,
       "max_position_usd": 10,
       "max_concurrent_arbs": 3,
@@ -19,6 +46,7 @@
       "enabled": true,
       "name": "15-Min Sniper",
       "description": "Momentum sniper for 15-min markets",
+      "prompt": "Enter trades within entry_window after momentum threshold exceeded. Quick exits within 15 minutes. Use circuit_breaker to stop after X consecutive losses.",
       "momentum_threshold": 0.1,
       "max_position_usd": 10,
       "entry_window_seconds": 60,
@@ -31,9 +59,10 @@
       "circuit_breaker_losses": 3
     },
     "contrarian": {
-      "enabled": false,
+      "enabled": true,
       "name": "Contrarian",
       "description": "Mean reversion / fade the crowd",
+      "prompt": "Buy when RSI oversold (<30), sell when RSI overbought (>70). Uses funding rate to filter - enter shorts when funding > threshold.",
       "rsi_period": 14,
       "rsi_oversold": 30,
       "rsi_overbought": 70,
@@ -52,6 +81,7 @@
       "enabled": false,
       "name": "Momentum",
       "description": "Trend following with volume confirmation",
+      "prompt": "Enter when SMA fast crosses above SMA slow with volume surge. Exit on stop loss or take profit.",
       "sma_fast": 20,
       "sma_slow": 50,
       "volume_threshold": 1.5,
@@ -70,6 +100,7 @@
       "enabled": false,
       "name": "Pairs Trading",
       "description": "Statistical arbitrage between correlated pairs",
+      "prompt": "Monitor correlated pairs (BTC/ETH). Enter when spread deviates > z-score threshold. Exit when spread returns to mean. Market neutral strategy.",
       "pair_1": "BTC/USDT",
       "pair_2": "ETH/USDT",
       "lookback_period": 100,
@@ -82,6 +113,7 @@
       "enabled": true,
       "name": "VWAP Reversion",
       "description": "Mean reversion to VWAP",
+      "prompt": "Buy when price drops below VWAP by 2 std devs. Sell when price returns to VWAP. Works best in ranging markets.",
       "vwap_period": "1d",
       "std_dev_entry": 2.0,
       "std_dev_exit": 0.5,
@@ -95,6 +127,7 @@
       "enabled": false,
       "name": "Grid Trading",
       "description": "Buy low, sell high in price ranges",
+      "prompt": "Place buy orders at grid levels below current price, sell orders above. Profit from range-bound movement.",
       "grid_levels": 10,
       "grid_range_pct": 5.0,
       "order_size_usd": 10,
@@ -107,6 +140,7 @@
       "enabled": false,
       "name": "Breakout",
       "description": "Trade breakouts from consolidation",
+      "prompt": "Enter when price breaks above highest high of lookback period with volume confirmation. Exit on stop loss or take profit.",
       "lookback_period": 20,
       "breakout_threshold_pct": 3.0,
       "volume_confirm": true,
@@ -122,6 +156,7 @@
       "enabled": true,
       "name": "Scalping",
       "description": "Quick trades on small price movements",
+      "prompt": "Very short timeframe (1m) trades. Enter on small spread, exit quickly. High frequency, low profit per trade.",
       "timeframe": "1m",
       "min_spread": 0.05,
       "max_position_usd": 10,
@@ -136,6 +171,7 @@
       "enabled": false,
       "name": "DCA",
       "description": "Dollar Cost Averaging",
+      "prompt": "Buy fixed amount at regular intervals regardless of price. Long-term accumulation strategy. No selling.",
       "investment_amount_usd": 10,
       "interval_hours": 24,
       "symbols": [
@@ -147,6 +183,7 @@
       "enabled": false,
       "name": "YOLO",
       "description": "High risk, high reward gambles",
+      "prompt": "High risk with leverage. Only for experienced traders. Small position size. Can wipe account - use with caution.",
       "max_position_usd": 10,
       "leverage": 3,
       "stop_loss_pct": 0.096,
@@ -164,6 +201,7 @@
       "id": "minervini_sea",
       "name": "Minervini SEA",
       "description": "Mark Minervini's Specific Entry Point Analysis - momentum strategy with VCP entries",
+      "prompt": "Momentum strategy based on Mark Minervini's rules. Look for stocks in uptrend with VCP (Volatility Contraction Pattern).",
       "enabled": false,
       "risk": "high",
       "max_position_usd": 10000,
@@ -179,6 +217,22 @@
         "volume_surge_ratio": 1.4,
         "trailing_stop_activation": 2.5
       }
+    },
+    "mean_reversion": {
+      "enabled": true,
+      "name": "Mean Reversion",
+      "description": "Buy dips, sell rallies based on price deviation from moving average",
+      "max_position_usd": 10,
+      "stop_loss_pct": 0.02,
+      "take_profit_pct": 0.04,
+      "check_interval_seconds": 60,
+      "ma_period": 20,
+      "deviation_threshold": 0.02,
+      "symbols": [
+        "BTC/USDT",
+        "ETH/USDT",
+        "SOL/USDT"
+      ]
     }
   },
   "multi_agent": {
@@ -228,12 +282,13 @@
   },
   "risk": {
     "max_position_btc": 0.05,
-    "stop_loss_pct": 0.02,
+    "stop_loss_pct": 0.04,
     "take_profit_pct": 0.06,
     "capital_pct_per_trade": 0.0125,
     "max_total_exposure_pct": 0.3,
     "daily_loss_limit_pct": 0.05,
-    "consecutive_loss_limit": 3
+    "consecutive_loss_limit": 3,
+    "position_multiplier": 1.0
   },
   "execution": {
     "max_retries": 3,
@@ -256,7 +311,7 @@
     "on_daily_limit": true
   },
   "solana": {
-    "enabled": false,
+    "enabled": true,
     "rpc_url": "https://api.mainnet-beta.solana.com",
     "wallet_file": "solana_wallet.json",
     "min_spread": 0.005,
@@ -2519,5 +2574,47 @@
     },
     "success": true
   },
-  "success": true
+  "success": true,
+  "ml": {
+    "last_recommendation": {
+      "preset": "$10K Whale",
+      "amount": 10000,
+      "expected_profit": 0.0,
+      "expected_roi": 0.0,
+      "confidence": 0,
+      "risk_level": "high",
+      "suggested_position": "SHORT",
+      "timeframe": "1-4 hours"
+    },
+    "last_recommendation_time": "2026-03-15T12:11:27.858111"
+  },
+  "agents": {},
+  "skill_history": [
+    {
+      "time": "23:49:19",
+      "agent": "discovery",
+      "skill": "arbitrage_scan",
+      "message": "Manual arbitrage scan triggered",
+      "status": "success"
+    },
+    {
+      "time": "23:49:29",
+      "agent": "discovery",
+      "skill": "arbitrage_scan",
+      "message": "Manual arbitrage scan triggered",
+      "status": "success"
+    }
+  ],
+  "zeroclaw": {
+    "chat_history": [
+      {
+        "role": "user",
+        "content": "Hey"
+      },
+      {
+        "role": "assistant",
+        "content": "ZeroClaw daemon not running. Message received: Hey"
+      }
+    ]
+  }
 }

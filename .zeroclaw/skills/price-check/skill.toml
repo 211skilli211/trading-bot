@@ -20,7 +20,7 @@ patterns = [
 
 [execution]
 command = "python3"
-args = ["/root/trading-bot/.zeroclaw/skills/price-check/handler.py"]
+args = ["/sdcard/zeroclaw-workspace/trading-bot/.zeroclaw/skills/price-check/handler.py"]
 
 [output]
 format = "plain"

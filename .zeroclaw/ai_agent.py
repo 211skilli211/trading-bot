@@ -72,7 +72,7 @@ class ZeroClawAIAgent:
         """Load ZeroClaw config"""
         try:
             config = {}
-            with open('/tmp/trading_zeroclaw/.zeroclaw/config.toml', 'r') as f:
+            with open('/sdcard/zeroclaw-workspace/trading-bot/.zeroclaw/config.toml', 'r') as f:
                 for line in f:
                     if '=' in line and not line.strip().startswith('#'):
                         key, val = line.split('=', 1)
@@ -88,7 +88,7 @@ class ZeroClawAIAgent:
         """Execute a tool via subprocess"""
         try:
             cmd = [
-                'python3', '/root/trading-bot/.zeroclaw/tool_executor.py',
+                'python3', '/sdcard/zeroclaw-workspace/trading-bot/.zeroclaw/tool_executor.py',
                 tool, json.dumps(params)
             ]
             

@@ -94,7 +94,8 @@ class TradingDatabase:
                     price REAL,
                     bid REAL,
                     ask REAL,
-                    volume_24h REAL
+                    volume_24h REAL,
+                    spread_percent REAL
                 )
             """)
             

@@ -132,6 +132,38 @@
       "capabilities": [
         "telegram-api"
       ]
+    },
+    {
+      "name": "clean-chart-trader",
+      "description": "Multi-timeframe trading strategy with liquidity mapping",
+      "version": "1.0",
+      "author": "trading-bot",
+      "tags": [
+        "trading",
+        "clean-chart",
+        "strategy",
+        "analysis"
+      ],
+      "capabilities": [
+        "trading",
+        "analysis",
+        "alerts"
+      ]
+    },
+    {
+      "name": "crypto-news",
+      "description": "Get latest crypto news and market sentiment",
+      "version": "1.0",
+      "author": "trading-bot",
+      "tags": [
+        "news",
+        "crypto",
+        "sentiment"
+      ],
+      "capabilities": [
+        "news",
+        "alerts"
+      ]
     }
   ]
 }
