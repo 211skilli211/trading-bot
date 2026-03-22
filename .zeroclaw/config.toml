@@ -1,13 +1,13 @@
 # ZeroClaw Configuration for Trading Bot
-# Updated: March 2026 - Security & Performance Fixes
-# NOTE: Sensitive values loaded from environment variables
+# Updated: March 2026
 
-# API key loaded from ZEROCLAW_API_KEY env var
+# API Key (OpenRouter)
+api_key = "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"
 default_provider = "openrouter"
 default_model = "openrouter/openrouter/auto"
 default_temperature = 0.7
 
-# Model routing for OpenRouter
+# Model routing
 [[model_routes]]
 hint = "default"
 provider = "openrouter"
@@ -22,14 +22,10 @@ model = "arcee-ai/trinity-large-preview:free"
 
 [observability]
 backend = "none"
-runtime_trace_mode = "none"
-runtime_trace_path = "state/runtime-trace.jsonl"
-runtime_trace_max_entries = 200
 
-# RATE LIMITS (200/hr, $25/day)
 [autonomy]
 level = "supervised"
-workspace_only = true  # SECURITY: Enabled workspace isolation
+workspace_only = true
 allowed_commands = [
     "python3",
     "pip",
@@ -77,16 +73,12 @@ max_size_mb = 100
 [reliability]
 provider_retries = 2
 provider_backoff_ms = 500
-channel_initial_backoff_secs = 2
-channel_max_backoff_secs = 60
-scheduler_poll_secs = 15
 
 [scheduler]
 enabled = true
 max_tasks = 32
 max_concurrent = 4
 
-# CONTEXT COMPRESSION + BOOTSTRAP LIMITS
 [agent]
 compact_context = true
 max_tool_iterations = 50
@@ -103,63 +95,39 @@ auto_load = true
 enabled = true
 interval_minutes = 5
 
-# CRON HARDENING
 [cron]
 enabled = true
 max_run_history = 50
 max_concurrent_jobs = 1
 retry_attempts = 2
-retry_backoff_secs = 30
-log_path = ".zeroclaw/logs/cron.jsonl"
 
 [channels_config]
 cli = true
 message_timeout_secs = 300
 
-# TELEGRAM (loaded from env vars)
 [channels_config.telegram]
-bot_token = "${TELEGRAM_BOT_TOKEN}"
-allowed_users = ["${TELEGRAM_CHAT_ID}"]
+bot_token = "8795904321:AAEDGfDZDsHtMo9337mnSZW96d_iOx5n3As"
+allowed_users = ["8797355217"]
 stream_mode = "off"
 rate_limit_per_minute = 10
 interrupt_on_new_message = false
-message_retry_attempts = 2
 
-# OBSIDIAN VAULT
 [memory]
 backend = "markdown"
 auto_save = true
-hygiene_enabled = true
-archive_after_days = 7
-purge_after_days = 30
 
 [memory.markdown]
 vault_path = "/storage/emulated/0/Obsidian_notes/211"
 memory_subfolder = "zeroclaw-memory"
-sync_on_write = true
 
 [gateway]
 port = 3001
 host = "127.0.0.1"
 require_pairing = false
-allow_public_bind = false
 
 [trading]
 enabled = true
 mode = "paper"
-data_source = "trades.db"
-config_file = "config.json"
-log_file = "trading_bot.log"
-
-[trading.exchanges]
-binance = true
-coinbase = false
-solana_dex = true
-
-[trading.risk]
-max_position_pct = 0.1
-stop_loss_pct = 0.02
-daily_loss_limit_pct = 0.05
 
 [composio]
 enabled = false
@@ -175,23 +143,14 @@ max_results = 5
 [web_fetch]
 enabled = true
 allowed_domains = ["*"]
-timeout_secs = 30
 
-# COST TRACKING
 [cost]
 enabled = true
 daily_limit_usd = 25.00
-warn_at_percent = 80
-log_path = ".zeroclaw/cost-trace.jsonl"
-allow_override = true
 
-# AGENT MODEL REGISTRATION (Required for OpenRouter)
 [agents.defaults]
 model.primary = "openrouter/openrouter/auto"
-model.fallbacks = [
-    "openrouter/anthropic/claude-haiku-3.5",
-    "arcee-ai/trinity-large-preview:free"
-]
+model.fallbacks = ["openrouter/anthropic/claude-haiku-3.5", "arcee-ai/trinity-large-preview:free"]
 
 [agents.defaults.models."openrouter/openrouter/auto"]
 [agents.defaults.models."openrouter/anthropic/claude-haiku-3.5"]
