@@ -20,10 +20,7 @@ import requests
 from datetime import datetime
 
 # Configuration - works on both local and cloud
-import os
-
 BOT_DIR = os.environ.get("BOT_DIR", os.getcwd())
-os.chdir(BOT_DIR)
 
 app = Flask(__name__, template_folder="templates/final")
 app.secret_key = "trading-bot-secret-key-2026"
