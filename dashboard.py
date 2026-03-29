@@ -31,11 +31,6 @@ def home():
     return "Trading Bot API Running. APIs available at /api/*"
 
 
-@app.route("/<path:path>")
-def catch_all(path):
-    return f"Trading Bot API - Path: {path}"
-
-
 # ============================================================================
 # ENHANCED ML ANALYTICS
 # ============================================================================
