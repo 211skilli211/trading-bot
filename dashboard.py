@@ -27,7 +27,7 @@ app.secret_key = "trading-bot-secret-key-2026"
 
 
 @app.route("/")
-def index():
+def home():
     return "Trading Bot API Running. APIs available at /api/*"
 
 
