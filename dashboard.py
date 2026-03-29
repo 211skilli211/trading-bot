@@ -1205,6 +1205,11 @@ def api_start():
     return redirect("/overview")
 
 
+@app.route("/healthz")
+def healthz():
+    return jsonify({"status": "ok"})
+
+
 @app.route("/api/health")
 def api_health():
     """Health check endpoint for dashboard and bot status"""
