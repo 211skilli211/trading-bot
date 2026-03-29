@@ -1,4 +1,5 @@
 # Trading Bot Docker Image
+# Build: 2026-03-29 - Fixed port for Render deployment
 FROM python:3.11-slim
 
 # Set working directory
