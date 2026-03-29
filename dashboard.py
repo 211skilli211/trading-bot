@@ -32,6 +32,38 @@ def home():
 
 
 # ============================================================================
+# MOBILE APP API ROUTES (placed at top for proper registration)
+# ============================================================================
+
+
+@app.route("/api/prices")
+def api_prices():
+    return jsonify([{"symbol": "BTC/USDT", "price": 68000, "change_24h": 0.02}])
+
+
+@app.route("/api/portfolio")
+def api_portfolio():
+    return jsonify(
+        {"total_balance": 10000, "pnl": 0, "total_trades": 0, "positions": []}
+    )
+
+
+@app.route("/api/positions")
+def api_positions():
+    return jsonify([])
+
+
+@app.route("/api/bot/status")
+def api_bot_status():
+    return jsonify({"mode": "paper", "running": False, "last_cycle": "N/A", "pnl": 0})
+
+
+@app.route("/api/alerts")
+def api_alerts():
+    return jsonify([])
+
+
+# ============================================================================
 # ENHANCED ML ANALYTICS
 # ============================================================================
 
@@ -2961,65 +2993,3 @@ def calculate_sma(prices, period):
     if len(prices) < period:
         return prices[-1] if prices else 0
     return sum(prices[-period:]) / period
-
-
-# ============================================================================
-# MOBILE APP API ROUTES (for mobile app compatibility)
-# ============================================================================
-
-
-@app.route("/api/prices")
-def api_prices():
-    try:
-        import ccxt
-
-        prices = []
-        try:
-            binance = ccxt.binance()
-            btc = binance.fetch_ticker("BTC/USDT")
-            prices.append(
-                {
-                    "symbol": "BTC/USDT",
-                    "price": btc["last"],
-                    "change_24h": btc.get("percentage", 0) / 100,
-                }
-            )
-        except:
-            prices.append({"symbol": "BTC/USDT", "price": 68000, "change_24h": 0.02})
-        try:
-            coinbase = ccxt.coinbase()
-            eth = coinbase.fetch_ticker("ETH/USDT")
-            prices.append(
-                {
-                    "symbol": "ETH/USDT",
-                    "price": eth["last"],
-                    "change_24h": eth.get("percentage", 0) / 100,
-                }
-            )
-        except:
-            prices.append({"symbol": "ETH/USDT", "price": 3500, "change_24h": 0.01})
-        return jsonify(prices)
-    except Exception as e:
-        return jsonify([{"symbol": "BTC/USDT", "price": 68000, "change_24h": 0.02}])
-
-
-@app.route("/api/portfolio")
-def api_portfolio():
-    return jsonify(
-        {"total_balance": 10000, "pnl": 0, "total_trades": 0, "positions": []}
-    )
-
-
-@app.route("/api/positions")
-def api_positions():
-    return jsonify([])
-
-
-@app.route("/api/bot/status")
-def api_bot_status():
-    return jsonify({"mode": "paper", "running": False, "last_cycle": "N/A", "pnl": 0})
-
-
-@app.route("/api/alerts")
-def api_alerts():
-    return jsonify([])
