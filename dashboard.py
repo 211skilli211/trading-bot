@@ -2720,8 +2720,10 @@ def api_terminal_pine():
 
 if __name__ == "__main__":
     import sys
+    import os
 
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 7777
+    # Use PORT env var (Render) or command line argument, default to 7777 for local
+    port = int(os.environ.get("PORT", sys.argv[1] if len(sys.argv) > 1 else 7777))
     print(f"=" * 60)
     print(f"FINAL TRADING DASHBOARD v1.0")
     print(f"=" * 60)
