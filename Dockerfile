@@ -1,5 +1,5 @@
 # Trading Bot Docker Image
-# Build: 2026-03-29 - Fixed port for Render deployment
+# Build: 2026-03-29 v2 - Added healthz and mobile API routes
 FROM python:3.11-slim
 
 # Set working directory
