@@ -22,8 +22,19 @@ from datetime import datetime
 # Configuration - works on both local and cloud
 BOT_DIR = os.environ.get("BOT_DIR", os.getcwd())
 
-app = Flask(__name__, template_folder="templates/final")
+app = Flask(__name__, template_folder=None, static_folder=None)
 app.secret_key = "trading-bot-secret-key-2026"
+
+
+@app.route("/")
+def index():
+    return "Trading Bot API Running. APIs available at /api/*"
+
+
+@app.route("/<path:path>")
+def catch_all(path):
+    return f"Trading Bot API - Path: {path}"
+
 
 # ============================================================================
 # ENHANCED ML ANALYTICS
