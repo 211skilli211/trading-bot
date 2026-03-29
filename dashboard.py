@@ -28,7 +28,159 @@ app.secret_key = "trading-bot-secret-key-2026"
 
 @app.route("/")
 def home():
-    return "Trading Bot API Running. APIs available at /api/*"
+    return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding-bottom: 80px; }
+        .header { background: #1e293b; padding: 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #334155; }
+        .header h1 { font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .badge { background: #22c55e30; color: #22c55e; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+        .badge.stopped { background: #ef444430; color: #ef4444; }
+        .card { background: #1e293b; margin: 12px; padding: 16px; border-radius: 12px; }
+        .card-title { font-size: 14px; color: #94a3b8; margin-bottom: 12px; font-weight: 600; }
+        .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; }
+        .row:last-child { border-bottom: none; }
+        .label { color: #94a3b8; }
+        .value { font-weight: 600; }
+        .positive { color: #22c55e; }
+        .negative { color: #ef4444; }
+        .price-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #334155; }
+        .price-row:last-child { border-bottom: none; }
+        .symbol { font-weight: 600; font-size: 16px; }
+        .price-info { text-align: right; }
+        .price { font-size: 18px; font-weight: bold; }
+        .change { font-size: 14px; }
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: #1e293b; border-top: 1px solid #334155; display: flex; justify-content: space-around; padding: 12px 0; z-index: 100; }
+        .nav-item { color: #94a3b8; text-align: center; font-size: 11px; cursor: pointer; }
+        .nav-item.active { color: #3b82f6; }
+        .nav-item span { display: block; font-size: 22px; margin-bottom: 2px; }
+        .section-title { font-size: 18px; font-weight: bold; margin: 16px 12px 8px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px; }
+        .stat-card { background: #1e293b; padding: 16px; border-radius: 12px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #f8fafc; }
+        .stat-label { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+        .fab { position: fixed; bottom: 90px; right: 20px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 12px rgba(59,130,246,0.4); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 Trading Bot</h1>
+        <div class="badge" id="botBadge">Running</div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="totalPortfolio">$10,000</div>
+            <div class="stat-label">Portfolio Value</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value positive" id="dailyPnl">+$0.00</div>
+            <div class="stat-label">Today's P&L</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📈 Live Prices</div>
+        <div id="prices">
+            <div class="row"><span class="label">Loading prices...</span></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📊 Bot Status</div>
+        <div class="row">
+            <span class="label">Mode</span>
+            <span class="value" id="botMode">Paper</span>
+        </div>
+        <div class="row">
+            <span class="label">Active Trades</span>
+            <span class="value" id="activeTrades">0</span>
+        </div>
+        <div class="row">
+            <span class="label">Last Signal</span>
+            <span class="value" id="lastSignal">N/A</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🔔 Recent Alerts</div>
+        <div id="alerts">
+            <div class="row"><span class="label">No alerts</span></div>
+        </div>
+    </div>
+
+    <nav class="nav">
+        <div class="nav-item active"><span>🏠</span>Home</div>
+        <div class="nav-item"><span>📊</span>Trading</div>
+        <div class="nav-item"><span>📁</span>Portfolio</div>
+        <div class="nav-item"><span>⚙️</span>Settings</div>
+    </nav>
+
+    <script>
+        const API = 'https://trading-bot-razl.onrender.com';
+        
+        async function loadPrices() {
+            try {
+                const r = await fetch(API + '/api/prices');
+                const data = await r.json();
+                document.getElementById('prices').innerHTML = data.map(p => 
+                    '<div class="price-row"><span class="symbol">' + p.symbol + '</span><div class="price-info"><div class="price">$' + p.price.toFixed(2) + '</div><div class="change ' + (p.change_24h >= 0 ? 'positive' : 'negative') + '">' + (p.change_24h * 100).toFixed(2) + '%</div></div></div>'
+                ).join('');
+            } catch(e) { document.getElementById('prices').innerHTML = '<div class="row"><span class="label">Error loading</span></div>'; }
+        }
+        
+        async function loadBotStatus() {
+            try {
+                const r = await fetch(API + '/api/bot/status');
+                const s = await r.json();
+                document.getElementById('botMode').textContent = s.mode || 'N/A';
+                document.getElementById('botBadge').textContent = s.running ? 'Running' : 'Stopped';
+                document.getElementById('botBadge').className = s.running ? 'badge' : 'badge stopped';
+                document.getElementById('dailyPnl').textContent = (s.pnl || 0) >= 0 ? '+$' + s.pnl.toFixed(2) : '-$' + Math.abs(s.pnl).toFixed(2);
+                document.getElementById('dailyPnl').className = 'stat-value ' + ((s.pnl || 0) >= 0 ? 'positive' : 'negative');
+            } catch(e) { console.log(e); }
+        }
+        
+        async function loadPortfolio() {
+            try {
+                const r = await fetch(API + '/api/portfolio');
+                const p = await r.json();
+                document.getElementById('totalPortfolio').textContent = '$' + (p.total_balance || 0).toFixed(2);
+                document.getElementById('activeTrades').textContent = (p.positions || []).length || 0;
+            } catch(e) { console.log(e); }
+        }
+        
+        async function loadAlerts() {
+            try {
+                const r = await fetch(API + '/api/alerts');
+                const data = await r.json();
+                if (data.length) {
+                    document.getElementById('alerts').innerHTML = data.slice(0,3).map(a => 
+                        '<div class="row"><span class="label">' + (a.message || 'Alert') + '</span><span class="value ' + (a.severity==='error'?'negative':'') + '">' + (a.type||'') + '</span></div>'
+                    ).join('');
+                }
+            } catch(e) { }
+        }
+        
+        function loadAll() {
+            loadPrices();
+            loadBotStatus();
+            loadPortfolio();
+            loadAlerts();
+        }
+        
+        loadAll();
+        setInterval(loadAll, 15000);
+    </script>
+</body>
+</html>
+    """
 
 
 # ============================================================================
