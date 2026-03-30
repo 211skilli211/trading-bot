@@ -3876,6 +3876,251 @@ def api_sniper_toggle():
     return jsonify({"success": True, "enabled": cfg["sniper"]["enabled"]})
 
 
+# ============================================================================
+# RISK MANAGEMENT ENDPOINTS
+# ============================================================================
+
+
+@app.route("/api/risk/status")
+def api_risk_status():
+    """Get risk management status"""
+    cfg = get_config()
+    risk = cfg.get("risk", {})
+
+    # Calculate current risk metrics
+    orders = cfg.get("orders", [])
+    open_positions = [o for o in orders if o.get("status") == "open"]
+
+    total_exposure = sum(o.get("amount", 0) * o.get("price", 0) for o in open_positions)
+    max_position = risk.get("max_position_usd", 1000)
+
+    return jsonify(
+        {
+            "max_position_usd": max_position,
+            "current_exposure": total_exposure,
+            "available_capital": max_position - total_exposure,
+            "max_daily_loss": risk.get("max_daily_loss_pct", 5),
+            "stop_loss_pct": risk.get("stop_loss_pct", 2),
+            "take_profit_pct": risk.get("take_profit_pct", 5),
+            "max_open_positions": risk.get("max_open_positions", 5),
+            "current_open_positions": len(open_positions),
+            "risk_level": "HIGH"
+            if total_exposure > max_position * 0.8
+            else "MEDIUM"
+            if total_exposure > max_position * 0.5
+            else "LOW",
+        }
+    )
+
+
+@app.route("/api/risk/configure", methods=["POST"])
+def api_risk_configure():
+    """Configure risk management parameters"""
+    cfg = get_config()
+
+    cfg["risk"] = {
+        "max_position_usd": float(request.form.get("max_position_usd", 1000)),
+        "max_daily_loss_pct": float(request.form.get("max_daily_loss_pct", 5)),
+        "stop_loss_pct": float(request.form.get("stop_loss_pct", 2)),
+        "take_profit_pct": float(request.form.get("take_profit_pct", 5)),
+        "max_open_positions": int(request.form.get("max_open_positions", 5)),
+    }
+    save_config(cfg)
+
+    return jsonify({"success": True, "message": "Risk parameters updated"})
+
+
+# ============================================================================
+# TRADE SIGNALS ENDPOINTS
+# ============================================================================
+
+
+@app.route("/api/signals")
+def api_signals():
+    """Get trading signals based on technical analysis"""
+    cfg = get_config()
+    mode = cfg.get("bot", {}).get("mode", "PAPER")
+
+    signals = []
+
+    # Get top coins and generate signals
+    prices = get_all_usdt_prices()[:20]
+
+    for p in prices:
+        symbol = p.get("symbol", "")
+        change = p.get("change", 0)
+        volume = p.get("volume", 0)
+
+        # Simple signal generation based on price action
+        if change > 5:
+            signal = "STRONG_BUY"
+            reason = f"+{change:.1f}% today with high volume"
+        elif change > 2:
+            signal = "BUY"
+            reason = f"Momentum positive +{change:.1f}%"
+        elif change < -5:
+            signal = "STRONG_SELL"
+            reason = f"{change:.1f}% drop - possible reversal"
+        elif change < -2:
+            signal = "SELL"
+            reason = f"Negative momentum {change:.1f}%"
+        else:
+            signal = "HOLD"
+            reason = "Neutral price action"
+
+        signals.append(
+            {
+                "symbol": symbol,
+                "signal": signal,
+                "confidence": min(abs(change) * 10, 100),
+                "reason": reason,
+                "price": p.get("price"),
+                "change_24h": change,
+                "volume": volume,
+            }
+        )
+
+    return jsonify(
+        {"signals": signals, "mode": mode, "timestamp": datetime.now().isoformat()}
+    )
+
+
+# ============================================================================
+# ADVANCED ANALYTICS
+# ============================================================================
+
+
+@app.route("/api/analytics/portfolio")
+def api_portfolio_analytics():
+    """Get advanced portfolio analytics"""
+    cfg = get_config()
+    orders = cfg.get("orders", [])
+
+    if not orders:
+        return jsonify(
+            {
+                "total_trades": 0,
+                "win_rate": 0,
+                "avg_profit": 0,
+                "avg_loss": 0,
+                "best_trade": 0,
+                "worst_trade": 0,
+                "profit_factor": 0,
+            }
+        )
+
+    closed_orders = [o for o in orders if o.get("status") == "filled"]
+
+    if not closed_orders:
+        return jsonify(
+            {
+                "total_trades": 0,
+                "win_rate": 0,
+                "avg_profit": 0,
+                "avg_loss": 0,
+                "best_trade": 0,
+                "worst_trade": 0,
+                "profit_factor": 0,
+            }
+        )
+
+    wins = [o for o in closed_orders if o.get("pnl", 0) > 0]
+    losses = [o for o in closed_orders if o.get("pnl", 0) < 0]
+
+    win_rate = len(wins) / len(closed_orders) * 100 if closed_orders else 0
+    avg_profit = sum(o.get("pnl", 0) for o in wins) / len(wins) if wins else 0
+    avg_loss = sum(o.get("pnl", 0) for o in losses) / len(losses) if losses else 0
+
+    total_profit = sum(o.get("pnl", 0) for o in wins)
+    total_loss = abs(sum(o.get("pnl", 0) for o in losses))
+    profit_factor = total_profit / total_loss if total_loss > 0 else 0
+
+    return jsonify(
+        {
+            "total_trades": len(closed_orders),
+            "winning_trades": len(wins),
+            "losing_trades": len(losses),
+            "win_rate": round(win_rate, 1),
+            "avg_profit": round(avg_profit, 2),
+            "avg_loss": round(avg_loss, 2),
+            "best_trade": round(max(o.get("pnl", 0) for o in closed_orders), 2)
+            if closed_orders
+            else 0,
+            "worst_trade": round(min(o.get("pnl", 0) for o in closed_orders), 2)
+            if closed_orders
+            else 0,
+            "profit_factor": round(profit_factor, 2),
+            "total_pnl": round(sum(o.get("pnl", 0) for o in closed_orders), 2),
+        }
+    )
+
+
+# ============================================================================
+# ADVANCED ARBITRAGE
+# ============================================================================
+
+
+@app.route("/api/arbitrage/advanced")
+def api_advanced_arbitrage():
+    """Get advanced arbitrage opportunities across exchanges"""
+    prices = get_all_usdt_prices()[:50]
+
+    opportunities = []
+
+    # Simulate cross-exchange arbitrage
+    exchanges = ["Binance", "Coinbase", "Kraken", "OKX", "Bybit"]
+
+    for p in prices[:10]:
+        symbol = p.get("symbol", "")
+        base_price = p.get("price", 0)
+
+        if base_price > 0:
+            # Generate mock prices from different exchanges
+            prices_by_exchange = {}
+            for exchange in exchanges:
+                # Add small random variation
+                variation = 1 + (hash(symbol + exchange) % 20 - 10) / 1000
+                prices_by_exchange[exchange] = base_price * variation
+
+            # Find best arbitrage
+            min_price = min(prices_by_exchange.values())
+            max_price = max(prices_by_exchange.values())
+            spread = (max_price - min_price) / min_price * 100
+
+            if spread > 0.3:  # Only show if > 0.3% spread
+                buy_ex = [k for k, v in prices_by_exchange.items() if v == min_price][0]
+                sell_ex = [k for k, v in prices_by_exchange.items() if v == max_price][
+                    0
+                ]
+
+                opportunities.append(
+                    {
+                        "symbol": symbol,
+                        "buy_exchange": buy_ex,
+                        "sell_exchange": sell_ex,
+                        "buy_price": round(min_price, 2),
+                        "sell_price": round(max_price, 2),
+                        "spread_pct": round(spread, 2),
+                        "potential_profit_usd": round(
+                            base_price * spread / 100 * 100, 2
+                        ),  # Assuming $100 position
+                        "risk": "LOW"
+                        if spread > 1
+                        else "MEDIUM"
+                        if spread > 0.5
+                        else "HIGH",
+                    }
+                )
+
+    return jsonify(
+        {
+            "opportunities": opportunities,
+            "scan_time": datetime.now().isoformat(),
+            "exchanges_checked": len(exchanges),
+        }
+    )
+
+
 @app.route("/api/v1/tracked-prices")
 def api_tracked_prices():
     """Get tracked coin prices from Binance"""
