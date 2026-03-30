@@ -3392,8 +3392,68 @@ def api_zeroclaw_skill():
 
 @app.route("/api/backtest/run", methods=["POST"])
 def api_backtest_run():
-    # Run backtest logic here
-    return redirect("/backtest")
+    """Run backtest for a strategy"""
+    symbol = request.form.get("symbol", "BTCUSDT")
+    strategy_name = request.form.get("strategy", "momentum")
+    start_date = request.form.get("start_date", "2024-01-01")
+    end_date = request.form.get("end_date", "2024-12-31")
+    initial_capital = float(request.form.get("capital", 10000))
+
+    # Fetch historical data for backtesting
+    try:
+        resp = requests.get(
+            f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=1000",
+            timeout=30,
+        )
+        if resp.status_code == 200:
+            klines = resp.json()
+
+            # Calculate returns based on strategy
+            prices = [float(k[4]) for k in klines]  # Close prices
+
+            if strategy_name == "momentum":
+                signals = []
+                for i in range(20, len(prices)):
+                    if prices[i] > prices[i - 20]:
+                        signals.append("BUY")
+                    else:
+                        signals.append("SELL")
+            else:
+                signals = ["HOLD"] * len(prices)
+
+            # Calculate P&L
+            trades = 0
+            wins = 0
+            pnl = 0
+
+            for i in range(1, len(signals)):
+                if signals[i] != signals[i - 1] and signals[i] == "BUY":
+                    trade_pnl = (
+                        (prices[min(i + 10, len(prices) - 1)] - prices[i])
+                        / prices[i]
+                        * 100
+                    )
+                    pnl += trade_pnl
+                    trades += 1
+                    if trade_pnl > 0:
+                        wins += 1
+
+            return jsonify(
+                {
+                    "success": True,
+                    "strategy": strategy_name,
+                    "symbol": symbol,
+                    "period": f"{start_date} to {end_date}",
+                    "initial_capital": initial_capital,
+                    "final_capital": round(initial_capital * (1 + pnl / 100), 2),
+                    "return_pct": round(pnl, 2),
+                    "total_trades": trades,
+                    "winning_trades": wins,
+                    "win_rate": round(wins / trades * 100, 1) if trades > 0 else 0,
+                }
+            )
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)[:100]})
 
 
 @app.route("/api/config/risk", methods=["POST"])
@@ -4119,79 +4179,6 @@ def api_advanced_arbitrage():
             "exchanges_checked": len(exchanges),
         }
     )
-
-
-# ============================================================================
-# BACKTEST ENDPOINTS
-# ============================================================================
-
-
-@app.route("/api/backtest/run", methods=["POST"])
-def api_backtest_run():
-    """Run backtest for a strategy"""
-    symbol = request.form.get("symbol", "BTCUSDT")
-    strategy = request.form.get("strategy", "momentum")
-    start_date = request.form.get("start_date", "2024-01-01")
-    end_date = request.form.get("end_date", "2024-12-31")
-    initial_capital = float(request.form.get("capital", 10000))
-
-    # Fetch historical data for backtesting
-    try:
-        resp = requests.get(
-            f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=1000",
-            timeout=30,
-        )
-        if resp.status_code == 200:
-            klines = resp.json()
-
-            # Calculate returns based on strategy
-            prices = [float(k[4]) for k in klines]  # Close prices
-
-            if strategy == "momentum":
-                # Simple momentum strategy
-                signals = []
-                for i in range(20, len(prices)):
-                    if prices[i] > prices[i - 20]:
-                        signals.append("BUY")
-                    else:
-                        signals.append("SELL")
-            else:
-                signals = ["HOLD"] * len(prices)
-
-            # Calculate P&L
-            trades = 0
-            wins = 0
-            pnl = 0
-
-            for i in range(1, len(signals)):
-                if signals[i] != signals[i - 1] and signals[i] == "BUY":
-                    # Simulate trade
-                    trade_pnl = (
-                        (prices[min(i + 10, len(prices) - 1)] - prices[i])
-                        / prices[i]
-                        * 100
-                    )
-                    pnl += trade_pnl
-                    trades += 1
-                    if trade_pnl > 0:
-                        wins += 1
-
-            return jsonify(
-                {
-                    "success": True,
-                    "strategy": strategy,
-                    "symbol": symbol,
-                    "period": f"{start_date} to {end_date}",
-                    "initial_capital": initial_capital,
-                    "final_capital": round(initial_capital * (1 + pnl / 100), 2),
-                    "return_pct": round(pnl, 2),
-                    "total_trades": trades,
-                    "winning_trades": wins,
-                    "win_rate": round(wins / trades * 100, 1) if trades > 0 else 0,
-                }
-            )
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)[:100]})
 
 
 # ============================================================================
