@@ -936,21 +936,6 @@ def prices():
     top_coins = [p["symbol"] for p in all_prices[:20]]
     return render_template("prices.html", prices=all_prices, tracked=top_coins)
 
-
-@app.route("/prices-simple")
-def prices_simple():
-    return """<!DOCTYPE html><html><head><title>Prices - IBT Trading Bot</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:20px;padding-bottom:80px}.nav{position:fixed;bottom:0;left:0;right:0;background:#1e293b;padding:12px;display:flex;justify-content:space-around}.nav-item{color:#94a3b8;text-decoration:none;display:flex;flex-direction:column;align-items:center;font-size:11px}.nav-item.active{color:#3b82f6}.card{background:#1e293b;padding:16px;border-radius:12px;margin-bottom:12px}</style></head><body><h1>📊 Prices</h1><div class="card"><div style=font-weight:bold;font-size:18px>BTC/USDT</div><div style=font-size:20px;font-weight:bold>$68,000</div><div style=color:#22c55e>+2.00%</div></div><nav class=nav><a href=/ class=nav-item>Home</a><a href=/prices class=nav-item active>Prices</a><a href=/portfolio class=nav-item>Portfolio</a><a href=/settings class=nav-item>Settings</a></nav></body></html>"""
-
-
-@app.route("/portfolio-simple")
-def portfolio_simple():
-    return """<!DOCTYPE html><html><head><title>Portfolio - IBT Trading Bot</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:20px;padding-bottom:80px}.nav{position:fixed;bottom:0;left:0;right:0;background:#1e293b;padding:12px;display:flex;justify-content:space-around}.nav-item{color:#94a3b8;text-decoration:none;display:flex;flex-direction:column;align-items:center;font-size:11px}.card{background:#1e293b;padding:20px;border-radius:12px;margin-bottom:12px}</style></head><body><h1>📁 Portfolio</h1><div class=card style=font-size:32px;font-weight:bold>$10,000.00</div><nav class=nav><a href=/ class=nav-item>Home</a><a href=/prices class=nav-item>Prices</a><a href=/portfolio class=nav-item active>Portfolio</a><a href=/settings class=nav-item>Settings</a></nav></body></html>"""
-
-
-@app.route("/settings-simple")
-def settings_simple():
-    return """<!DOCTYPE html><html><head><title>Settings - IBT Trading Bot</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:20px;padding-bottom:80px}.nav{position:fixed;bottom:0;left:0;right:0;background:#1e293b;padding:12px;display:flex;justify-content:space-around}.nav-item{color:#94a3b8;text-decoration:none;display:flex;flex-direction:column;align-items:center;font-size:11px}.card{background:#1e293b;padding:20px;border-radius:12px;margin-bottom:12px}.row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #334155}</style></head><body><h1>⚙️ Settings</h1><div class=card><div class=row><span>Trading Mode</span><span>PAPER</span></div><button style=background:#3b82f6;border:none;padding:12px;border-radius:8px;color:white;width:100%;margin-top:12px>Save</button></div><nav class=nav><a href=/ class=nav-item>Home</a><a href=/prices class=nav-item>Prices</a><a href=/portfolio class=nav-item>Portfolio</a><a href=/settings class=nav-item active>Settings</a></nav></body></html>"""
-
     # Dynamic categories based on market data
     top_coins = [p["symbol"] for p in all_prices[:20]]
 
