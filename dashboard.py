@@ -170,29 +170,75 @@ def catch_all(path):
 
 @app.route("/api/prices")
 def api_prices():
-    return jsonify([{"symbol": "BTC/USDT", "price": 68000, "change_24h": 0.02}])
+    """Get live prices for all tracked coins"""
+    prices = get_all_usdt_prices()
+    # Format for frontend
+    result = []
+    for p in prices[:100]:  # Top 100 coins
+        result.append(
+            {
+                "symbol": p.get("symbol", ""),
+                "price": p.get("price", 0),
+                "change_24h": p.get("change", 0),
+                "volume": p.get("volume", 0),
+                "icon": p.get("icon"),
+            }
+        )
+    return jsonify(result)
 
 
 @app.route("/api/portfolio")
 def api_portfolio():
+    """Get portfolio with real data"""
+    cfg = get_config()
+    mode = cfg.get("bot", {}).get("mode", "PAPER")
+
+    # Get stats from database
+    stats = get_portfolio_stats()
+
     return jsonify(
-        {"total_balance": 10000, "pnl": 0, "total_trades": 0, "positions": []}
+        {
+            "total_balance": stats.get("pnl", 10000),
+            "pnl": stats.get("pnl", 0),
+            "total_trades": stats.get("total_trades", 0),
+            "positions": get_positions(),
+            "mode": mode,
+        }
     )
 
 
 @app.route("/api/positions")
 def api_positions():
-    return jsonify([])
+    """Get open positions"""
+    return jsonify(get_positions())
 
 
 @app.route("/api/bot/status")
 def api_bot_status():
-    return jsonify({"mode": "paper", "running": False, "last_cycle": "N/A", "pnl": 0})
+    """Get bot status with real data"""
+    cfg = get_config()
+    mode = cfg.get("bot", {}).get("mode", "PAPER")
+    running = is_bot_running()
+    stats = get_portfolio_stats()
+
+    return jsonify(
+        {
+            "mode": mode,
+            "running": running,
+            "last_cycle": "N/A",
+            "pnl": stats.get("pnl", 0),
+            "active_positions": stats.get("active_positions", 0),
+            "win_rate": stats.get("win_rate", 0),
+        }
+    )
 
 
 @app.route("/api/alerts")
 def api_alerts():
-    return jsonify([])
+    """Get alerts"""
+    cfg = get_config()
+    alerts = cfg.get("alerts", [])
+    return jsonify(alerts[-10:])  # Last 10 alerts
 
 
 # ============================================================================
@@ -1968,9 +2014,9 @@ def api_get_orders():
 
 @app.route("/api/orders", methods=["POST"])
 def api_place_order():
-    """Place a new order"""
-    symbol = request.form.get("symbol", "")
-    side = request.form.get("side", "buy")
+    """Place a new order - supports both PAPER and LIVE trading"""
+    symbol = request.form.get("symbol", "").upper().replace("/", "")
+    side = request.form.get("side", "buy").lower()
     amount = float(request.form.get("amount", 0))
     price = float(request.form.get("price", 0))
 
@@ -1980,29 +2026,101 @@ def api_place_order():
     cfg = get_config()
     mode = cfg.get("bot", {}).get("mode", "PAPER")
 
-    # Create order record
-    order = {
-        "symbol": symbol,
-        "side": side,
-        "amount": amount,
-        "price": price,
-        "status": "filled" if mode == "PAPER" else "pending",
-        "mode": mode,
-        "timestamp": datetime.now().isoformat(),
-    }
+    order_result = None
+    live_error = None
 
-    # Save to config (in production, save to database)
+    # Execute LIVE trade if in LIVE mode
+    if mode == "LIVE":
+        binance_config = cfg.get("binance", {})
+        api_key = binance_config.get("api_key", "")
+        api_secret = binance_config.get("secret", "")
+
+        if not api_key or not api_secret:
+            live_error = "Binance API keys not configured"
+            mode = "PAPER"  # Fall back to paper
+        else:
+            try:
+                import hmac
+                import hashlib
+                import urllib.parse
+
+                # Create Binance order
+                timestamp = int(time.time() * 1000)
+                symbol_for_binance = (
+                    f"{symbol}USDT" if not symbol.endswith("USDT") else symbol
+                )
+
+                # Prepare order parameters
+                params = {
+                    "symbol": symbol_for_binance,
+                    "side": side.upper(),
+                    "type": "MARKET" if price == 0 else "LIMIT",
+                    "quantity": amount,
+                    "timestamp": timestamp,
+                }
+                if price > 0:
+                    params["price"] = price
+                    params["timeInForce"] = "GTC"
+
+                # Create signature
+                query_string = urllib.parse.urlencode(params)
+                signature = hmac.new(
+                    api_secret.encode("utf-8"),
+                    query_string.encode("utf-8"),
+                    hashlib.sha256,
+                ).hexdigest()
+
+                headers = {"X-MBX-APIKEY": api_key}
+                url = f"https://api.binance.com/api/v3/order?{query_string}&signature={signature}"
+
+                response = requests.post(url, headers=headers, timeout=10)
+
+                if response.status_code == 200:
+                    order_result = response.json()
+                    order = {
+                        "symbol": symbol,
+                        "side": side,
+                        "amount": amount,
+                        "price": price,
+                        "status": "filled",
+                        "mode": "LIVE",
+                        "order_id": order_result.get("orderId"),
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                else:
+                    live_error = f"Binance error: {response.status_code}"
+                    mode = "PAPER"
+
+            except Exception as e:
+                live_error = str(e)[:100]
+                mode = "PAPER"
+
+    # Create order record (paper mode or fallback)
+    if mode == "PAPER":
+        order = {
+            "symbol": symbol,
+            "side": side,
+            "amount": amount,
+            "price": price,
+            "status": "filled",
+            "mode": "PAPER",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    # Save to config
     if "orders" not in cfg:
         cfg["orders"] = []
     cfg["orders"].insert(0, order)
-    cfg["orders"] = cfg["orders"][:100]  # Keep last 100
+    cfg["orders"] = cfg["orders"][:100]
     save_config(cfg)
 
     return jsonify(
         {
             "success": True,
             "order": order,
-            "message": f"Order {'placed' if mode == 'PAPER' else 'submitted'} in {mode} mode",
+            "mode": order.get("mode"),
+            "message": f"Order {'executed' if mode == 'LIVE' else 'placed'} in {mode} mode"
+            + (f" ({live_error})" if live_error else ""),
         }
     )
 
