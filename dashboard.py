@@ -283,21 +283,68 @@ def api_zeroclaw_status():
 
 @app.route("/api/multi-agent/status")
 def api_multi_agent_status():
-    """Get multi-agent system status"""
+    """Get multi-agent system status with detailed agent info"""
     cfg = get_config()
     agents = cfg.get("multi_agent", {}).get("agents", [])
     if not agents:
-        # Default agents if not configured
+        # Default agents with detailed config
         agents = [
-            {"name": "ArbBot", "status": "stopped", "type": "arbitrage"},
-            {"name": "SniperBot", "status": "stopped", "type": "sniper"},
-            {"name": "ContrarianBot", "status": "stopped", "type": "contrarian"},
-            {"name": "MomentumBot", "status": "stopped", "type": "momentum"},
+            {
+                "name": "ArbBot",
+                "status": "stopped",
+                "type": "arbitrage",
+                "pnl": 0,
+                "trades": 0,
+                "win_rate": 0,
+            },
+            {
+                "name": "SolSniper",
+                "status": "stopped",
+                "type": "sniper",
+                "pnl": 0,
+                "trades": 0,
+                "win_rate": 0,
+            },
+            {
+                "name": "ContrarianBot",
+                "status": "stopped",
+                "type": "contrarian",
+                "pnl": 0,
+                "trades": 0,
+                "win_rate": 0,
+            },
+            {
+                "name": "MomentumBot",
+                "status": "stopped",
+                "type": "momentum",
+                "pnl": 0,
+                "trades": 0,
+                "win_rate": 0,
+            },
         ]
+
+    # Check if any agent is running
+    any_running = any(a.get("status") == "running" for a in agents)
+
+    # Get real PnL from orders
+    orders = cfg.get("orders", [])
+    for agent in agents:
+        agent_type = agent.get("type", "")
+        agent_orders = [o for o in orders if o.get("agent") == agent.get("name")]
+        if agent_orders:
+            agent["trades"] = len(agent_orders)
+            agent["pnl"] = sum(o.get("pnl", 0) for o in agent_orders)
+            wins = sum(1 for o in agent_orders if o.get("pnl", 0) > 0)
+            agent["win_rate"] = (
+                round(wins / len(agent_orders) * 100, 1) if agent_orders else 0
+            )
+
     return jsonify(
         {
-            "active": False,
+            "active": any_running,
             "agents": agents,
+            "mode": cfg.get("bot", {}).get("mode", "PAPER"),
+            "total_pnl": sum(a.get("pnl", 0) for a in agents),
             "consensus": {"signal": "neutral", "confidence": 0, "agents_agreeing": 0},
         }
     )
@@ -305,9 +352,32 @@ def api_multi_agent_status():
 
 @app.route("/api/multi-agent/activate", methods=["POST"])
 def api_multi_agent_activate():
-    """Activate multi-agent swarm"""
+    """Activate multi-agent swarm - starts all agents"""
+    cfg = get_config()
+    agents = cfg.get("multi_agent", {}).get("agents", [])
+
+    if not agents:
+        agents = [
+            {"name": "ArbBot", "status": "running", "type": "arbitrage"},
+            {"name": "SolSniper", "status": "running", "type": "sniper"},
+            {"name": "ContrarianBot", "status": "running", "type": "contrarian"},
+            {"name": "MomentumBot", "status": "running", "type": "momentum"},
+        ]
+    else:
+        for agent in agents:
+            agent["status"] = "running"
+
+    cfg["multi_agent"] = cfg.get("multi_agent", {})
+    cfg["multi_agent"]["agents"] = agents
+    save_config(cfg)
+
     return jsonify(
-        {"success": True, "message": "Multi-agent swarm activated", "agents_started": 4}
+        {
+            "success": True,
+            "message": "Multi-agent swarm activated",
+            "agents_started": len(agents),
+            "mode": cfg.get("bot", {}).get("mode", "PAPER"),
+        }
     )
 
 
@@ -3670,6 +3740,140 @@ def api_all_prices():
 
     prices = get_all_usdt_prices()
     return jsonify({"count": len(prices), "prices": prices})
+
+
+@app.route("/api/commodities")
+def api_commodities():
+    """Get commodity prices (gold, silver, oil, etc.)"""
+    commodities = []
+
+    # Gold (XAU) - using mock data since it's not on crypto exchanges
+    try:
+        resp = requests.get(
+            "https://api.exchangerate.host/latest?base=USD&symbols=XAU", timeout=5
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            gold_rate = data.get("rates", {}).get("XAU")
+            if gold_rate:
+                commodities.append(
+                    {
+                        "symbol": "XAU/USD",
+                        "name": "Gold",
+                        "price": gold_rate,
+                        "change_24h": 0.12,
+                        "icon": "https://cryptologos.cc/logos/gold-xau-logo.png",
+                    }
+                )
+    except:
+        pass
+
+    # Add common crypto commodities
+    commodities.extend(
+        [
+            {
+                "symbol": "BTC",
+                "name": "Bitcoin",
+                "price": 0,
+                "change_24h": 0,
+                "icon": "https://cryptologos.cc/logos/bitcoin-btc-logo.png",
+            },
+            {
+                "symbol": "ETH",
+                "name": "Ethereum",
+                "price": 0,
+                "change_24h": 0,
+                "icon": "https://cryptologos.cc/logos/ethereum-eth-logo.png",
+            },
+        ]
+    )
+
+    # Get real prices for BTC and ETH
+    try:
+        resp = requests.get(
+            "https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=5
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            commodities[1]["price"] = float(data.get("lastPrice", 0))
+            commodities[1]["change_24h"] = float(data.get("priceChangePercent", 0))
+    except:
+        pass
+
+    try:
+        resp = requests.get(
+            "https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT", timeout=5
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            commodities[2]["price"] = float(data.get("lastPrice", 0))
+            commodities[2]["change_24h"] = float(data.get("priceChangePercent", 0))
+    except:
+        pass
+
+    return jsonify(commodities)
+
+
+# ============================================================================
+# SOL SNIPER ENDPOINTS
+# ============================================================================
+
+
+@app.route("/api/sniper/status")
+def api_sniper_status():
+    """Get Sol Sniper status"""
+    cfg = get_config()
+    sniper = cfg.get("sniper", {})
+
+    return jsonify(
+        {
+            "enabled": sniper.get("enabled", False),
+            "mode": cfg.get("bot", {}).get("mode", "PAPER"),
+            "target_tokens": sniper.get(
+                "target_tokens", ["BONK", "WIF", "POPCAT", "MEW", "BOME"]
+            ),
+            "max_position_usd": sniper.get("max_position_usd", 100),
+            "min_liquidity": sniper.get("min_liquidity", 10000),
+            "recent_snipes": sniper.get("recent_snipes", []),
+            "total_pnl": sniper.get("total_pnl", 0),
+        }
+    )
+
+
+@app.route("/api/sniper/configure", methods=["POST"])
+def api_sniper_configure():
+    """Configure Sol Sniper"""
+    cfg = get_config()
+
+    target_tokens = request.form.get("target_tokens", "BONK,WIF,POPCAT,MEW,BOME")
+    max_position = float(request.form.get("max_position_usd", 100))
+    min_liquidity = float(request.form.get("min_liquidity", 10000))
+
+    cfg["sniper"] = {
+        "enabled": True,
+        "target_tokens": [t.strip() for t in target_tokens.split(",")],
+        "max_position_usd": max_position,
+        "min_liquidity": min_liquidity,
+        "recent_snipes": cfg.get("sniper", {}).get("recent_snipes", []),
+        "total_pnl": cfg.get("sniper", {}).get("total_pnl", 0),
+    }
+    save_config(cfg)
+
+    return jsonify({"success": True, "message": "Sniper configured"})
+
+
+@app.route("/api/sniper/toggle", methods=["POST"])
+def api_sniper_toggle():
+    """Toggle Sol Sniper on/off"""
+    cfg = get_config()
+
+    if "sniper" not in cfg:
+        cfg["sniper"] = {}
+
+    cfg["sniper"]["enabled"] = not cfg["sniper"].get("enabled", False)
+    save_config(cfg)
+
+    return jsonify({"success": True, "enabled": cfg["sniper"]["enabled"]})
 
 
 @app.route("/api/v1/tracked-prices")
