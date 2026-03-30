@@ -4121,6 +4121,218 @@ def api_advanced_arbitrage():
     )
 
 
+# ============================================================================
+# BACKTEST ENDPOINTS
+# ============================================================================
+
+
+@app.route("/api/backtest/run", methods=["POST"])
+def api_backtest_run():
+    """Run backtest for a strategy"""
+    symbol = request.form.get("symbol", "BTCUSDT")
+    strategy = request.form.get("strategy", "momentum")
+    start_date = request.form.get("start_date", "2024-01-01")
+    end_date = request.form.get("end_date", "2024-12-31")
+    initial_capital = float(request.form.get("capital", 10000))
+
+    # Fetch historical data for backtesting
+    try:
+        resp = requests.get(
+            f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=1000",
+            timeout=30,
+        )
+        if resp.status_code == 200:
+            klines = resp.json()
+
+            # Calculate returns based on strategy
+            prices = [float(k[4]) for k in klines]  # Close prices
+
+            if strategy == "momentum":
+                # Simple momentum strategy
+                signals = []
+                for i in range(20, len(prices)):
+                    if prices[i] > prices[i - 20]:
+                        signals.append("BUY")
+                    else:
+                        signals.append("SELL")
+            else:
+                signals = ["HOLD"] * len(prices)
+
+            # Calculate P&L
+            trades = 0
+            wins = 0
+            pnl = 0
+
+            for i in range(1, len(signals)):
+                if signals[i] != signals[i - 1] and signals[i] == "BUY":
+                    # Simulate trade
+                    trade_pnl = (
+                        (prices[min(i + 10, len(prices) - 1)] - prices[i])
+                        / prices[i]
+                        * 100
+                    )
+                    pnl += trade_pnl
+                    trades += 1
+                    if trade_pnl > 0:
+                        wins += 1
+
+            return jsonify(
+                {
+                    "success": True,
+                    "strategy": strategy,
+                    "symbol": symbol,
+                    "period": f"{start_date} to {end_date}",
+                    "initial_capital": initial_capital,
+                    "final_capital": round(initial_capital * (1 + pnl / 100), 2),
+                    "return_pct": round(pnl, 2),
+                    "total_trades": trades,
+                    "winning_trades": wins,
+                    "win_rate": round(wins / trades * 100, 1) if trades > 0 else 0,
+                }
+            )
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)[:100]})
+
+
+# ============================================================================
+# MARKET DATA ENDPOINTS
+# ============================================================================
+
+
+@app.route("/api/market/movers")
+def api_market_movers():
+    """Get top gainers and losers"""
+    prices = get_all_usdt_prices()[:100]
+
+    # Sort by change
+    gainers = sorted(
+        [p for p in prices if p.get("change", 0) > 0],
+        key=lambda x: x.get("change", 0),
+        reverse=True,
+    )[:10]
+    losers = sorted(
+        [p for p in prices if p.get("change", 0) < 0], key=lambda x: x.get("change", 0)
+    )[:10]
+
+    return jsonify(
+        {
+            "gainers": [
+                {
+                    "symbol": p.get("symbol"),
+                    "price": p.get("price"),
+                    "change_24h": p.get("change"),
+                }
+                for p in gainers
+            ],
+            "losers": [
+                {
+                    "symbol": p.get("symbol"),
+                    "price": p.get("price"),
+                    "change_24h": p.get("change"),
+                }
+                for p in losers
+            ],
+        }
+    )
+
+
+@app.route("/api/market/volume")
+def api_market_volume():
+    """Get highest volume coins"""
+    prices = get_all_usdt_prices()[:100]
+
+    # Sort by volume
+    by_volume = sorted(prices, key=lambda x: x.get("volume", 0), reverse=True)[:20]
+
+    return jsonify(
+        {
+            "coins": [
+                {
+                    "symbol": p.get("symbol"),
+                    "price": p.get("price"),
+                    "volume_24h": p.get("volume"),
+                    "change_24h": p.get("change"),
+                }
+                for p in by_volume
+            ]
+        }
+    )
+
+
+@app.route("/api/market/categories")
+def api_market_categories():
+    """Get coins by category"""
+    categories = {
+        "Layer 1": ["BTC", "ETH", "SOL", "AVAX", "ATOM", "DOT", "ADA", "XLM"],
+        "DeFi": ["UNI", "AAVE", "MKR", "COMP", "SUSHI", "CRV"],
+        "AI/Crypto": ["FET", "AGIX", "RNDR", "OCEAN"],
+        "Meme": ["DOGE", "SHIB", "PEPE", "WIF", "BONK"],
+        "Stablecoins": ["USDC", "USDT", "DAI", "BUSD"],
+    }
+
+    prices = get_all_usdt_prices()
+    price_map = {p.get("symbol"): p for p in prices}
+
+    result = {}
+    for cat, symbols in categories.items():
+        result[cat] = []
+        for sym in symbols:
+            if sym in price_map:
+                p = price_map[sym]
+                result[cat].append(
+                    {
+                        "symbol": sym,
+                        "price": p.get("price"),
+                        "change_24h": p.get("change"),
+                    }
+                )
+
+    return jsonify(result)
+
+
+# ============================================================================
+# CONFIG EXPORT/IMPORT
+# ============================================================================
+
+
+@app.route("/api/config/export")
+def api_config_export():
+    """Export configuration (without sensitive data)"""
+    cfg = get_config()
+
+    # Mask sensitive data
+    export = cfg.copy()
+    if "binance" in export:
+        export["binance"]["api_key"] = (
+            "****" if export["binance"].get("api_key") else ""
+        )
+        export["binance"]["secret"] = "****" if export["binance"].get("secret") else ""
+    if "credentials" in export:
+        for k in export["credentials"]:
+            if export["credentials"][k]:
+                export["credentials"][k] = "****"
+
+    return jsonify(export)
+
+
+@app.route("/api/config/import", methods=["POST"])
+def api_config_import():
+    """Import configuration"""
+    try:
+        config_str = request.form.get("config", "{}")
+        import json
+
+        new_cfg = json.loads(config_str)
+
+        cfg = get_config()
+        cfg.update(new_cfg)
+        save_config(cfg)
+
+        return jsonify({"success": True, "message": "Configuration imported"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)[:100]})
+
+
 @app.route("/api/v1/tracked-prices")
 def api_tracked_prices():
     """Get tracked coin prices from Binance"""
