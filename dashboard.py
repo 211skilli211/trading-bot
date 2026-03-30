@@ -1941,56 +1941,8 @@ def api_agent_config(name):
 
 
 # ============================================================================
-# WALLET CONNECTION (Phase 3)
+# WALLET CONNECTION - Using existing endpoints (Phase 3 additions already exist)
 # ============================================================================
-
-
-@app.route("/api/wallet/connect", methods=["POST"])
-def api_wallet_connect():
-    """Connect wallet"""
-    wallet_type = request.form.get("type", "metamask")
-    address = request.form.get("address", "")
-
-    cfg = get_config()
-    cfg["wallet"] = {
-        "type": wallet_type,
-        "address": address,
-        "connected": bool(address),
-        "connected_at": datetime.now().isoformat(),
-    }
-    save_config(cfg)
-    return jsonify({"success": True, "type": wallet_type, "address": address})
-
-
-@app.route("/api/wallet/disconnect", methods=["POST"])
-def api_wallet_disconnect():
-    """Disconnect wallet"""
-    cfg = get_config()
-    if "wallet" in cfg:
-        cfg["wallet"]["connected"] = False
-        cfg["wallet"]["address"] = ""
-        save_config(cfg)
-    return jsonify({"success": True, "message": "Wallet disconnected"})
-
-
-@app.route("/api/wallet/balance")
-def api_wallet_balance():
-    """Get wallet balance"""
-    cfg = get_config()
-    wallet = cfg.get("wallet", {})
-    if not wallet.get("connected"):
-        return jsonify({"connected": False, "balance": 0})
-
-    # Return mock balance for now
-    return jsonify(
-        {
-            "connected": True,
-            "type": wallet.get("type"),
-            "address": wallet.get("address"),
-            "balance": 0,
-            "tokens": [],
-        }
-    )
 
 
 # ============================================================================
