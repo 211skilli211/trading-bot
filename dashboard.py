@@ -1849,8 +1849,210 @@ def api_toggle_mode():
 
 @app.route("/api/strategies/<name>/toggle", methods=["POST"])
 def api_toggle_strategy(name):
-    toggle_strategy(name)
-    return redirect("/strategies")
+    cfg = get_config()
+    if "strategies" not in cfg:
+        cfg["strategies"] = {}
+    if name in cfg["strategies"]:
+        current = cfg["strategies"][name].get("enabled", False)
+        cfg["strategies"][name]["enabled"] = not current
+        save_config(cfg)
+        return jsonify({"success": True, "name": name, "enabled": not current})
+    return jsonify({"success": False, "error": "Strategy not found"})
+
+
+@app.route("/api/strategies/<name>")
+def api_get_strategy(name):
+    """Get strategy details"""
+    cfg = get_config()
+    strategies = cfg.get("strategies", {})
+    if name in strategies:
+        return jsonify({"id": name, **strategies[name]})
+    return jsonify({"error": "Strategy not found"}), 404
+
+
+# ============================================================================
+# MULTI-AGENT CONTROL (Phase 3)
+# ============================================================================
+
+
+@app.route("/api/multi-agent/agent/<name>/start", methods=["POST"])
+def api_agent_start(name):
+    """Start a specific agent"""
+    cfg = get_config()
+    if "multi_agent" not in cfg:
+        cfg["multi_agent"] = {"agents": []}
+
+    agents = cfg["multi_agent"].get("agents", [])
+    found = False
+    for agent in agents:
+        if agent.get("name") == name:
+            agent["status"] = "running"
+            found = True
+
+    if not found:
+        agents.append({"name": name, "status": "running", "type": "trading"})
+
+    cfg["multi_agent"]["agents"] = agents
+    save_config(cfg)
+    return jsonify({"success": True, "message": f"Agent {name} started"})
+
+
+@app.route("/api/multi-agent/agent/<name>/stop", methods=["POST"])
+def api_agent_stop(name):
+    """Stop a specific agent"""
+    cfg = get_config()
+    agents = cfg.get("multi_agent", {}).get("agents", [])
+    for agent in agents:
+        if agent.get("name") == name:
+            agent["status"] = "stopped"
+    cfg["multi_agent"]["agents"] = agents
+    save_config(cfg)
+    return jsonify({"success": True, "message": f"Agent {name} stopped"})
+
+
+@app.route("/api/multi-agent/agent/<name>/config", methods=["POST"])
+def api_agent_config(name):
+    """Configure an agent"""
+    cfg = get_config()
+    config_data = request.form.get("config", "{}")
+    try:
+        import json
+
+        config = json.loads(config_data)
+    except:
+        config = {}
+
+    if "multi_agent" not in cfg:
+        cfg["multi_agent"] = {"agents": []}
+
+    agents = cfg["multi_agent"].get("agents", [])
+    found = False
+    for agent in agents:
+        if agent.get("name") == name:
+            agent.update(config)
+            found = True
+
+    if not found:
+        agents.append({"name": name, "status": "stopped", **config})
+
+    cfg["multi_agent"]["agents"] = agents
+    save_config(cfg)
+    return jsonify({"success": True, "message": f"Agent {name} configured"})
+
+
+# ============================================================================
+# WALLET CONNECTION (Phase 3)
+# ============================================================================
+
+
+@app.route("/api/wallet/connect", methods=["POST"])
+def api_wallet_connect():
+    """Connect wallet"""
+    wallet_type = request.form.get("type", "metamask")
+    address = request.form.get("address", "")
+
+    cfg = get_config()
+    cfg["wallet"] = {
+        "type": wallet_type,
+        "address": address,
+        "connected": bool(address),
+        "connected_at": datetime.now().isoformat(),
+    }
+    save_config(cfg)
+    return jsonify({"success": True, "type": wallet_type, "address": address})
+
+
+@app.route("/api/wallet/disconnect", methods=["POST"])
+def api_wallet_disconnect():
+    """Disconnect wallet"""
+    cfg = get_config()
+    if "wallet" in cfg:
+        cfg["wallet"]["connected"] = False
+        cfg["wallet"]["address"] = ""
+        save_config(cfg)
+    return jsonify({"success": True, "message": "Wallet disconnected"})
+
+
+@app.route("/api/wallet/balance")
+def api_wallet_balance():
+    """Get wallet balance"""
+    cfg = get_config()
+    wallet = cfg.get("wallet", {})
+    if not wallet.get("connected"):
+        return jsonify({"connected": False, "balance": 0})
+
+    # Return mock balance for now
+    return jsonify(
+        {
+            "connected": True,
+            "type": wallet.get("type"),
+            "address": wallet.get("address"),
+            "balance": 0,
+            "tokens": [],
+        }
+    )
+
+
+# ============================================================================
+# ORDER EXECUTION (Phase 3)
+# ============================================================================
+
+
+@app.route("/api/orders", methods=["GET"])
+def api_get_orders():
+    """Get order history"""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM trades ORDER BY timestamp DESC LIMIT 50")
+        columns = [desc[0] for desc in cur.description]
+        orders = []
+        for row in cur.fetchall():
+            orders.append(dict(zip(columns, row)))
+        return jsonify({"orders": orders, "count": len(orders)})
+    except:
+        return jsonify({"orders": [], "count": 0})
+
+
+@app.route("/api/orders", methods=["POST"])
+def api_place_order():
+    """Place a new order"""
+    symbol = request.form.get("symbol", "")
+    side = request.form.get("side", "buy")
+    amount = float(request.form.get("amount", 0))
+    price = float(request.form.get("price", 0))
+
+    if not symbol or amount <= 0:
+        return jsonify({"success": False, "error": "Invalid order parameters"})
+
+    cfg = get_config()
+    mode = cfg.get("bot", {}).get("mode", "PAPER")
+
+    # Create order record
+    order = {
+        "symbol": symbol,
+        "side": side,
+        "amount": amount,
+        "price": price,
+        "status": "filled" if mode == "PAPER" else "pending",
+        "mode": mode,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    # Save to config (in production, save to database)
+    if "orders" not in cfg:
+        cfg["orders"] = []
+    cfg["orders"].insert(0, order)
+    cfg["orders"] = cfg["orders"][:100]  # Keep last 100
+    save_config(cfg)
+
+    return jsonify(
+        {
+            "success": True,
+            "order": order,
+            "message": f"Order {'placed' if mode == 'PAPER' else 'submitted'} in {mode} mode",
+        }
+    )
 
 
 @app.route("/api/config/strategy", methods=["POST"])
