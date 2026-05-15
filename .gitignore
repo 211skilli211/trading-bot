@@ -64,6 +64,7 @@ Cargo.lock
 
 # ZeroClaw sensitive files
 .encrypted_keys
+.polymarket_keys.json
 .zeroclaw/config.toml
 .zeroclaw/config_personal.toml
 
