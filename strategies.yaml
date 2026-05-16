@@ -1,0 +1,229 @@
+strategies:
+  binary_arbitrage:
+    enabled: true
+    name: Binary Arbitrage
+    description: PolyMarket YES/NO arbitrage
+    prompt: Monitors PolyMarket for YES/NO discrepancies. Buys YES on one outcome
+      and NO on another when spread > threshold. Profit when markets converge.
+    min_spread_pct: 1.0
+    max_position_usd: 10
+    max_concurrent_arbs: 3
+    check_interval_seconds: 120
+  sniper:
+    enabled: true
+    name: 15-Min Sniper
+    description: Momentum sniper for 15-min markets
+    prompt: Enter trades within entry_window after momentum threshold exceeded. Quick
+      exits within 15 minutes. Use circuit_breaker to stop after X consecutive losses.
+    momentum_threshold: 0.1
+    max_position_usd: 10
+    entry_window_seconds: 60
+    max_concurrent_trades: 3
+    allowed_tokens:
+    - BTC
+    - ETH
+    - SOL
+    circuit_breaker_losses: 3
+  contrarian:
+    enabled: true
+    name: Contrarian
+    description: Mean reversion / fade the crowd
+    prompt: Buy when RSI oversold (<30), sell when RSI overbought (>70). Uses funding
+      rate to filter - enter shorts when funding > threshold.
+    rsi_period: 14
+    rsi_oversold: 30
+    rsi_overbought: 70
+    use_funding_rate: true
+    funding_threshold: 0.01
+    max_position_usd: 10
+    stop_loss_pct: 0.019200000000000002
+    take_profit_pct: 0.029399999999999996
+    symbols:
+    - BTC/USDT
+    - ETH/USDT
+    - SOL/USDT
+  momentum:
+    enabled: false
+    name: Momentum
+    description: Trend following with volume confirmation
+    prompt: Enter when SMA fast crosses above SMA slow with volume surge. Exit on
+      stop loss or take profit.
+    sma_fast: 20
+    sma_slow: 50
+    volume_threshold: 1.5
+    min_price_change_pct: 2.0
+    max_position_usd: 10
+    stop_loss_pct: 0.019200000000000002
+    take_profit_pct: 0.0441
+    symbols:
+    - BTC/USDT
+    - ETH/USDT
+    - SOL/USDT
+    - BNB/USDT
+  pairs_trading:
+    enabled: false
+    name: Pairs Trading
+    description: Statistical arbitrage between correlated pairs
+    prompt: Monitor correlated pairs (BTC/ETH). Enter when spread deviates > z-score
+      threshold. Exit when spread returns to mean. Market neutral strategy.
+    pair_1: BTC/USDT
+    pair_2: ETH/USDT
+    lookback_period: 100
+    entry_zscore: 2.0
+    exit_zscore: 0.5
+    max_position_usd: 10
+    stop_loss_zscore: 3.5
+  vwap_reversion:
+    enabled: true
+    name: VWAP Reversion
+    description: Mean reversion to VWAP
+    prompt: Buy when price drops below VWAP by 2 std devs. Sell when price returns
+      to VWAP. Works best in ranging markets.
+    vwap_period: 1d
+    std_dev_entry: 2.0
+    std_dev_exit: 0.5
+    max_position_usd: 10
+    symbols:
+    - BTC/USDT
+    - ETH/USDT
+  grid_trading:
+    enabled: false
+    name: Grid Trading
+    description: Buy low, sell high in price ranges
+    prompt: Place buy orders at grid levels below current price, sell orders above.
+      Profit from range-bound movement.
+    grid_levels: 10
+    grid_range_pct: 5.0
+    order_size_usd: 10
+    symbols:
+    - BTC/USDT
+    - ETH/USDT
+  breakout:
+    enabled: false
+    name: Breakout
+    description: Trade breakouts from consolidation
+    prompt: Enter when price breaks above highest high of lookback period with volume
+      confirmation. Exit on stop loss or take profit.
+    lookback_period: 20
+    breakout_threshold_pct: 3.0
+    volume_confirm: true
+    max_position_usd: 10
+    stop_loss_pct: 0.0128
+    symbols:
+    - BTC/USDT
+    - ETH/USDT
+    - SOL/USDT
+  scalping:
+    enabled: true
+    name: Scalping
+    description: Quick trades on small price movements
+    prompt: Very short timeframe (1m) trades. Enter on small spread, exit quickly.
+      High frequency, low profit per trade.
+    timeframe: 1m
+    min_spread: 0.05
+    max_position_usd: 10
+    profit_target_pct: 0.1
+    max_hold_time_minutes: 5
+    symbols:
+    - BTC/USDT
+    - ETH/USDT
+  dca:
+    enabled: false
+    name: DCA
+    description: Dollar Cost Averaging
+    prompt: Buy fixed amount at regular intervals regardless of price. Long-term accumulation
+      strategy. No selling.
+    investment_amount_usd: 10
+    interval_hours: 24
+    symbols:
+    - BTC/USDT
+    - ETH/USDT
+  high_risk:
+    enabled: false
+    name: YOLO
+    description: High risk, high reward gambles
+    prompt: High risk with leverage. Only for experienced traders. Small position
+      size. Can wipe account - use with caution.
+    max_position_usd: 10
+    leverage: 3
+    stop_loss_pct: 0.096
+    take_profit_pct: 0.147
+    max_consecutive_losses: 2
+    symbols:
+    - BTC/USDT
+    - ETH/USDT
+    - SOL/USDT
+    - DOGE/USDT
+    - SHIB/USDT
+  minervini_sea:
+    id: minervini_sea
+    name: Minervini SEA
+    description: Mark Minervini's Specific Entry Point Analysis - momentum strategy
+      with VCP entries
+    prompt: Momentum strategy based on Mark Minervini's rules. Look for stocks in
+      uptrend with VCP (Volatility Contraction Pattern).
+    enabled: false
+    risk: high
+    max_position_usd: 10000
+    check_interval_seconds: 300
+    stop_loss_pct: 0.07
+    take_profit_pct: 0.3
+    max_concurrent: 6
+    params:
+      account_size: 100000
+      risk_per_trade: 1.0
+      min_rs_rating: 70
+      vcp_min_contractions: 2
+      volume_surge_ratio: 1.4
+      trailing_stop_activation: 2.5
+  mean_reversion:
+    enabled: true
+    name: Mean Reversion
+    description: Buy dips, sell rallies based on price deviation from moving average
+    max_position_usd: 10
+    stop_loss_pct: 0.02
+    take_profit_pct: 0.04
+    check_interval_seconds: 60
+    ma_period: 20
+    deviation_threshold: 0.02
+    symbols:
+    - BTC/USDT
+    - ETH/USDT
+    - SOL/USDT
+strategy:
+  min_spread: 0.01
+multi_agent:
+  enabled: true
+  kill_threshold_losses: 3
+  kill_percentage: 0.2
+  scale_winners_pct: 0.25
+  rebalance_frequency_hours: 24
+  agents:
+  - name: ArbBot
+    strategy: binary_arbitrage
+    capital: 50
+    risk: low
+  - name: SniperBot
+    strategy: sniper
+    capital: 50
+    risk: medium
+  - name: ContrarianBot
+    strategy: contrarian
+    capital: 25
+    risk: medium
+  - name: MomentumBot
+    strategy: momentum
+    capital: 25
+    risk: medium
+  - name: PairsBot
+    strategy: pairs_trading
+    capital: 25
+    risk: low
+  - name: YOLOBot
+    strategy: high_risk
+    capital: 10
+    risk: very_high
+backtest:
+  default_days: 30
+  fee_rate: 0.001
+  initial_balance: 10000

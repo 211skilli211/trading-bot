@@ -35,7 +35,7 @@ from alerts import AlertManager
 
 # Live trading execution
 try:
-    from execution_layer_live import CEXTrader, ExecutionMode as LiveExecutionMode
+    from execution_layer_v2 import CEXTrader, ExecutionMode as LiveExecutionMode
     LIVE_TRADING_AVAILABLE = True
 except ImportError:
     LIVE_TRADING_AVAILABLE = False

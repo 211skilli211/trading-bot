@@ -10,6 +10,7 @@ New Features:
 - Enhanced error recovery mechanisms
 """
 
+import os
 import requests
 import time
 import json
@@ -1063,3 +1064,179 @@ if __name__ == "__main__":
     
     # Cleanup
     executor.stop()
+
+
+# =============================================================================
+# Live Trading Classes (merged from execution_layer_live.py)
+# =============================================================================
+
+class LiveExecutionResult:
+    """Result of a live trade execution"""
+    def __init__(self, success=False, order_id=None, filled_price=None,
+                 filled_amount=None, fee=None, error=None, timestamp=None,
+                 raw_response=None):
+        self.success = success
+        self.order_id = order_id
+        self.filled_price = filled_price
+        self.filled_amount = filled_amount
+        self.fee = fee
+        self.error = error
+        self.timestamp = timestamp or datetime.now(timezone.utc).isoformat()
+        self.raw_response = raw_response
+
+
+class CEXTrader:
+    """Centralized Exchange Trading via CCXT"""
+
+    EXCHANGE_MAP = {
+        "binance": "binance",
+        "coinbase": "coinbase",
+        "kraken": "kraken",
+        "bybit": "bybit",
+        "kucoin": "kucoin",
+    }
+
+    def __init__(self):
+        self.exchanges = {}
+        self._ccxt_available = False
+        try:
+            import ccxt
+            self._ccxt_available = True
+            self._ccxt = ccxt
+        except ImportError:
+            logger.warning("[CEXTrader] CCXT not available")
+        self._init_exchanges()
+
+    def _init_exchanges(self):
+        if not self._ccxt_available:
+            return
+        ccxt = self._ccxt
+        pairs = [
+            ("binance", "BINANCE_API_KEY", "BINANCE_SECRET"),
+            ("coinbase", "COINBASE_API_KEY", "COINBASE_SECRET"),
+            ("kraken", "KRAKEN_API_KEY", "KRAKEN_SECRET"),
+        ]
+        for name, key_var, secret_var in pairs:
+            key, secret = os.getenv(key_var), os.getenv(secret_var)
+            if key and secret:
+                try:
+                    kwargs = {"apiKey": key, "secret": secret, "enableRateLimit": True}
+                    if name == "binance":
+                        kwargs["options"] = {"defaultType": "spot"}
+                    self.exchanges[name] = getattr(ccxt, name)(kwargs)
+                    logger.info(f"[CEXTrader] {name} initialized")
+                except Exception as e:
+                    logger.error(f"[CEXTrader] {name} init error: {e}")
+
+    def execute_market_buy(self, exchange, symbol, amount_usd, dry_run=False):
+        if not self._ccxt_available:
+            return LiveExecutionResult(success=False, error="CCXT not available")
+        ex = self.exchanges.get(exchange.lower())
+        if not ex:
+            return LiveExecutionResult(success=False, error=f"Exchange {exchange} not configured")
+        symbol = symbol.replace("-", "/").upper()
+        if dry_run:
+            return LiveExecutionResult(success=True, order_id="DRY_RUN", filled_amount=amount_usd, fee=0)
+        try:
+            ticker = ex.fetch_ticker(symbol)
+            price = ticker["last"]
+            amount = amount_usd / price
+            order = ex.create_market_buy_order(symbol, amount)
+            return LiveExecutionResult(
+                success=True, order_id=order.get("id"),
+                filled_price=order.get("average", order.get("price", price)),
+                filled_amount=order.get("filled", amount), fee=None, raw_response=order
+            )
+        except Exception as e:
+            return LiveExecutionResult(success=False, error=str(e))
+
+    def execute_market_sell(self, exchange, symbol, amount, dry_run=False):
+        if not self._ccxt_available:
+            return LiveExecutionResult(success=False, error="CCXT not available")
+        ex = self.exchanges.get(exchange.lower())
+        if not ex:
+            return LiveExecutionResult(success=False, error=f"Exchange {exchange} not configured")
+        symbol = symbol.replace("-", "/").upper()
+        if dry_run:
+            return LiveExecutionResult(success=True, order_id="DRY_RUN", filled_amount=amount, fee=0)
+        try:
+            order = ex.create_market_sell_order(symbol, amount)
+            return LiveExecutionResult(
+                success=True, order_id=order.get("id"),
+                filled_price=order.get("average", order.get("price")),
+                filled_amount=order.get("filled", amount), fee=None, raw_response=order
+            )
+        except Exception as e:
+            return LiveExecutionResult(success=False, error=str(e))
+
+    def get_balance(self, exchange, currency="USDT"):
+        if not self._ccxt_available:
+            return 0.0
+        ex = self.exchanges.get(exchange.lower())
+        if not ex:
+            return 0.0
+        try:
+            balance = ex.fetch_balance()
+            return balance.get(currency, {}).get("free", 0.0)
+        except Exception:
+            return 0.0
+
+
+class DEXTrader:
+    """Decentralized Exchange Trading (Solana via Jupiter)"""
+
+    def __init__(self):
+        self.wallet_loaded = os.path.exists("solana_wallet_live.json")
+        self.private_key = os.getenv("SOLANA_PRIVATE_KEY")
+
+    def execute_swap(self, input_token, output_token, amount, slippage_bps=50, dry_run=False):
+        if not self.wallet_loaded or not self.private_key:
+            return LiveExecutionResult(success=False, error="Solana wallet not configured")
+        try:
+            from solana_dex_enhanced import SolanaDEXEnhanced
+            dex = SolanaDEXEnhanced(private_key=self.private_key)
+            if dry_run:
+                return LiveExecutionResult(success=True, order_id="DRY_RUN", filled_amount=amount, fee=0.001)
+            quote = dex.get_quote(input_token, output_token, amount, slippage_bps)
+            if not quote:
+                return LiveExecutionResult(success=False, error="Could not get swap quote")
+            tx_signature = dex.execute_swap(quote)
+            if tx_signature:
+                return LiveExecutionResult(success=True, order_id=tx_signature, fee=0.0005)
+            return LiveExecutionResult(success=False, error="Swap execution failed")
+        except Exception as e:
+            logger.error(f"[DEXTrader] Swap error: {e}")
+            return LiveExecutionResult(success=False, error=str(e))
+
+
+class LiveTradingExecutor:
+    """Main executor for live trading. Routes to CEX or DEX."""
+
+    def __init__(self):
+        self.cex = CEXTrader()
+        self.dex = DEXTrader()
+        self.dry_run = os.getenv("DRY_RUN", "true").lower() == "true"
+
+    def execute_cex_arbitrage(self, buy_exchange, sell_exchange, symbol, amount_usd, expected_profit):
+        buy_result = self.cex.execute_market_buy(buy_exchange, symbol, amount_usd, dry_run=self.dry_run)
+        if not buy_result.success:
+            return False, {"error": f"Buy failed: {buy_result.error}"}
+        amount_to_sell = buy_result.filled_amount or (amount_usd / (buy_result.filled_price or 1))
+        sell_result = self.cex.execute_market_sell(sell_exchange, symbol, amount_to_sell, dry_run=self.dry_run)
+        if not sell_result.success:
+            return False, {"error": f"Sell failed: {sell_result.error}", "buy_order": buy_result}
+        return True, {
+            "buy_order": buy_result, "sell_order": sell_result,
+            "expected_profit": expected_profit, "dry_run": self.dry_run
+        }
+
+    def execute_dex_swap(self, from_token, to_token, amount):
+        result = self.dex.execute_swap(from_token, to_token, amount, dry_run=self.dry_run)
+        return result.success, {"order": result, "dry_run": self.dry_run}
+
+    def check_funding(self, exchange, min_balance=10.0):
+        return self.cex.get_balance(exchange, "USDT") >= min_balance
+
+
+def get_live_executor():
+    return LiveTradingExecutor()

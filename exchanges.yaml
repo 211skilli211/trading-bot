@@ -1,0 +1,26 @@
+solana:
+  enabled: true
+  rpc_url: https://api.mainnet-beta.solana.com
+  wallet_file: solana_wallet.json
+  min_spread: 0.005
+  trade_amount_usd: 50
+  pairs:
+  - token: SOL
+    symbol: SOL/USDC
+    cex_symbol: SOLUSDT
+    decimals: 9
+  - token: BTC
+    symbol: BTC/USDC
+    cex_symbol: BTCUSDT
+    decimals: 8
+  - token: ETH
+    symbol: ETH/USDC
+    cex_symbol: ETHUSDT
+    decimals: 8
+clean_chart:
+  enabled: true
+  min_confidence: 40
+  min_volume_ratio: 1.0
+  avoid_liquidity_grabs: true
+  trend_filter: true
+  volume_confirmation: true

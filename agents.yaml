@@ -1,0 +1,34 @@
+rl:
+  enabled: false
+  agent_type: ppo
+  model_path: models/ppo_agent.pkl
+  train_episodes: 100
+  learning_rate: 0.0003
+ml:
+  last_recommendation:
+    preset: $10K Whale
+    amount: 10000
+    expected_profit: 0.0
+    expected_roi: 0.0
+    confidence: 0
+    risk_level: high
+    suggested_position: SHORT
+    timeframe: 1-4 hours
+  last_recommendation_time: '2026-03-15T12:11:27.858111'
+zeroclaw:
+  chat_history:
+  - role: user
+    content: Hey
+  - role: assistant
+    content: 'ZeroClaw daemon not running. Message received: Hey'
+skill_history:
+- time: '23:49:19'
+  agent: discovery
+  skill: arbitrage_scan
+  message: Manual arbitrage scan triggered
+  status: success
+- time: '23:49:29'
+  agent: discovery
+  skill: arbitrage_scan
+  message: Manual arbitrage scan triggered
+  status: success
