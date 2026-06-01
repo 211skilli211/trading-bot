@@ -1,238 +1,151 @@
-# DESIGN.md — IBT Trading Bot
+# DESIGN.md — IBT Trading Bot v2.0 (Enhanced)
 
 ## Overview
 
-The IBT Trading Bot is a multi-platform cryptocurrency trading system combining centralized exchange (CEX) arbitrage, decentralized exchange (DEX) trading on Solana, and AI-driven market prediction. The dashboard provides real-time monitoring, strategy management, and performance analytics.
+The IBT Trading Bot dashboard provides real-time monitoring, strategy management, and performance analytics for cryptocurrency trading. The visual language merges **financial precision** with **Caribbean energy** — dark backgrounds with deep ocean blues and vibrant tropical accents.
 
-The visual language merges **financial precision** with **Caribbean energy** — dark backgrounds with deep ocean blues and vibrant tropical accents. The interface is mobile-first, optimized for touch interaction on phones and tablets.
+Mobile-first, optimized for touch interaction on phones and tablets.
 
-## Colors
+---
 
-- **Primary (#0A0E17):** Deep ocean navy — the base. Used for page backgrounds and the deepest layers.
-- **Secondary (#111827):** Dark slate — card backgrounds, panels, navigation. Sits one layer above primary.
-- **Tertiary (#0F4C75):** Caribbean blue — primary accent. Used for active states, buy signals, key metrics highlights.
-- **Accent (#D4AF37):** Gold — secondary accent. Used for profit indicators, premium features, and key alerts.
-- **Alert (#FF6B35):** Tropical orange — negative/urgent states. Used for sell signals, stop-loss triggers, risk warnings.
-- **Success (#00C9A7):** Seafoam green — positive states. Used for wins, profitable trades, active positions.
-- **Danger (#EF476F):** Coral red — critical states. Used for max drawdown, critical errors, liquidation risk.
-- **Neutral (#F1F5F9):** Ice white — primary text. High contrast on dark backgrounds.
-- **Muted (#64748B):** Slate gray — secondary text, labels, timestamps. Reduces visual noise.
-- **Glow-Blue (#3B82F6):** Electric blue — interactive elements, links, hover states. Creates depth with glow effects.
-- **Glow-Gold (#FBBF24):** Warm gold — sparkle effects on achievements, milestone animations.
-- **Gradient-Ocean:** `linear-gradient(135deg, #0F4C75 0%, #0A0E17 50%, #1A1C1E 100%)` — used for hero sections and card backgrounds.
-- **Gradient-Sunset:** `linear-gradient(135deg, #FF6B35 0%, #D4AF37 50%, #00C9A7 100%)` — used for P&L charts and performance visualizations.
-- **Glass-BG:** `rgba(17, 24, 39, 0.6)` — translucent glass-morphism background with `backdrop-filter: blur(12px)`.
+## Design Philosophy (Enhanced)
+
+### Perception-First Framework (5-Layer Stack)
+Design decisions follow the Perception-First diagnostic framework — fix lower layers before higher ones:
+
+- **L0 — Visual Noise**: Reduce competing elements, establish breathing room
+- **L1 — Focal Hierarchy**: Clear eye path, dominant metrics stand out
+- **L2 — Trust Rhythm**: Consistent spacing, aligned baselines, tinted neutrals
+- **L3 — Value Communication**: Stats tell a story, not just display numbers
+- **L4 — Arousal**: Does it feel premium before the user can explain why?
+
+### Anti-Slop Rules (from Taste Skill / Impeccable)
+- NO Inter-for-everywhere (domain-appropriate hierarchy)
+- NO purple-to-blue generic gradients (Caribbean-specific palette)
+- NO cards-nested-in-cards (flat hierarchy, depth via layered shadows)
+- NO pill-shaped badges (squared with 6px radius)
+- NO pure `#000000` backgrounds (tinted navy-black `#090d14`)
+- NO pure gray neutrals (blue-tinted grays `#5a6a7e`, `#3d4d60`)
+- NO `box-shadow` using pure black (tinted shadows matching background hue)
+
+---
+
+## Colors (OKLCH-Derived Tinted System)
+
+### Core Backgrounds
+| Token | Hex | Role | Usage |
+|-------|-----|------|-------|
+| `--color-primary` | `#090d14` | Deep navy-black | Page background (tinted, NOT pure black) |
+| `--color-secondary` | `#0f1620` | Dark slate | Cards, panels, nav (blue undertone) |
+
+### Accents
+| Token | Hex | Role | Usage |
+|-------|-----|------|-------|
+| `--color-tertiary` | `#0F4C75` | Caribbean blue | Primary accent, CTAs, active states |
+| `--color-accent` | `#D4AF37` | Gold | Profit indicators, premium, achievements |
+| `--color-alert` | `#FF6B35` | Tropical orange | Negative/urgent states |
+| `--color-success` | `#00C9A7` | Seafoam green | Positive states, wins |
+| `--color-danger` | `#EF476F` | Coral red | Critical, stop-loss, liquidation |
+
+### Tinted Neutrals (NOT Pure Gray)
+| Token | Hex | Role |
+|-------|-----|------|
+| `--color-neutral` | `#e8ecf1` | Ice white — primary text |
+| `--color-muted` | `#5a6a7e` | Slate — secondary text, labels |
+| `--color-dim` | `#3d4d60` | Dim — borders, placeholders |
+
+### Glass System
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--color-glass-bg` | `rgba(15, 22, 32, 0.65)` | Translucent card background |
+| `--color-glass-border` | `rgba(30, 50, 70, 0.45)` | Card border (tinted blue) |
+
+### Gradients
+- **Ocean**: `radial-gradient(ellipse at 30% 20%, rgba(15,76,117,0.3) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(15,76,117,0.15) 0%, transparent 50%)`
+- **Sunset P&L**: `linear-gradient(135deg, #FF6B35 0%, #D4AF37 50%, #00C9A7 100%)`
+
+---
 
 ## Typography
 
-- **Display (h1):**
-  - fontFamily: Inter
-  - fontSize: 1.75rem
-  - fontWeight: 700
-  - lineHeight: 1.2
-  - letterSpacing: "-0.02em"
-  - textShadow: "0 0 20px rgba(59, 130, 246, 0.3)" — subtle blue glow on headings
+| Style | Font | Size | Weight | Line-height | Letter-spacing | Usage |
+|-------|------|------|--------|-------------|----------------|-------|
+| Display-LG | Inter | 2.0rem | 700 | 1.0 | -0.04em | Hero portfolio value |
+| Display | Inter | 1.5rem | 700 | 1.0 | -0.03em | Large KPI numbers |
+| Stat | Inter | 1.0rem | 600 | 1.0 | -0.02em | Standard metrics |
+| Body | Inter | 0.875rem | 400 | 1.5 | normal | Body text |
+| Label | Inter | 0.65rem | 600 | 1.0 | 0.06em | Uppercase section labels |
+| Mono-LG | JetBrains Mono | 2.0rem | 700 | 1.0 | -0.04em | Large prices |
+| Mono | JetBrains Mono | 1.0rem | 600 | 1.0 | -0.02em | Standard numbers |
+| Mono-SM | JetBrains Mono | 0.75rem | 600 | 1.0 | normal | Small data |
 
-- **Heading (h2):**
-  - fontFamily: Inter
-  - fontSize: 1.25rem
-  - fontWeight: 600
-  - lineHeight: 1.3
-
-- **Subheading (h3):**
-  - fontFamily: Inter
-  - fontSize: 1rem
-  - fontWeight: 600
-  - lineHeight: 1.4
-
-- **Body:**
-  - fontFamily: Inter
-  - fontSize: 0.875rem
-  - fontWeight: 400
-  - lineHeight: 1.5
-
-- **Mono (numbers, prices):**
-  - fontFamily: JetBrains Mono
-  - fontSize: 0.875rem
-  - fontWeight: 500
-  - fontFeature: "tnum" — tabular numbers for aligned columns
-  - fontVariantNumeric: tabular-nums
-
-- **Label:**
-  - fontFamily: Inter
-  - fontSize: 0.75rem
-  - fontWeight: 500
-  - letterSpacing: "0.05em"
-  - textTransform: uppercase
-
-- **Stat:**
-  - fontFamily: JetBrains Mono
-  - fontSize: 1.5rem
-  - fontWeight: 700
-  - lineHeight: 1.0
-  - fontVariantNumeric: tabular-nums
+---
 
 ## Layout & Spacing
 
-- **Spacing scale:** 4px grid system
-  - xs: 4px
-  - sm: 8px
-  - md: 16px
-  - lg: 24px
-  - xl: 32px
-  - 2xl: 48px
-  - 3xl: 64px
+- **Grid**: 4px base grid system
+- **Container**: max-width 1440px, auto margins, 16px padding
+- **Sections**: 24px gap between sections (16px on mobile)
+- **Touch targets**: 44px minimum height/width
+- **Safe areas**: `env(safe-area-inset-bottom)` for home indicator
+- **Dashboard columns**: Single column mobile → 2-col tablet → 5-col desktop (3+2 split)
 
-- **Safe areas (mobile):**
-  - Top: env(safe-area-inset-top) — notch/status bar
-  - Bottom: env(safe-area-inset-bottom) — home indicator
-  - Side: 16px minimum margin
+---
 
-- **Touch targets:** 44px minimum height/width per Apple HIG
+## Elevation (Layered Depth)
 
-- **Grid:**
-  - Dashboard: single column on mobile, 2-col tablet, 3-col desktop
-  - Chart area: minimum 200px height, expands to fill available space
-  - Navigation: bottom tab bar on mobile, sidebar on desktop (>768px)
+NOT just `box-shadow: 0 4px 6px black`. Layered shadows with tinted ambient glow:
 
-## Elevation & Depth
+| Level | Shadow | Usage |
+|-------|--------|-------|
+| Default | `0 1px 2px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2), 0 0 1px rgba(15,76,117,0.1)` | Standard cards |
+| Elevated | above + `0 8px 24px rgba(0,0,0,0.25)` | Important metrics |
+| Sunken | `inset 0 1px 3px rgba(0,0,0,0.3)` | Secondary info |
+| Float | `0 16px 40px rgba(0,0,0,0.3)` | Modals |
 
-Trading bot uses a dark theme with subtle 3D depth via layered glass-morphism:
+---
 
-- **Level 0 (background):** #0A0E17 — pure dark base
-- **Level 1 (surface):** #111827 with border #1E293B — cards, panels
-- **Level 2 (elevated):** #1E293B with subtle box-shadow — modals, dropdowns
-- **Level 3 (floating):** Glass-morphism with blur — tooltips, popovers
-- **Level 4 (overlay):** rgba(0,0,0,0.8) — modal overlays
+## Motion & Animation
 
-- **Shadow system:**
-  - sm: "0 1px 2px rgba(0,0,0,0.3)"
-  - md: "0 4px 6px rgba(0,0,0,0.4), 0 0 15px rgba(15, 76, 117, 0.1)"
-  - lg: "0 10px 15px rgba(0,0,0,0.5), 0 0 30px rgba(15, 76, 117, 0.15)"
-  - glow-blue: "0 0 20px rgba(59, 130, 246, 0.3)"
-  - glow-gold: "0 0 20px rgba(212, 175, 55, 0.3)"
-  - glow-green: "0 0 20px rgba(0, 201, 167, 0.3)"
+| Effect | Duration | Easing | Usage |
+|--------|----------|--------|-------|
+| Page enter | 300ms | `cubic-bezier(0.4, 0, 0.2, 1)` | Fade-in-up |
+| Card hover | 250ms | same | translateY(-1px) + shadow |
+| Button press | 150ms | same | translateY(1px) |
+| Price flash | 400ms | same | Green/red background sweep |
+| Skeleton shimmer | 1600ms | infinite | Wave animation |
+| Live pulse | 2000ms | cubic-bezier | LIVE badge |
 
-## Shapes
+**Respect** `prefers-reduced-motion: reduce` — all animations disabled.
 
-- **Border radius:**
-  - sm: 6px — badges, tags
-  - md: 10px — cards, inputs
-  - lg: 16px — modals, panels
-  - xl: 24px — hero sections, feature cards
-  - full: 9999px — buttons, pills
-
-- **Card style:** `bg-{secondary} rounded-xl border border-dark-700/50 p-4 md:p-6`
-  - With optional glass variant: `backdrop-blur-lg bg-opacity-60`
-
-- **Input style:** `bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 focus:border-tertiary focus:ring-1 focus:ring-tertiary/30`
+---
 
 ## Components
 
-- **button-primary:**
-  - backgroundColor: #0F4C75
-  - textColor: #F1F5F9
-  - rounded: 10px
-  - padding: 12px 24px
-  - typography: Inter, 0.875rem, 600
-  - boxShadow: "0 0 20px rgba(15, 76, 117, 0.3)"
-  - transition: all 0.2s ease
+### GlassCard
+Primary container. Depth via layered shadows (not border-heavy).
+- Variants: `default`, `up` (green sweep), `down` (red sweep), `gold`, `alert`
+- Depths: `default`, `elevate`, `sunken`, `float`
+- Padding: `sm` (12px), `md` (16px), `lg` (20px), `none`
 
-- **button-primary-hover:**
-  - backgroundColor: #1A5F8A
-  - boxShadow: "0 0 30px rgba(15, 76, 117, 0.5)"
-  - transform: translateY(-1px)
+### StatusBadge
+Squared badge (6px radius, NOT pill-shaped).
+- `live` — red with pulsing dot
+- `paper` — gold tinted
+- `strategy` — blue tinted
+- `success` — green, `alert` — orange
 
-- **button-danger:**
-  - backgroundColor: #EF476F
-  - textColor: #F1F5F9
+### StatBlock
+Three-line KPI display: label → value → change%. Uses `mono` font for numbers, tabular-nums for alignment.
 
-- **button-gold:**
-  - backgroundColor: #D4AF37
-  - textColor: #0A0E17
+### ShimmerCard
+Skeleton loader matching layout shape. Supports `height` for simple blocks or `lines` for text-like skeletons.
 
-- **card-glass:**
-  - backgroundColor: "rgba(17, 24, 39, 0.6)"
-  - backdropFilter: blur(12px)
-  - border: 1px solid rgba(30, 41, 59, 0.5)
-  - rounded: 16px
+## Texture (Anti-Slop)
 
-- **card-price-up:**
-  - borderLeft: 3px solid #00C9A7
-  - backgroundColor: "rgba(0, 201, 167, 0.05)"
+Noise grain overlay via SVG turbulence filter at 2.5% opacity. Applied to `body::before` as fixed layer. Creates subtle texture that breaks the "sterile flat vector" look.
 
-- **card-price-down:**
-  - borderLeft: 3px solid #EF476F
-  - backgroundColor: "rgba(239, 71, 111, 0.05)"
+---
 
-- **badge-live:**
-  - backgroundColor: #EF476F
-  - textColor: white
-  - rounded: 9999px
-  - padding: 4px 10px
-  - animation: pulse 2s infinite
-
-- **badge-paper:**
-  - backgroundColor: "rgba(212, 175, 55, 0.2)"
-  - textColor: #D4AF37
-  - border: 1px solid rgba(212, 175, 55, 0.3)
-
-- **badge-strategy:**
-  - backgroundColor: "rgba(15, 76, 117, 0.2)"
-  - textColor: #3B82F6
-  - border: 1px solid rgba(15, 76, 117, 0.3)
-
-## Animation & Motion Design
-
-The trading bot uses purposeful animation to convey real-time data changes:
-
-- **Price updates:** Color flash → green flash on price up, red flash on price down, 300ms fade
-- **Portfolio value:** Smooth GSAP number counting, eased transitions
-- **Card hover:** Subtle lift (translateY -2px) + glow intensification, 200ms
-- **Strategy status:** Rotating spinner for active, pulsing dot signal for live trading
-- **Page transitions:** Framer Motion slide-up on mobile navigation
-- **Chart animations:** Recharts/Recharts-style smooth interpolation between data points
-- **Toast/slide notifications:** Slide in from bottom-right, auto-dismiss after 5s
-- **Loading states:** Shimmer placeholder animation on cards (wave effect)
-
-## 3D Visual Effects
-
-Specialized dashboard effects for immersive trading experience:
-
-- **Volumetric candlestick charts:** Three.js-powered 3D volume-rendered candlesticks where height = price, width = time, depth = volume
-- **Particle trade bursts:** On trade execution, particle system emits gold/green particles from trade entry point
-- **Holographic portfolio sphere:** 3D sphere where each segment = an asset allocation, sized by allocation %
-- **Shader backgrounds:** GLSL animated wave shader on dashboard hero section (subtle ocean waves)
-- **Glass-morphism depth:** Multi-layered translucent panels with realistic light refraction
-- **Parallax card stack:** Dashboard cards respond to scroll/tilt with 3D parallax depth
-- **Animated gradients:** Slowly shifting ocean-to-sunset gradients on key metrics cards
-
-## Sound Design (optional, future)
-
-- **Trade execution:** Subtle confirmation chime
-- **Price alert:** Gentle notification tone
-- **Stop-loss triggered:** Urgent alert sound
-- **Button press:** Tactile micro-sound
-- **Background:** Ambient option (muted by default) — soft ocean waves loop
-
-## Do's and Don'ts
-
-### Do
-- Use JetBrains Mono for ALL price displays, P&L numbers, and tabular data
-- Use glass-morphism for floating elements (tooltips, modals, dropdowns)
-- Animate number changes smoothly — never snap without transition
-- Show real-time status indicators (LIVE/PAPER) prominently
-- Use green/red for price direction consistently throughout
-- Provide haptic-like visual feedback on touch interactions (ripple, glow)
-- Keep the bottom navigation within thumb reach zone
-- Use skeleton loaders instead of spinners for data-heavy cards
-
-### Don't
-- Use light backgrounds — dark mode only, always
-- Mix serif and sans-serif fonts (Inter everywhere, JetBrains Mono for numbers only)
-- Animate everything — reserve motion for meaningful state changes
-- Use pure white (#FFFFFF) for text — always use #F1F5F9 for reduced eye strain
-- Show more than 6 cards per screen on mobile
-- Use red/green without text labels (accessibility — color blindness)
-- Clutter the chart area — keep candlestick charts clean
-- Use fixed pixel sizes for spacing — always use relative spacing scale
+*Version: 2.0 — Enhanced with Impeccable, Taste Skill, Perception-First Design*
+*Last updated: 2026-06-01*
