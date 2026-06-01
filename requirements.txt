@@ -14,16 +14,9 @@ PyJWT>=2.8.0
 numpy>=1.26.0
 pandas>=2.1.0
 scikit-learn>=1.3.0
-scipy>=1.11.0
 
 # Solana (optional, for DEX trading)
 # solathon>=0.3.0  # Uncomment for Solana support
 
 # Optional: TA-Lib for advanced indicators (needs system lib)
 # ta-lib>=0.4.0
-
-# Scheduling (for app.py unified entry point)
-apscheduler>=3.10.0
-
-# Web server (for Render deployment)
-gunicorn>=21.2.0
