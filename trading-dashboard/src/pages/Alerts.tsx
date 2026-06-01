@@ -3,11 +3,13 @@ import { Header } from '../components/Header';
 import { AlertBadge } from '../components/AlertBadge';
 import { api } from '../api/client';
 import { Alert } from '../types';
-import { Bell, Check } from 'lucide-react';
+import { GlassCard, PageHeader, EmptyState, StatusBadge } from '../components/ui/GlassCard';
+import { Bell, Check, CheckCheck, Filter } from 'lucide-react';
 
 export function Alerts() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadAlerts() {
@@ -16,13 +18,15 @@ export function Alerts() {
         setAlerts(data);
       } catch (error) {
         console.error('Failed to load alerts:', error);
+      } finally {
+        setLoading(false);
       }
     }
     loadAlerts();
   }, []);
 
-  const filteredAlerts = filter === 'unread' 
-    ? alerts.filter(a => !a.read) 
+  const filteredAlerts = filter === 'unread'
+    ? alerts.filter(a => !a.read)
     : alerts;
 
   const unreadCount = alerts.filter(a => !a.read).length;
@@ -32,67 +36,88 @@ export function Alerts() {
   };
 
   return (
-    <div className="pb-20">
-      <Header title="Alerts" />
-      
-      <div className="p-4 space-y-4">
-        {/* Filter Tabs */}
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                filter === 'all' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-dark-800 text-gray-400'
-              }`}
-            >
-              All ({alerts.length})
-            </button>
-            <button
-              onClick={() => setFilter('unread')}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                filter === 'unread' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-dark-800 text-gray-400'
-              }`}
-            >
-              Unread ({unreadCount})
-            </button>
-          </div>
-          
-          {unreadCount > 0 && (
-            <button 
-              onClick={markAllRead}
-              className="flex items-center gap-1 text-sm text-blue-400"
-            >
-              <Check size={16} />
-              Mark all read
-            </button>
-          )}
+    <div className="pb-20 lg:pb-6 lg:pl-[224px]">
+      <Header title="Alerts" alertCount={unreadCount} />
+
+      <div className="p-4 max-w-[960px] mx-auto">
+        <PageHeader
+          title="Alerts"
+          subtitle={`${alerts.length} total · ${unreadCount} unread`}
+          badge={unreadCount > 0 ? <StatusBadge status="alert" label={`${unreadCount} new`} /> : null}
+          actions={
+            unreadCount > 0 && (
+              <button onClick={markAllRead} className="btn-ghost text-xs flex items-center gap-1.5">
+                <CheckCheck size={14} />
+                Mark all read
+              </button>
+            )
+          }
+        />
+
+        {/* Filter tabs */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setFilter('all')}
+            className={[
+              'px-4 py-2 rounded-xl text-sm font-medium transition-colors',
+              filter === 'all'
+                ? 'bg-[#0F4C75]/15 text-blue-400'
+                : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
+            ].join(' ')}
+          >
+            All ({alerts.length})
+          </button>
+          <button
+            onClick={() => setFilter('unread')}
+            className={[
+              'px-4 py-2 rounded-xl text-sm font-medium transition-colors',
+              filter === 'unread'
+                ? 'bg-[#0F4C75]/15 text-blue-400'
+                : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
+            ].join(' ')}
+          >
+            Unread ({unreadCount})
+          </button>
         </div>
 
-        {/* Alerts List */}
-        {filteredAlerts.length > 0 ? (
+        {/* Content */}
+        {loading ? (
           <div className="space-y-3">
+            <ShimmerCard lines={2} />
+            <ShimmerCard lines={2} />
+            <ShimmerCard lines={2} />
+          </div>
+        ) : filteredAlerts.length > 0 ? (
+          <div className="space-y-2">
             {filteredAlerts.map((alert) => (
-              <AlertBadge 
-                key={alert.id} 
-                alert={alert}
-                onDismiss={() => setAlerts(alerts.filter(a => a.id !== alert.id))}
-              />
+              <AlertBadge key={alert.id} alert={alert} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-16">
-            <Bell size={48} className="mx-auto mb-4 text-gray-600" />
-            <p className="text-gray-400">No alerts</p>
-            <p className="text-sm text-gray-500 mt-1">
-              {filter === 'unread' ? 'All caught up!' : 'Alerts will appear here'}
-            </p>
-          </div>
+          <EmptyState
+            icon={<Bell size={32} />}
+            title={filter === 'unread' ? 'All caught up' : 'No alerts yet'}
+            description={filter === 'unread'
+              ? 'No unread alerts — you\'re all set!'
+              : 'Alerts will appear here when the bot detects events.'}
+          />
         )}
       </div>
+    </div>
+  );
+}
+
+/* Inline shimmer helper for loading state */
+function ShimmerCard({ lines }: { lines: number }) {
+  return (
+    <div className="glass-card p-4 space-y-3">
+      {Array.from({ length: lines }).map((_, i) => (
+        <div
+          key={i}
+          className="shimmer-text"
+          style={{ width: `${70 + Math.random() * 30}%` }}
+        />
+      ))}
     </div>
   );
 }

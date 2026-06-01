@@ -1,27 +1,20 @@
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { Wallet, TrendingUp, DollarSign, Bitcoin, Coins, Link2, Beaker, AlertTriangle } from 'lucide-react';
+import { Wallet, TrendingUp, DollarSign, Coins, Beaker, AlertTriangle } from 'lucide-react';
 import { Header } from '../components/Header';
 import { PositionCard } from '../components/PositionCard';
+import { GlassCard, StatBlock, ShimmerCard, PageHeader, EmptyState, StatusBadge } from '../components/ui/GlassCard';
 import { api } from '../api/client';
 import type { Portfolio as PortfolioType, Position, CurrencyBalance } from '../types';
-import { 
-  formatCrypto,
-  formatPercent, 
-  formatUSD,
-  getChangeColor,
-  getCurrencyConfig,
-} from '../utils/format';
+import { formatCrypto, formatPercent, formatUSD, getChangeColor, getCurrencyConfig } from '../utils/format';
 
-
-const COLORS = ['#3b82f6', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+const COLORS = ['#0F4C75', '#00C9A7', '#D4AF37', '#FF6B35', '#3B82F6', '#EF476F', '#22c55e', '#8b5cf6'];
 
 export function Portfolio() {
   const [portfolio, setPortfolio] = useState<PortfolioType | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'currencies' | 'allocation'>('overview');
-
 
   useEffect(() => {
     async function loadData() {
@@ -31,13 +24,8 @@ export function Portfolio() {
           api.getPortfolio(),
           api.getPositions(),
         ]);
-        
-        if (portfolioRes.status === 'fulfilled') {
-          setPortfolio(portfolioRes.value);
-        }
-        if (positionsRes.status === 'fulfilled') {
-          setPositions(positionsRes.value);
-        }
+        if (portfolioRes.status === 'fulfilled') setPortfolio(portfolioRes.value);
+        if (positionsRes.status === 'fulfilled') setPositions(positionsRes.value);
       } catch (error) {
         console.error('Failed to load portfolio:', error);
       } finally {
@@ -47,318 +35,271 @@ export function Portfolio() {
     loadData();
   }, []);
 
-  // Use real currency data from API, fallback to empty array
-  const currencyBalances: CurrencyBalance[] = portfolio?.currencies 
+  const currencyBalances: CurrencyBalance[] = portfolio?.currencies
     ? Object.values(portfolio.currencies).filter(c => c.balance > 0)
     : [];
 
   const totalUsdValue = currencyBalances.reduce((sum, c) => sum + c.usdValue, 0);
+  const totalPnl = portfolio?.totalPnl || 0;
+  const isPaper = portfolio?.isPaper ?? true;
 
   if (loading) {
     return (
-      <div className="pb-20">
+      <div className="pb-20 lg:pb-6 lg:pl-[224px]">
         <Header title="Portfolio" />
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-          <span className="text-gray-400">Loading portfolio...</span>
+        <div className="p-4 max-w-[1200px] mx-auto space-y-4">
+          <ShimmerCard height="h-28" />
+          <div className="grid grid-cols-2 gap-3">
+            <ShimmerCard height="h-24" />
+            <ShimmerCard height="h-24" />
+          </div>
+          <ShimmerCard height="h-48" lines={4} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="pb-20">
-      <Header title="Portfolio" />
-      
-      <div className="p-4 space-y-6">
+    <div className="pb-20 lg:pb-6 lg:pl-[224px]">
+      <Header title="Portfolio" totalPnl={totalPnl} />
+
+      <div className="p-4 max-w-[1200px] mx-auto">
+        <PageHeader
+          title="Portfolio"
+          subtitle={`${currencyBalances.length} currencies · ${positions.length} positions`}
+          badge={<StatusBadge status={isPaper ? 'paper' : 'live'} />}
+        />
+
+        {/* KPI Row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <GlassCard variant={totalPnl >= 0 ? 'up' : 'down'} depth="elevate">
+            <StatBlock label="Total Value" value={formatUSD(totalUsdValue)} icon={<Wallet size={14} />} size="lg" />
+          </GlassCard>
+          <GlassCard>
+            <StatBlock label="Total P&L" value={`${totalPnl >= 0 ? '+' : ''}${formatUSD(totalPnl)}`}
+              change={portfolio?.totalPnlPercent} icon={<TrendingUp size={14} />}
+              variant={totalPnl >= 0 ? 'success' : 'danger'} />
+          </GlassCard>
+          <GlassCard>
+            <StatBlock label="Equity" value={formatUSD(portfolio?.equity || 0)} icon={<DollarSign size={14} />} />
+          </GlassCard>
+          <GlassCard>
+            <StatBlock label="Available" value={formatUSD(portfolio?.balance || 0)}
+              icon={<Coins size={14} />} variant="gold" />
+          </GlassCard>
+        </div>
+
         {/* Tab Navigation */}
-        <div className="flex bg-dark-800 rounded-lg p-1">
+        <div className="flex gap-1 mb-4 p-1 rounded-xl bg-white/[0.02]">
           {[
-            { id: 'overview', label: 'Overview', icon: Wallet },
-            { id: 'currencies', label: 'Currencies', icon: Coins },
-            { id: 'allocation', label: 'Allocation', icon: PieChart },
-          ].map(({ id, label, icon: Icon }) => (
+            { id: 'overview', label: 'Overview' },
+            { id: 'currencies', label: 'Currencies' },
+            { id: 'allocation', label: 'Allocation' },
+          ].map(({ id, label }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id as typeof activeTab)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={[
+                'flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors',
                 activeTab === id
-                  ? 'bg-blue-500/20 text-blue-400'
-                  : 'text-gray-400 hover:text-white'
-              }`}
+                  ? 'bg-[#0F4C75]/15 text-blue-400'
+                  : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
+              ].join(' ')}
             >
-              <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{label}</span>
+              {label}
             </button>
           ))}
         </div>
 
-        {/* Paper Trading Indicator */}
-        {portfolio?.isPaper && (
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-500/20 rounded-lg">
-                <Beaker className="w-5 h-5 text-yellow-400" />
-              </div>
-              <div>
-                <div className="font-semibold text-yellow-400">Paper Trading Mode</div>
-                <div className="text-xs text-gray-400">
-                  Simulated environment with $10,000 mock funds. No real money at risk.
-                </div>
-              </div>
-            </div>
-            <div className="text-xs text-yellow-400 bg-yellow-500/20 px-3 py-1 rounded-full">
-              PRACTICE MODE
-            </div>
-          </div>
-        )}
-
-        {/* Live Mode - Wallet Required */}
-        {portfolio?.mode === 'LIVE' && !portfolio?.walletConnected && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-500/20 rounded-lg">
-                <AlertTriangle className="w-5 h-5 text-red-400" />
-              </div>
-              <div>
-                <div className="font-semibold text-red-400">Wallet Required for Live Trading</div>
-                <div className="text-xs text-gray-400">
-                  Connect a wallet to access your real portfolio
-                </div>
-              </div>
-            </div>
-            <a 
-              href="/settings"
-              className="px-4 py-2 bg-red-600 rounded-lg text-sm hover:bg-red-700 transition-colors"
-            >
-              Connect Wallet
-            </a>
-          </div>
-        )}
-
-        {/* Connect Wallet CTA (for live mode when no funds) */}
-        {!portfolio?.isPaper && !portfolio?.walletConnected && portfolio?.balance === 0 && (
-          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl p-6 border border-blue-500/30 text-center">
-            <Wallet className="w-12 h-12 mx-auto mb-3 text-blue-400" />
-            <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              Connect your wallet to view your portfolio balances and start trading
-            </p>
-            <a 
-              href="/settings"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Link2 className="w-4 h-4" />
-              Connect Wallet
-            </a>
-          </div>
-        )}
-
         {/* Overview Tab */}
         {activeTab === 'overview' && (
-          <>
-            {/* Balance Cards */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-dark-800 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-                  <TrendingUp className="w-3 h-3" />
-                  Total Equity
-                </div>
-                <div className="text-xl font-bold font-mono">
-                  {formatUSD(portfolio?.equity || 0)}
-                </div>
-                {currencyBalances.find(c => c.currency === 'BTC') && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    {formatCrypto(currencyBalances.find(c => c.currency === 'BTC')?.equity || 0, 'BTC')} BTC
+          <div className="space-y-4">
+            {/* Paper/Live banner */}
+            {isPaper && (
+              <GlassCard variant="gold" padding="sm">
+                <div className="flex items-center gap-3">
+                  <Beaker size={18} className="text-[#D4AF37]" />
+                  <div>
+                    <span className="text-sm font-semibold text-[#D4AF37]">Paper Trading Mode</span>
+                    <p className="text-xs text-[#5a6a7e]">Simulated environment — no real money at risk.</p>
                   </div>
-                )}
-              </div>
-              <div className="bg-dark-800 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-                  <DollarSign className="w-3 h-3" />
-                  Available
                 </div>
-                <div className="text-xl font-bold font-mono">
-                  {formatUSD(portfolio?.balance || 0)}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {currencyBalances.length} {currencyBalances.length === 1 ? 'currency' : 'currencies'}
-                </div>
-              </div>
-            </div>
+              </GlassCard>
+            )}
 
-            {/* Multi-Currency Summary */}
-            {currencyBalances.length > 0 && (
-              <div className="bg-dark-800 rounded-xl p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Coins className="w-4 h-4 text-blue-400" />
-                  Balances
+            {/* Currency Holdings */}
+            {currencyBalances.length > 0 ? (
+              <GlassCard>
+                <h3 className="text-sm font-semibold text-[#e8ecf1] mb-3 flex items-center gap-2">
+                  <Coins size={15} className="text-blue-400" />
+                  Holdings
                 </h3>
-                <div className="space-y-2">
-                  {currencyBalances.slice(0, 4).map((bal) => (
-                    <div key={bal.currency} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{getCurrencyConfig(bal.currency).flag}</span>
+                <div className="space-y-1">
+                  {currencyBalances.slice(0, 5).map((bal) => (
+                    <div key={bal.currency} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-white/[0.02] transition-colors">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-base">{getCurrencyConfig(bal.currency).flag}</span>
                         <div>
-                          <div className="font-medium">{bal.currency}</div>
-                          <div className="text-xs text-gray-500">
-                            {formatUSD(bal.usdValue)}
-                          </div>
+                          <div className="font-medium text-sm text-[#e8ecf1]">{bal.currency}</div>
+                          <div className="text-xs text-[#5a6a7e]">{formatUSD(bal.usdValue)}</div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-mono font-medium">
-                          {formatCrypto(bal.balance, bal.currency)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {((bal.usdValue / totalUsdValue) * 100).toFixed(1)}%
-                        </div>
+                        <div className="mono text-sm text-[#e8ecf1]">{formatCrypto(bal.balance, bal.currency)}</div>
+                        <div className="text-xs text-[#5a6a7e]">{((bal.usdValue / totalUsdValue) * 100).toFixed(1)}%</div>
                       </div>
                     </div>
                   ))}
                 </div>
-                {currencyBalances.length > 4 && (
-                  <div className="text-center mt-3 text-xs text-gray-500">
-                    +{currencyBalances.length - 4} more currencies
-                  </div>
+                {currencyBalances.length > 5 && (
+                  <p className="text-center mt-3 text-xs text-[#5a6a7e]">
+                    +{currencyBalances.length - 5} more currencies
+                  </p>
                 )}
-              </div>
+              </GlassCard>
+            ) : (
+              <EmptyState
+                icon={<Wallet size={32} />}
+                title="No holdings yet"
+                description="Connect an exchange or add paper trading funds to get started."
+              />
             )}
 
-            {/* PnL */}
-            <div className={`rounded-xl p-4 border ${
-              (portfolio?.totalPnl || 0) >= 0 
-                ? 'bg-green-500/10 border-green-500/30' 
-                : 'bg-red-500/10 border-red-500/30'
-            }`}>
-              <div className="text-xs opacity-80 mb-1">Total P&L</div>
-              <div className={`text-2xl font-bold font-mono ${
-                getChangeColor(portfolio?.totalPnl || 0)
-              }`}>
-                {formatUSD(portfolio?.totalPnl || 0)}
-                <span className="text-sm ml-2">
-                  {formatPercent(portfolio?.totalPnlPercent || 0)}
-                </span>
-              </div>
-            </div>
-          </>
+            {/* P&L Card */}
+            <GlassCard variant={totalPnl >= 0 ? 'up' : 'down'}>
+              <StatBlock
+                label="Total P&L"
+                value={`${totalPnl >= 0 ? '+' : ''}${formatUSD(totalPnl)}`}
+                change={portfolio?.totalPnlPercent}
+                icon={<TrendingUp size={14} />}
+                variant={totalPnl >= 0 ? 'success' : 'danger'}
+                size="lg"
+              />
+            </GlassCard>
+          </div>
         )}
 
         {/* Currencies Tab */}
         {activeTab === 'currencies' && (
-          <div className="bg-dark-800 rounded-xl p-4">
-            <h3 className="font-semibold mb-4">All Currencies</h3>
+          <GlassCard>
+            <h3 className="text-sm font-semibold text-[#e8ecf1] mb-3">All Currencies</h3>
             {currencyBalances.length > 0 ? (
               <>
-                <div className="space-y-3">
+                <div className="space-y-1">
                   {currencyBalances.map((bal) => (
-                    <div key={bal.currency} className="flex items-center justify-between p-3 bg-dark-900/50 rounded-lg">
+                    <div key={bal.currency} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/[0.02] transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-dark-700 flex items-center justify-center text-xl">
+                        <div className="w-9 h-9 rounded-lg bg-white/[0.04] flex items-center justify-center text-lg">
                           {getCurrencyConfig(bal.currency).flag}
                         </div>
                         <div>
-                          <div className="font-medium">{bal.currency}</div>
-                          <div className="text-xs text-gray-500">
-                            {formatUSD(bal.usdValue)} • {((bal.usdValue / totalUsdValue) * 100).toFixed(1)}%
+                          <div className="font-medium text-sm text-[#e8ecf1]">{bal.currency}</div>
+                          <div className="text-xs text-[#5a6a7e]">
+                            {formatUSD(bal.usdValue)} · {((bal.usdValue / totalUsdValue) * 100).toFixed(1)}%
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-mono font-medium">
-                          {formatCrypto(bal.balance, bal.currency)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Avail: {formatCrypto(bal.available, bal.currency)}
-                        </div>
+                        <div className="mono text-sm text-[#e8ecf1]">{formatCrypto(bal.balance, bal.currency)}</div>
+                        <div className="text-xs text-[#5a6a7e]">Avail: {formatCrypto(bal.available, bal.currency)}</div>
                       </div>
                     </div>
                   ))}
                 </div>
-                
-                {/* Total */}
-                <div className="mt-4 pt-4 border-t border-white/10">
+                <div className="mt-4 pt-3 border-t border-[rgba(30,50,70,0.2)]">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold">Total Value</span>
-                    <span className="font-mono font-bold text-lg">{formatUSD(totalUsdValue)}</span>
+                    <span className="font-semibold text-sm text-[#e8ecf1]">Total Value</span>
+                    <span className="mono text-lg font-bold text-[#e8ecf1]">{formatUSD(totalUsdValue)}</span>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                No currency data available
-              </div>
+              <EmptyState
+                icon={<Coins size={28} />}
+                title="No currency data"
+                description="Connect an exchange to see your holdings here."
+              />
             )}
-          </div>
+          </GlassCard>
         )}
 
         {/* Allocation Tab */}
-        {activeTab === 'allocation' && portfolio?.allocation && portfolio.allocation.length > 0 && (
-          <div className="bg-dark-800 rounded-xl p-4">
-            <h3 className="font-semibold mb-4">Portfolio Allocation</h3>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={portfolio.allocation}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="percent"
-                  >
-                    {portfolio.allocation.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1e293b', 
-                      border: '1px solid #334155',
-                      borderRadius: '8px'
-                    }}
-                    formatter={(value: number, _name: string, props: any) => [
-                      `${value.toFixed(2)}% (${formatUSD(props.payload.value)})`,
-                      props.payload.symbol
-                    ]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {portfolio.allocation.map((item, index) => (
-                <div key={item.symbol} className="flex items-center gap-2 text-xs p-2 bg-dark-900/50 rounded">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                  />
-                  <span className="font-medium">{item.symbol}</span>
-                  <span className="text-gray-400 ml-auto">{item.percent.toFixed(1)}%</span>
+        {activeTab === 'allocation' && (
+          <GlassCard>
+            <h3 className="text-sm font-semibold text-[#e8ecf1] mb-4">Portfolio Allocation</h3>
+            {portfolio?.allocation && portfolio.allocation.length > 0 ? (
+              <>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={portfolio.allocation}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="percent"
+                      >
+                        {portfolio.allocation.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          background: 'rgba(15, 22, 32, 0.95)',
+                          border: '1px solid rgba(30, 50, 70, 0.4)',
+                          borderRadius: '12px',
+                          color: '#e8ecf1',
+                          fontSize: '0.8rem',
+                        }}
+                        formatter={(value: number, _name: string, props: any) => [
+                          `${value.toFixed(2)}% (${formatUSD(props.payload.value)})`,
+                          props.payload.symbol,
+                        ]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                  {portfolio.allocation.map((item, index) => (
+                    <div key={item.symbol} className="flex items-center gap-2 text-xs p-2 rounded-lg bg-white/[0.02]">
+                      <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                      <span className="font-medium text-[#e8ecf1]">{item.symbol}</span>
+                      <span className="text-[#5a6a7e] ml-auto mono">{item.percent.toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <EmptyState
+                icon={<PieChart size={28} />}
+                title="No allocation data"
+                description="Add funds to see your portfolio allocation."
+              />
+            )}
+          </GlassCard>
         )}
 
         {/* Positions */}
-        <div>
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <Bitcoin className="w-4 h-4 text-orange-400" />
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold text-[#e8ecf1] mb-3 flex items-center gap-2">
+            <TrendingUp size={15} className="text-[#D4AF37]" />
             Positions ({positions.length})
           </h3>
-          <div className="space-y-3">
-            {positions.length > 0 ? (
-              positions.map((position) => (
+          {positions.length > 0 ? (
+            <div className="space-y-2">
+              {positions.map((position) => (
                 <PositionCard key={position.id} position={position} />
-              ))
-            ) : (
-              <div className="text-center py-8 bg-dark-800 rounded-xl">
-                <div className="text-gray-500">No open positions</div>
-                <div className="text-xs text-gray-600 mt-1">Start trading to see positions here</div>
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<TrendingUp size={28} />}
+              title="No open positions"
+              description="Start trading to see positions here."
+            />
+          )}
         </div>
       </div>
     </div>
