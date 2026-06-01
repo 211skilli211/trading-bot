@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { Wallet, TrendingUp, DollarSign, Coins, Beaker, AlertTriangle } from 'lucide-react';
+import { Wallet, TrendingUp, DollarSign, Coins, Beaker } from 'lucide-react';
 import { Header } from '../components/Header';
 import { PositionCard } from '../components/PositionCard';
 import { GlassCard, StatBlock, ShimmerCard, PageHeader, EmptyState, StatusBadge } from '../components/ui/GlassCard';
@@ -273,7 +273,7 @@ export function Portfolio() {
               </>
             ) : (
               <EmptyState
-                icon={<PieChart size={28} />}
+                icon={<TrendingUp size={28} />}
                 title="No allocation data"
                 description="Add funds to see your portfolio allocation."
               />

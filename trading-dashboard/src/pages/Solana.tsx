@@ -141,7 +141,7 @@ export function Solana() {
 
   if (loading) {
     return (
-      <div className="pb-20 lg:pb-8 lg:pl-64">
+      <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Solana DEX Sniper" />
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
@@ -151,7 +151,7 @@ export function Solana() {
   }
 
   return (
-    <div className="pb-20 lg:pb-8 lg:pl-64">
+    <div className="pb-20 lg:pb-8 lg:pl-[224px]">
       <Header title="Solana DEX Sniper" />
       
       <div className="p-4 space-y-4">

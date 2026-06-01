@@ -109,7 +109,7 @@ export function ML() {
   };
 
   return (
-    <div className="pb-20 lg:pb-8 lg:pl-64">
+    <div className="pb-20 lg:pb-8 lg:pl-[224px]">
       <Header title="AI Trading Signals" />
       
       <div className="p-4 space-y-4">

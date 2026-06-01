@@ -178,7 +178,7 @@ export function Settings() {
 
   if (loading) {
     return (
-      <div className="pb-20 lg:pb-8 lg:pl-64">
+      <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Settings" />
         <div className="p-4">
           <div className="flex items-center justify-center h-64">
@@ -193,7 +193,7 @@ export function Settings() {
   const walletConnected = connected && backendWalletConnected;
 
   return (
-    <div className="pb-20 lg:pb-8 lg:pl-64">
+    <div className="pb-20 lg:pb-8 lg:pl-[224px]">
       <Header title="Settings" />
       
       <div className="p-4 space-y-6">

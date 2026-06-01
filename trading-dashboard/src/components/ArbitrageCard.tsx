@@ -10,45 +10,43 @@ export function ArbitrageCard({ opportunity }: ArbitrageCardProps) {
   const isProfitable = opportunity.profitPercent > 0.3;
   
   return (
-    <div className={`rounded-xl p-4 border ${
-      isProfitable 
-        ? 'bg-green-500/10 border-green-500/30' 
-        : 'bg-dark-800 border-dark-700'
+    <div className={`glass-card p-4 ${
+      isProfitable ? 'border-l-[3px] border-l-[#00C9A7]' : ''
     }`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold">{opportunity.symbol}</h3>
-          {isProfitable && <Zap size={16} className="text-yellow-400" />}
+          <h3 className="font-semibold text-sm text-[#e8ecf1]">{opportunity.symbol}</h3>
+          {isProfitable && <Zap size={14} className="text-[#D4AF37]" />}
         </div>
-        <span className={`font-mono font-medium ${
-          isProfitable ? 'text-green-400' : 'text-gray-400'
+        <span className={`mono text-sm font-semibold ${
+          isProfitable ? 'text-[#00C9A7]' : 'text-[#5a6a7e]'
         }`}>
           {formatPercent(opportunity.profitPercent)}
         </span>
       </div>
-      
-      <div className="mt-3 flex items-center justify-between text-sm">
+
+      <div className="mt-2.5 flex items-center justify-between text-xs">
         <div className="text-center">
-          <div className="text-xs text-gray-400">Buy</div>
-          <div className="font-mono">{opportunity.buyExchange}</div>
-          <div className="font-mono text-green-400">
+          <div className="text-[10px] text-[#5a6a7e]">Buy</div>
+          <div className="mono text-[#e8ecf1]">{opportunity.buyExchange}</div>
+          <div className="mono text-[#00C9A7]">
             {formatCurrency(opportunity.buyPrice)}
           </div>
         </div>
-        
-        <ArrowRight className="text-gray-500" />
-        
+
+        <ArrowRight className="text-[#3d4d60]" size={14} />
+
         <div className="text-center">
-          <div className="text-xs text-gray-400">Sell</div>
-          <div className="font-mono">{opportunity.sellExchange}</div>
-          <div className="font-mono text-red-400">
+          <div className="text-[10px] text-[#5a6a7e]">Sell</div>
+          <div className="mono text-[#e8ecf1]">{opportunity.sellExchange}</div>
+          <div className="mono text-[#EF476F]">
             {formatCurrency(opportunity.sellPrice)}
           </div>
         </div>
       </div>
-      
+
       {isProfitable && (
-        <button className="mt-3 w-full py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">
+        <button className="btn-primary w-full mt-3 text-xs">
           Execute Arbitrage
         </button>
       )}

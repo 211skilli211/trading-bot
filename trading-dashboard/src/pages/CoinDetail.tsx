@@ -110,7 +110,7 @@ export function CoinDetail() {
 
   if (loading) {
     return (
-      <div className="pb-20 lg:pb-8 lg:pl-64">
+      <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Coin Details" />
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
@@ -121,7 +121,7 @@ export function CoinDetail() {
 
   if (!price) {
     return (
-      <div className="pb-20 lg:pb-8 lg:pl-64">
+      <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Coin Not Found" />
         <div className="flex flex-col items-center justify-center h-64 text-gray-400">
           <p>Coin not found</p>
@@ -142,7 +142,7 @@ export function CoinDetail() {
   const quoteSymbol = symbol?.split('/')[1] || 'USDT';
 
   return (
-    <div className="pb-20 lg:pb-8 lg:pl-64">
+    <div className="pb-20 lg:pb-8 lg:pl-[224px]">
       <div className="sticky top-0 z-40 bg-dark-900/95 backdrop-blur border-b border-dark-700">
         <div className="flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-3">

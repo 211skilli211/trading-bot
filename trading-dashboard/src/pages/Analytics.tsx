@@ -352,7 +352,7 @@ plot(s1, "S1", color.red)`);
     : isMobile ? 350 : 550;
 
   return (
-    <div className="pb-20 lg:pb-8 lg:pl-64">
+    <div className="pb-20 lg:pb-8 lg:pl-[224px]">
       <Header title={isMobile ? "Analytics" : "Analytics Pro"} />
       
       <div className="p-2 sm:p-4 space-y-4 sm:space-y-6">

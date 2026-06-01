@@ -23,35 +23,35 @@ export function PriceCard({ price, onClick }: PriceCardProps) {
   };
   
   return (
-    <div 
+    <div
       onClick={handleClick}
-      className="bg-dark-800 rounded-xl p-4 border border-dark-700 active:scale-[0.98] transition-transform cursor-pointer hover:border-blue-500/50"
+      className="glass-card p-4 active:scale-[0.98] transition-all cursor-pointer"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <CryptoIcon symbol={price.symbol} size={40} />
+          <CryptoIcon symbol={price.symbol} size={36} />
           <div>
-            <h3 className="font-semibold text-lg">{price.symbol}</h3>
-            <span className="text-xs text-gray-400">{price.exchange}</span>
+            <h3 className="font-semibold text-sm text-[#e8ecf1]">{price.symbol}</h3>
+            <span className="text-[11px] text-[#5a6a7e]">{price.exchange}</span>
           </div>
         </div>
-        <div className={`flex items-center gap-1 ${getChangeColor(price.change24h || 0)}`}>
-          {isUp ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
-          <span className="font-mono">{formatPercent(price.change24h || 0)}</span>
+        <div className={`flex items-center gap-1 mono text-sm ${getChangeColor(price.change24h || 0)}`}>
+          {isUp ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+          {formatPercent(price.change24h || 0)}
         </div>
       </div>
-      
-      <div className="mt-3 flex items-end justify-between">
+
+      <div className="mt-2.5 flex items-end justify-between">
         <div>
-          <span className="text-2xl font-bold font-mono">
+          <span className="text-xl font-bold mono text-[#e8ecf1]">
             {formatCurrency(price.price || 0)}
           </span>
         </div>
-        
-        <div className="text-xs text-gray-400 text-right">
+
+        <div className="text-[11px] text-[#5a6a7e] text-right mono">
           <div>Vol: {volume >= 1e9 ? (volume / 1e9).toFixed(2) + 'B' : volume >= 1e6 ? (volume / 1e6).toFixed(2) + 'M' : volume.toFixed(2)}</div>
           {price.bid && price.ask && (
-            <div className="mt-1">
+            <div className="mt-0.5">
               Bid: {formatCurrency(price.bid)} / Ask: {formatCurrency(price.ask)}
             </div>
           )}
