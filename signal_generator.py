@@ -308,7 +308,7 @@ if __name__ == "__main__":
 
     print(f"\nGenerated {len(signals)} signals:")
     for s in signals[:5]:
-        print(f"   {s.action:4} | {s.name} (strength={s.strength:.2f}, {s.indicator})")
+        print(f"   {s.action:4} | {s.name} (s.strength={s.strength:.2f}, {s.indicator})")
 
     print(f"\n🎯 Composite: {composite['action']} (confidence={composite['confidence']:.0%})")
     print(f"   Buy strength: {composite['buy_strength']:.2f}, Sell: {composite['sell_strength']:.2f}")

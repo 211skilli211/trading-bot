@@ -261,6 +261,55 @@ try:
 except ImportError:
     AUTO_TRADER_AVAILABLE = False
 
+# Debate Orchestrator (Fincept-derived)
+try:
+    from debate_orchestrator import DebateOrchestrator
+    DEBATE_AVAILABLE = True
+except ImportError:
+    DEBATE_AVAILABLE = False
+
+# Agent Evolution (Fincept-derived)
+try:
+    from agent_evolution import AgentEvolution
+    AGENT_EVOLUTION_AVAILABLE = True
+except ImportError:
+    AGENT_EVOLUTION_AVAILABLE = False
+
+# Confidence Scorer (Fincept-derived)
+try:
+    from confidence_scorer import ConfidenceScorer
+    CONFIDENCE_SCORER_AVAILABLE = True
+except ImportError:
+    CONFIDENCE_SCORER_AVAILABLE = False
+
+# TP/SL Calculator (Fincept-derived)
+try:
+    from tp_sl_calculator import TPSLCalculator
+    TPSL_AVAILABLE = True
+except ImportError:
+    TPSL_AVAILABLE = False
+
+# Paper Trading Engine (Fincept-derived)
+try:
+    from paper_trading_engine import PaperTradingEngine
+    PAPER_ENGINE_AVAILABLE = True
+except ImportError:
+    PAPER_ENGINE_AVAILABLE = False
+
+# Features Pipeline (Fincept-derived)
+try:
+    from features_pipeline import TechnicalFeaturesPipeline
+    FEATURES_PIPELINE_AVAILABLE = True
+except ImportError:
+    FEATURES_PIPELINE_AVAILABLE = False
+
+# Glassnode Data (Fincept-derived)
+try:
+    from glassnode_data import GlassnodeClient
+    GLASSNODE_AVAILABLE = True
+except ImportError:
+    GLASSNODE_AVAILABLE = False
+
 
 @dataclass
 class SolanaArbitrageResult:
@@ -607,6 +656,59 @@ class TradingBot:
             print("✅ Hyperopt Engine initialized")
         else:
             self.hyperopt = None
+
+        # Debate Orchestrator
+        if DEBATE_AVAILABLE:
+            self.debate_orchestrator = DebateOrchestrator()
+            print("✅ Debate Orchestrator initialized")
+        else:
+            self.debate_orchestrator = None
+
+        # Agent Evolution
+        if AGENT_EVOLUTION_AVAILABLE:
+            self.agent_evolution = AgentEvolution()
+            print("✅ Agent Evolution initialized")
+        else:
+            self.agent_evolution = None
+
+        # Confidence Scorer
+        if CONFIDENCE_SCORER_AVAILABLE:
+            self.confidence_scorer = ConfidenceScorer()
+            print("✅ Confidence Scorer initialized")
+        else:
+            self.confidence_scorer = None
+
+        # TP/SL Calculator
+        if TPSL_AVAILABLE:
+            self.tpsl_calculator = TPSLCalculator()
+            print("✅ TP/SL Calculator initialized")
+        else:
+            self.tpsl_calculator = None
+
+        # Paper Trading Engine
+        if PAPER_ENGINE_AVAILABLE:
+            paper_config = self.config.get('paper_trading', {})
+            initial_capital = paper_config.get('initial_capital', 10000)
+            self.paper_engine = PaperTradingEngine(initial_capital=initial_capital)
+            print(f"✅ Paper Trading Engine initialized (${initial_capital})")
+        else:
+            self.paper_engine = None
+
+        # Features Pipeline
+        if FEATURES_PIPELINE_AVAILABLE:
+            self.features_pipeline = TechnicalFeaturesPipeline()
+            print("✅ Features Pipeline initialized")
+        else:
+            self.features_pipeline = None
+
+        # Glassnode Data
+        if GLASSNODE_AVAILABLE:
+            glassnode_config = self.config.get('glassnode', {})
+            api_key = glassnode_config.get('api_key', '')
+            self.glassnode = GlassnodeClient(api_key=api_key)
+            print("✅ Glassnode Data initialized")
+        else:
+            self.glassnode = None
 
     def _init_solana(self):
         """Initialize Solana DEX connector."""

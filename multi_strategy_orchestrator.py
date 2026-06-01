@@ -207,9 +207,9 @@ class StrategyOrchestrator:
             if alloc.status != StrategyStatus.ACTIVE:
                 continue
             instance = self._strategy_instances.get(name)
-            if instance and hasattr(instance, 'generate_signal'):
+            if instance and hasattr(instance, 'analyze'):
                 try:
-                    signal = instance.generate_signal(**market_data)
+                    signal = instance.analyze(**market_data)
                     if signal and signal.get('action') != 'NO_TRADE':
                         results[name] = signal
                 except Exception as e:

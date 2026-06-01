@@ -23,7 +23,7 @@ class TradingDatabase:
     - performance: Daily/monthly summaries
     """
     
-    def __init__(self, db_path: str = "trades.db"):
+    def __init__(self, db_path: str = "trades_legacy.db"):
         """Initialize database connection."""
         self.db_path = db_path
         self._init_tables()

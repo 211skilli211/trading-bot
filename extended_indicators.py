@@ -238,7 +238,7 @@ class IndicatorEngine:
             return {"indicator": name, "error": f"Not implemented in pandas fallback"}
 
         clean = vals.dropna()
-        current = float(vals.iloc[-1]) if not vals.empty and not np.isnan(vals.iloc[-1]) else None
+        current = float(vals.iloc[-1]) if len(vals) > 0 and not np.isnan(float(vals.iloc[-1])) else None
         return {"indicator": name, "period": period, "values": clean.tolist(),
                 "current": current, "count": len(clean), "source": "pandas"}
 
