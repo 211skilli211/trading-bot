@@ -1,40 +1,375 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
+/* ============================================================
+   IBT Trading Bot — Caribbean Dark Glassmorphism Theme
+   Based on DESIGN.md v1.0
+   ============================================================ */
+
+/* === Custom CSS Variables === */
+:root {
+  --color-primary: #0A0E17;
+  --color-secondary: #111827;
+  --color-tertiary: #0F4C75;
+  --color-accent: #D4AF37;
+  --color-alert: #FF6B35;
+  --color-success: #00C9A7;
+  --color-danger: #EF476F;
+  --color-neutral: #F1F5F9;
+  --color-muted: #64748B;
+  --color-glow-blue: #3B82F6;
+  --color-glow-gold: #FBBF24;
+  --color-glass-bg: rgba(17, 24, 39, 0.6);
+  --color-glass-border: rgba(30, 41, 59, 0.5);
+}
+
+/* === Base === */
 @layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-dark-900 text-white;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--color-primary);
+    color: var(--color-neutral);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
   }
-  
-  /* Safe area for mobile */
-  .safe-area-pb {
-    padding-bottom: env(safe-area-inset-bottom);
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
-  
-  /* Hide scrollbar but allow scrolling */
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  ::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.3);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.5);
+  }
+
+  /* No scrollbar utility */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Safe area padding */
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* === Components === */
+@layer components {
+  /* --- Glass Card (primary container) --- */
+  .glass-card {
+    background: var(--color-glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--color-glass-border);
+    border-radius: 16px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-card:hover {
+    border-color: rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 30px rgba(15, 76, 117, 0.12);
+  }
+
+  /* --- Solid Card (secondary container) --- */
+  .solid-card {
+    background: var(--color-secondary);
+    border: 1px solid rgba(30, 41, 59, 0.6);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+  }
+
+  .solid-card:hover {
+    border-color: rgba(59, 130, 246, 0.2);
+  }
+
+  /* --- Price-up / Price-down cards --- */
+  .card-up {
+    border-left: 3px solid var(--color-success);
+    background: linear-gradient(135deg, rgba(0, 201, 167, 0.04) 0%, transparent 60%);
+  }
+
+  .card-down {
+    border-left: 3px solid var(--color-danger);
+    background: linear-gradient(135deg, rgba(239, 71, 111, 0.04) 0%, transparent 60%);
+  }
+
+  /* --- Buttons --- */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--color-tertiary);
+    color: var(--color-neutral);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    min-height: 44px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 20px rgba(15, 76, 117, 0.3);
+  }
+
+  .btn-primary:hover {
+    background: #1A5F8A;
+    box-shadow: 0 0 30px rgba(15, 76, 117, 0.5);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 0 15px rgba(15, 76, 117, 0.3);
+  }
+
+  .btn-danger {
+    background: var(--color-danger);
+    box-shadow: 0 0 20px rgba(239, 71, 111, 0.3);
+  }
+  .btn-danger:hover {
+    background: #D63D5E;
+    box-shadow: 0 0 30px rgba(239, 71, 111, 0.5);
+  }
+
+  .btn-gold {
+    background: var(--color-accent);
+    color: var(--color-primary);
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+  }
+  .btn-gold:hover {
+    background: #E5C04A;
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-muted);
+    border: 1px solid var(--color-glass-border);
+    border-radius: 10px;
+    padding: 10px 20px;
+    min-height: 44px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-ghost:hover {
+    color: var(--color-neutral);
+    border-color: rgba(59, 130, 246, 0.3);
+    background: rgba(59, 130, 246, 0.05);
+  }
+
+  /* --- Badges --- */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 9999px;
+    padding: 4px 10px;
+  }
+
+  .badge-live {
+    background: var(--color-danger);
+    color: white;
+    animation: pulse-live 2s infinite;
+  }
+
+  .badge-paper {
+    background: rgba(212, 175, 55, 0.15);
+    color: var(--color-accent);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+  }
+
+  .badge-strategy {
+    background: rgba(15, 76, 117, 0.2);
+    color: var(--color-glow-blue);
+    border: 1px solid rgba(15, 76, 117, 0.3);
+  }
+
+  .badge-success {
+    background: rgba(0, 201, 167, 0.15);
+    color: var(--color-success);
+    border: 1px solid rgba(0, 201, 167, 0.25);
+  }
+
+  /* --- Stat number --- */
+  .stat-number {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .stat-change-up {
+    color: var(--color-success);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .stat-change-down {
+    color: var(--color-danger);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  /* --- Typography --- */
+  .heading-glow {
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* --- Shimmer loader --- */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+    background: rgba(30, 41, 59, 0.4);
+    border-radius: 8px;
+  }
+
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(59, 130, 246, 0.06) 50%,
+      transparent 100%
+    );
+    animation: shimmer-wave 1.8s infinite;
+  }
+
+  /* --- Ocean gradient background --- */
+  .bg-ocean {
+    background: linear-gradient(135deg, #0F4C75 0%, #0A0E17 50%, #111827 100%);
+  }
+
+  /* --- Sunset gradient (for P&L charts) --- */
+  .bg-sunset {
+    background: linear-gradient(135deg, #FF6B35 0%, #D4AF37 50%, #00C9A7 100%);
+  }
+
+  /* --- Input --- */
+  .input-glass {
+    background: rgba(10, 14, 23, 0.8);
+    border: 1px solid rgba(30, 41, 59, 0.6);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--color-neutral);
+    font-size: 0.875rem;
+    outline: none;
+    transition: all 0.2s ease;
+    min-height: 44px;
+  }
+
+  .input-glass:focus {
+    border-color: var(--color-tertiary);
+    box-shadow: 0 0 0 3px rgba(15, 76, 117, 0.2);
+  }
+
+  .input-glass::placeholder {
+    color: var(--color-muted);
+  }
+
+  /* --- Price flash animation --- */
+  .price-flash-up {
+    animation: flash-green 0.4s ease-out;
+  }
+
+  .price-flash-down {
+    animation: flash-red 0.4s ease-out;
+  }
+
+  /* --- Divider --- */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(30, 41, 59, 0.5), transparent);
+    margin: 16px 0;
   }
 }
 
-@layer components {
-  .card {
-    @apply bg-dark-800 rounded-xl border border-dark-700;
+/* === Animations === */
+@layer utilities {
+  @keyframes shimmer-wave {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
-  
-  .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-xl transition-colors;
+
+  @keyframes pulse-live {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 71, 111, 0.4); }
+    50% { opacity: 0.85; box-shadow: 0 0 0 6px rgba(239, 71, 111, 0); }
   }
-  
-  .btn-secondary {
-    @apply bg-dark-700 hover:bg-dark-600 text-white font-medium py-2 px-4 rounded-xl transition-colors;
+
+  @keyframes flash-green {
+    0% { background-color: rgba(0, 201, 167, 0.25); }
+    100% { background-color: transparent; }
   }
+
+  @keyframes flash-red {
+    0% { background-color: rgba(239, 71, 111, 0.25); }
+    100% { background-color: transparent; }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
+    50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.4); }
+  }
+
+  /* Utility classes for animations */
+  .animate-float { animation: float 3s ease-in-out infinite; }
+  .animate-glow { animation: glow-pulse 2s ease-in-out infinite; }
+  .animate-shimmer { animation: shimmer-wave 1.8s infinite; }
+
+  /* Page transitions */
+  .page-enter {
+    animation: page-slide-up 0.3s ease-out;
+  }
+
+  @keyframes page-slide-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Number counting animation handled by GSAP in components */
 }
