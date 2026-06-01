@@ -98,6 +98,27 @@
 
 ---
 
+## ✅ FINCEPT-DERIVED MODULES (ported from FinceptTerminal)
+
+### 12. `portfolio_optimizer.py` (380 lines) — Fincept's portfolio optimization
+- **9 strategies**: max_sharpe, min_volatility, efficient_risk, efficient_return, max_quadratic_utility, risk_parity, black_litterman, equal_weight, inverse_vol, momentum, mean_var
+- Crypto-adapted: Binance API data, 365-day annualization (24/7 markets)
+- `optimize_all()` — runs all strategies, ranks by Sharpe
+- No-shorting constraint, SLSQP optimization
+
+### 13. `quantstats_analyzer.py` (340 lines) — Fincept's quant analysis
+- Full report: performance, risk, ratios, distribution, drawdown, rolling
+- Ratios: Sharpe, Sortino, Calmar, Omega, Information
+- Risk: VaR (95/99), CVaR (95/99), max drawdown duration
+- Distribution: win rate, profit factor, expectancy, skew, kurtosis
+
+### 14. `signal_generator.py` (380 lines) — Fincept's signal system
+- **7 signal types**: crossover, threshold, divergence, breakout, momentum, volume, trend
+- `composite_signal()` — multi-signal consensus with confidence
+- RSI, SMA, EMA, Bollinger Bands, ROC, Volume indicators
+
+---
+
 ## ✅ EXISTING MODULES (54 files — original codebase)
 
 **Core Engine:** trading_bot.py, strategy_engine.py, risk_manager.py, execution_layer.py(+v2), backtester.py
@@ -185,4 +206,6 @@ Data: COINAPI_KEY, AMBERDATA_KEY, LUNARCRUSH_API_KEY, NEWS_API_KEY, TWITTER_API_
 
 *Created: 2026-06-01 by OWL*
 *Last updated: 2026-06-01 (added ported modules + 3D/shader section)*
-*Status: 10 modules ported + 3 deployment artifacts — 10 ported modules (5 previous + 5 new). Remaining: FreqAI ML feature engineering (large effort, deferred)*
+*Status: 14 ported modules (5 Freqtrade/Jesse + 5 Freqtrade/OctoBot + 3 FinceptTerminal + 1 Freqtrade API). Deployment artifacts: requirements.txt, Dockerfile, render.yaml. Remaining: FreqAI ML feature engineering (large effort, deferred).*
+
+*References: Freqtrade (hyperopt, strategy API, trade DB), Jesse (strategies, metrics), OctoBot (sentiment, multi-strategy), FinceptTerminal (portfolio optimization, quant analysis, signals)*
