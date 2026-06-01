@@ -117,6 +117,20 @@
 - `composite_signal()` — multi-signal consensus with confidence
 - RSI, SMA, EMA, Bollinger Bands, ROC, Volume indicators
 
+### 15. `extended_indicators.py` (420 lines) — Fincept agno_trading indicators
+- 25+ indicators: SMA, EMA, WMA, RSI, MACD, BBANDS, ATR, CCI, CMO, ROC, STOCH, ADX, WILLR, MFI, OBV
+- 4-tier fallback cascade: TA-Lib → Pandas → NumPy → Pure Python
+- Batch calculation mode for standard indicator set
+- Designed for agno_trading agent integration
+
+### 16. `auto_trader_engine.py` (420 lines) — Fincept agno_trading auto-trader
+- Autonomous trading loop with configurable cycle (default 180s)
+- Safety circuit breakers: max drawdown, daily loss, position count, cooldown
+- Dynamic position sizing with confidence weighting
+- TP/SL management, trade history tracking
+- Paper + live mode support
+- Agent-agnostic: works with any signal-generating callback
+
 ---
 
 ## ✅ EXISTING MODULES (54 files — original codebase)
@@ -134,20 +148,17 @@
 
 ## 🔮 FUTURE PORTS (lower priority)
 
-### From Freqtrade:
-- Remote control REST API (start/stop bot, modify config remotely)
-- Web dashboard API endpoints
-- Telegram/Discord notification integration (we have Telegram, could add Discord)
-
 ### From FreqAI (Freqtrade's ML):
 - Auto-train ML models on features, predict signals
 - We have ml_predictions.py but FreqAI has better feature engineering
 - Effort: Large (3-5 days) — deferred
 
-### From OctoBot:
-- Social sentiment analysis (Twitter/social for signals)
-- Multi-strategy orchestration (run multiple strategies with capital allocation)
-- Effort: Medium
+### From FinceptTerminal (potential future ports):
+- Portfolio Management — full rebalancing engine with tax optimization
+- Machine Learning pipeline — feature engineering + model training
+- Chart Pattern Recognition — automated technical pattern detection
+- Economic Calendar Integration — macro event-driven trading
+- Risk Factor Analysis — multi-factor risk decomposition
 
 ---
 
@@ -206,6 +217,6 @@ Data: COINAPI_KEY, AMBERDATA_KEY, LUNARCRUSH_API_KEY, NEWS_API_KEY, TWITTER_API_
 
 *Created: 2026-06-01 by OWL*
 *Last updated: 2026-06-01 (added ported modules + 3D/shader section)*
-*Status: 14 ported modules (5 Freqtrade/Jesse + 5 Freqtrade/OctoBot + 3 FinceptTerminal + 1 Freqtrade API). Deployment artifacts: requirements.txt, Dockerfile, render.yaml. Remaining: FreqAI ML feature engineering (large effort, deferred).*
+*Status: 16 ported modules (5 Freqtrade/Jesse + 5 Freqtrade/OctoBot + 5 FinceptTerminal + 1 Freqtrade API). Deployment artifacts: requirements.txt, Dockerfile, render.yaml. Remaining: FreqAI ML feature engineering, full agno_trading pipeline (paper_execution, debate_orchestrator, hedge fund agents — large effort, deferred).*
 
 *References: Freqtrade (hyperopt, strategy API, trade DB), Jesse (strategies, metrics), OctoBot (sentiment, multi-strategy), FinceptTerminal (portfolio optimization, quant analysis, signals)*
