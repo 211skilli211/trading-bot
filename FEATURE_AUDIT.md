@@ -202,10 +202,19 @@
 - **Data providers** (coingecko, coinmarketcap, etc.): Simple API wrappers, redundant with our existing connectors
 - **Backtesting frameworks** (backtestingpy, bt, vectorbt, zipline): Library-specific, use our existing backtester.py
 
-### Remaining high-value future ports:
-- **qlib feature engineering** standalone (without full qlib dependency) — possible with custom implementation
-- **Portfolio Management** full rebalancing engine — medium effort
-- **Chart Pattern Recognition** — medium effort, high value for signal generation
+### Remaining Fincept candidates (NOT ported — analyzed and rejected):
+- **agno_trading** (24 remaining files): Framework types, base classes, daily runner — all need agno lib
+- **hedgeFundAgents** (96 files): Renaissance Tech multi-agent org simulation — all need agno agents framework
+- **finagent_core** (57 files): Core agent runtime (992L), intent router (815L) — tightly coupled to FinceptTerminal architecture
+- **ai_quant_lab** (15 files): qlib-based ML (LSTM, GRU, RL) — needs Microsoft qlib (large, GPU-oriented)
+- **Analytics/** (200+ files): zipline, vectorbt, GS Quant, skfolio wrappers — all need heavy deps, we have our own
+- **Data providers** (50+ files): CoinGecko, CoinMarketCap, etc. — redundant with our existing connectors
+- **Backtesting** (60+ files): Library-specific wrappers — use our existing backtester.py
+- **polymarket_quant_bot.py** (827L): Particle filter edge detection — needs scipy, concept covered by our polymarket_client.py
+- **news_sentiment.py** (96L): All placeholder/stub functions returning "pending"
+
+**Verdict: All valuable standalone code has been ported. 12/12.**
+No more high-value Fincept modules remaining for this codebase.
 
 ---
 
