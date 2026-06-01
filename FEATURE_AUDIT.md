@@ -1,6 +1,6 @@
 # Trading Bot — Feature Audit & Port Plan
 
-## Current State: 59 Python files in trading-bot/ (54 original + 5 ported)
+## Current State: 76 Python files in trading-bot/ (54 original + 22 ported)
 
 ---
 
@@ -131,6 +131,49 @@
 - Paper + live mode support
 - Agent-agnostic: works with any signal-generating callback
 
+### 17. `debate_orchestrator.py` (277 lines) — Fincept's multi-agent debate
+- Bull/Bear/Analyst debate system for trading decisions (inspired by Alpha Arena)
+- **Rule-based mode** (no LLM): Uses technical indicators to simulate debate
+- **LLM mode** (optional, requires agno): Full AI agent debate with Bull, Bear, Analyst agents
+- Considers: price momentum, RSI, MACD, moving averages, volume, support/resistance, volatility
+- Outputs: final action (STRONG_BUY/BUY/HOLD/SELL/STRONG_SELL), confidence, entry/SL/TP
+
+### 18. `agent_evolution.py` (224 lines) — Fincept's self-improving agents
+- Performance-based evolution triggers: loss streak (3+), poor win rate (<40%), large drawdown (10%+)
+- Pattern analysis: best/worst symbols, sides, position sizing, SL/TP hit rates
+- Auto-generates improved trading instructions from historical patterns
+- Adapts agent behavior based on what's working vs what's not
+
+### 19. `confidence_scorer.py` (131 lines) — Fincept's signal confidence scoring
+- Multi-factor confidence (0-1): indicator alignment, trend strength, volume, risk/reward, volatility
+- Configurable weights for each factor
+- Market condition adjustments (trending/ranging/volatile/calm)
+- Action recommendation: STRONG_EXECUTE, EXECUTE, EXECUTE_WITH_CAUTION, SKIP
+
+### 20. `tp_sl_calculator.py` (130 lines) — Fincept's dynamic TP/SL
+- ATR-based dynamic TP/SL calculation
+- Percentage-based TP/SL
+- Trailing stop loss with direction-aware logic
+- Volatility estimation from price history
+- TP/SL validation with minimum R:R ratio checking
+
+### 21. `paper_trading_engine.py` (204 lines) — Fincept's paper trading gateway
+- Full paper trading simulation with slippage and fee modeling
+- Position tracking (long/short), cash management, P&L calculation
+- Mark-to-market updates, portfolio summary
+- Reset capability for backtesting
+
+### 22. `features_pipeline.py` (158 lines) — Fincept's ML feature engineering
+- Complete technical indicator suite: RSI(7/14), MACD, Bollinger Bands, ATR(7/14)
+- Moving averages: SMA(7/20/50), EMA(12/26)
+- Volatility measures, volume ratios
+- NumPy-based computation, no TA-Lib required
+
+### 23. `glassnode_data.py` (129 lines) — Fincept's Bitcoin on-chain data
+- Active addresses, transaction count, hash rate, NVT ratio, SOPR
+- Glassnode API integration with caching
+- CLI interface for all metrics
+
 ---
 
 ## ✅ EXISTING MODULES (54 files — original codebase)
@@ -146,19 +189,23 @@
 
 ---
 
-## 🔮 FUTURE PORTS (lower priority)
+## FinceptTerminal PoC Summary
 
-### From FreqAI (Freqtrade's ML):
-- Auto-train ML models on features, predict signals
-- We have ml_predictions.py but FreqAI has better feature engineering
-- Effort: Large (3-5 days) — deferred
+**Total ported: 12 modules** (5 initial + 7 new)
+**Total Fincept-derived code: ~2,600 lines**
 
-### From FinceptTerminal (potential future ports):
-- Portfolio Management — full rebalancing engine with tax optimization
-- Machine Learning pipeline — feature engineering + model training
-- Chart Pattern Recognition — automated technical pattern detection
-- Economic Calendar Integration — macro event-driven trading
-- Risk Factor Analysis — multi-factor risk decomposition
+### Not ported (and why):
+- **agno_trading full pipeline** (agent_manager, base_agent, run_daily): Deeply coupled to agno framework, would require full agno install
+- **hedgeFundAgents/** (Renaissance Tech simulation): 60+ files, complex multi-agent framework, needs agno
+- **finagent_core/** (core_agent, super_agent): 992+815 lines, tightly coupled to FinceptTerminal's architecture
+- **ai_quant_lab/qlib_***: Requires Microsoft qlib (large, GPU-oriented), not practical for lightweight bot
+- **Data providers** (coingecko, coinmarketcap, etc.): Simple API wrappers, redundant with our existing connectors
+- **Backtesting frameworks** (backtestingpy, bt, vectorbt, zipline): Library-specific, use our existing backtester.py
+
+### Remaining high-value future ports:
+- **qlib feature engineering** standalone (without full qlib dependency) — possible with custom implementation
+- **Portfolio Management** full rebalancing engine — medium effort
+- **Chart Pattern Recognition** — medium effort, high value for signal generation
 
 ---
 
@@ -216,7 +263,7 @@ Data: COINAPI_KEY, AMBERDATA_KEY, LUNARCRUSH_API_KEY, NEWS_API_KEY, TWITTER_API_
 ---
 
 *Created: 2026-06-01 by OWL*
-*Last updated: 2026-06-01 (added ported modules + 3D/shader section)*
-*Status: 16 ported modules (5 Freqtrade/Jesse + 5 Freqtrade/OctoBot + 5 FinceptTerminal + 1 Freqtrade API). Deployment artifacts: requirements.txt, Dockerfile, render.yaml. Remaining: FreqAI ML feature engineering, full agno_trading pipeline (paper_execution, debate_orchestrator, hedge fund agents — large effort, deferred).*
+*Last updated: 2026-06-01 (round 2: +7 Fincept modules, +FIXED from Freqtrade/OctoBot)*
+*Status: 23 ported modules (Jesse/Freqtrade + Freqtrade/OctoBot + FinceptTerminal + Freqtrade API). All syntax-verified. P0/P1 bugs fixed. Wired into trading_bot.py. Deployment artifacts: requirements.txt, Dockerfile, render.yaml. FinceptTerminal PoC complete — 12 modules ported (~2,600 lines), remaining candidates deferred (agno/qlib too heavy).*
 
-*References: Freqtrade (hyperopt, strategy API, trade DB), Jesse (strategies, metrics), OctoBot (sentiment, multi-strategy), FinceptTerminal (portfolio optimization, quant analysis, signals)*
+*References: Freqtrade (hyperopt, strategy API, trade DB), Jesse (strategies, metrics), OctoBot (sentiment, multi-strategy), FinceptTerminal (portfolio optimization, quant analysis, signals, debate orchestrator, agent evolution, paper trading, confidence scoring, TP/SL, features pipeline, on-chain data)*
