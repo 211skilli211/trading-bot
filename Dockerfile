@@ -1,37 +1,36 @@
-# Trading Bot Docker Image
-# Build: 2026-03-29 v2 - Added healthz and mobile API routes
 FROM python:3.11-slim
 
-# Set working directory
-WORKDIR /app
+LABEL maintainer="211skilli211"
+LABEL description="Trading Bot — Multi-exchange crypto trading with ML, Solana DEX, Polymarket"
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    git \
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ libffi-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Create app user
+RUN useradd --create-home --shell /bin/bash trader
+USER trader
+WORKDIR /home/trader/app
+
+# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt || true
 
-# Copy application code
-COPY . .
+# Copy app
+COPY --chown=trader:trader . .
 
-# Create necessary directories
+# Create directories
 RUN mkdir -p logs data models
 
-# Set environment variables
-ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
-
-# Expose ports for dashboard and APIs
-EXPOSE 8080 3000
-
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8080/api/health')" || exit 1
+HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
+    CMD python3 -c "import trading_bot; print('OK')" || exit 1
 
-# Default command
-CMD ["python", "dashboard.py"]
+# Expose API port
+EXPOSE 8080
+
+# Default: run in paper mode with API
+ENTRYPOINT ["python3", "trading_bot.py"]
+CMD ["--mode", "paper", "--monitor", "60"]

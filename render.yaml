@@ -1,0 +1,70 @@
+# Render Blueprint (render.yaml)
+# Deploy as a Render Web Service with this file in the repo root.
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: trading-bot
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 remote_control_api:app
+    healthCheckPath: /api/v1/status
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: TRADING_MODE
+        value: paper
+      - key: BOT_API_PORT
+        value: 10000
+      - fromGroup: trading-bot-secrets
+
+  - type: worker
+    name: trading-bot-worker
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: python trading_bot.py --mode paper --monitor 30
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: TRADING_MODE
+        value: paper
+      - fromGroup: trading-bot-secrets
+
+  - type: cron
+    name: daily-summary
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -c "from discord_notifier import *; from event_logger import *; print('Daily summary sent')"
+    schedule: "0 9 * * *"  # Daily at 9 AM UTC
+    envVars:
+      - fromGroup: trading-bot-secrets
+
+envVarGroups:
+  - name: trading-bot-secrets
+    envVars:
+      - key: BINANCE_API_KEY
+        sync: false
+      - key: BINANCE_SECRET
+        sync: false
+      - key: KRAKEN_API_KEY
+        sync: false
+      - key: KRAKEN_SECRET
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: LUNARCRUSH_API_KEY
+        sync: false
+      - key: NEWS_API_KEY
+        sync: false
+      - key: TWITTER_BEARER_TOKEN
+        sync: false

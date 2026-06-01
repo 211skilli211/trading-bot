@@ -55,6 +55,49 @@
 
 ---
 
+## ✅ NEWLY PORTED MODULES (this session)
+
+### 6. `remote_control_api.py` (450 lines) — Freqtrade's API
+- **BotAPIServer** — Full HTTP REST API for remote bot control
+- JWT authentication (with HMAC fallback if PyJWT unavailable)
+- Rate limiting (60 req/min), IP whitelisting
+- Endpoints: GET/POST /api/v1/start, /stop, /restart, /status, /config, /trades, /strategies, /performance, /logs
+- PUT /api/v1/config — live config updates
+- POST /api/v1/trade — manual trade execution
+- Threaded server option for running alongside trading_bot.py
+
+### 7. `social_sentiment.py` (340 lines) — OctoBot's sentiment engine
+- **Multi-provider aggregation**: Twitter/X, LunarCrush, NewsAPI, Reddit
+- Weight-based scoring with confidence calculation
+- Signal classification: strong_buy / buy / neutral / sell / strong_sell
+- Trend detection (improving / deteriorating / stable)
+- TTL caching (5-min default)
+- Top bullish/bearish ranking across assets
+
+### 8. `multi_strategy_orchestrator.py` (330 lines) — OctoBot's multi-strategy system
+- Dynamic weight rebalancing based on Sharpe-adjusted Kelly criterion
+- Drawdown protection (auto-cut weight at -15% drawdown)
+- Per-strategy weight caps (max 40%, min 5%)
+- Performance tracking per strategy (win rate, P&L, return %)
+- State save/restore for persistence
+
+### 9. `discord_notifier.py` (250 lines) — Discord webhook alerts
+- Rich embed messages with color-coded notifications
+- Trade alerts, P&L updates, daily summaries, error alerts
+- Rate limit handling with auto-backoff
+
+### 10. `event_logger.py` (200 lines) — Structured logging pipeline
+- JSON Lines format, typed events (TRADE, SIGNAL, RISK, etc.)
+- Ring buffer (1000 events), log rotation (50MB), thread-safe
+
+### 11. Deployment artifacts
+- `requirements.txt` — Python dependency manifest
+- `Dockerfile` — Container deployment (Python 3.11-slim)
+- `render.yaml` — Render blueprint (web + worker + cron)
+- `run_all_tests.sh` — Module syntax test suite
+
+---
+
 ## ✅ EXISTING MODULES (54 files — original codebase)
 
 **Core Engine:** trading_bot.py, strategy_engine.py, risk_manager.py, execution_layer.py(+v2), backtester.py
@@ -142,4 +185,4 @@ Data: COINAPI_KEY, AMBERDATA_KEY, LUNARCRUSH_API_KEY, NEWS_API_KEY, TWITTER_API_
 
 *Created: 2026-06-01 by OWL*
 *Last updated: 2026-06-01 (added ported modules + 3D/shader section)*
-*Status: 5 modules ported — ready for UI/IAM overhaul and next batch of ports*
+*Status: 10 modules ported + 3 deployment artifacts — 10 ported modules (5 previous + 5 new). Remaining: FreqAI ML feature engineering (large effort, deferred)*
