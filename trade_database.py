@@ -467,6 +467,47 @@ class TradeDatabase:
             is_open=row['state'] == TradeState.OPEN.value,
         )
     
+    def get_trades(self, limit: int = 50, offset: int = 0, state: str = None) -> List[Dict]:
+        """Get trades with optional state filter (open/closed/canceled/failed)."""
+        with self._conn() as conn:
+            query = "SELECT * FROM trades"
+            params = []
+            if state:
+                query += " WHERE state = ?"
+                params.append(state)
+            query += " ORDER BY open_date DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+            rows = conn.execute(query, params).fetchall()
+            return [self._row_to_record(r).to_dict() for r in rows]
+
+    def get_analytics(self) -> Dict[str, Any]:
+        """Get comprehensive analytics for the trading portfolio."""
+        summary = self.get_performance_summary(days=30)
+        pair_perf = self.get_pair_performance()
+        strategy_perf = self.get_strategy_performance()
+        daily_pnl = self.get_daily_pnl(days=30)
+        return {
+            "summary": summary,
+            "pair_performance": pair_perf,
+            "strategy_performance": strategy_perf,
+            "daily_pnl": daily_pnl,
+        }
+
+    def open_trade(self, pair: str, side: str, entry_price: float,
+                   quantity: float, strategy: str = "manual") -> str:
+        """Simplified open_trade for API compatibility."""
+        import uuid
+        trade_id = str(uuid.uuid4())[:8]
+        return self.create_trade(
+            trade_id=trade_id,
+            pair=pair,
+            exchange="api",
+            amount=quantity,
+            open_rate=entry_price,
+            stake_amount=quantity * entry_price,
+            direction="long" if side == "buy" else "short",
+        )
+
     def __len__(self) -> int:
         with self._conn() as conn:
             row = conn.execute("SELECT COUNT(*) as c FROM trades").fetchone()

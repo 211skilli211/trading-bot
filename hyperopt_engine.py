@@ -196,7 +196,7 @@ class HyperoptEngine:
                 metrics = self._evaluate_params(params, train_candles)
                 score = self._compute_score(metrics)
             except Exception as e:
-                print(f"[Hyperopt] Iter {i+1}/{self.max_iteration}: ERROR - {e}")
+                print(f"[Hyperopt] Iter {i+1}/{self.max_iterations}: ERROR - {e}")
                 continue
             
             result = HyperoptResult(params=params, metrics=metrics, score=score)

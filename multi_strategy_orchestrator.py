@@ -378,7 +378,7 @@ if __name__ == "__main__":
     orch.update_performance("MACDCrossover", -50, 3)
     orch.update_performance("RSIMeanReversion", 200, 7)
     orch.update_performance("IchimokuCloud", 80, 4)
-    orch.update_performance("MultiIndicatorConsensuss", -30, 2)
+    orch.update_performance("MultiIndicatorConsensus", -30, 2)
 
     # Rebalance
     orch.rebalance()

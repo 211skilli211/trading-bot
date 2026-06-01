@@ -156,6 +156,111 @@ except ImportError as e:
     RL_AVAILABLE = False
     print(f"[TradingBot] Note: RL Agent not available: {e}")
 
+# ─── Advanced Modules Integration ───────────────────────────────────────────
+
+# Strategy System (Jesse + Freqtrade)
+try:
+    from strategy_interface import BaseStrategy, StrategyRegistry
+    STRATEGY_INTERFACE_AVAILABLE = True
+except ImportError:
+    STRATEGY_INTERFACE_AVAILABLE = False
+
+try:
+    from strategies import BollingerBandBreakout, MACDCrossover, RSIMeanReversion
+    NEW_STRATEGIES_AVAILABLE = True
+except ImportError:
+    NEW_STRATEGIES_AVAILABLE = False
+
+try:
+    from hyperopt_engine import HyperoptEngine
+    HYPEROPT_AVAILABLE = True
+except ImportError:
+    HYPEROPT_AVAILABLE = False
+
+# Trade Database (Freqtrade persistence)
+try:
+    from trade_database import TradeDatabase
+    TRADE_DB_AVAILABLE = True
+except ImportError:
+    TRADE_DB_AVAILABLE = False
+
+# Advanced Metrics (Jesse metrics)
+try:
+    from metrics import compute_advanced_metrics
+    ADVANCED_METRICS_AVAILABLE = True
+except ImportError:
+    ADVANCED_METRICS_AVAILABLE = False
+
+# Remote Control API (Freqtrade-style REST)
+try:
+    from remote_control_api import BotAPIServer, BotStateManager
+    REMOTE_API_AVAILABLE = True
+except ImportError:
+    REMOTE_API_AVAILABLE = False
+
+# Social Sentiment (OctoBot-style)
+try:
+    from social_sentiment import SentimentEngine
+    SENTIMENT_AVAILABLE = True
+except ImportError:
+    SENTIMENT_AVAILABLE = False
+
+# Multi-Strategy Orchestrator (OctoBot-style)
+try:
+    from multi_strategy_orchestrator import StrategyOrchestrator
+    ORCHESTRATOR_AVAILABLE = True
+except ImportError:
+    ORCHESTRATOR_AVAILABLE = False
+
+# Discord Notifier
+try:
+    from discord_notifier import DiscordNotifier
+    DISCORD_AVAILABLE = True
+except ImportError:
+    DISCORD_AVAILABLE = False
+
+# Event Logger (structured logging)
+try:
+    from event_logger import EventLogger, EventType
+    EVENT_LOGGER_AVAILABLE = True
+except ImportError:
+    EVENT_LOGGER_AVAILABLE = False
+
+# Portfolio Optimizer (Fincept-derived)
+try:
+    from portfolio_optimizer import PortfolioOptimizer
+    PORTFOLIO_OPT_AVAILABLE = True
+except ImportError:
+    PORTFOLIO_OPT_AVAILABLE = False
+
+# QuantStats Analyzer (Fincept-derived)
+try:
+    from quantstats_analyzer import QuantAnalyzer
+    QUANTSTATS_AVAILABLE = True
+except ImportError:
+    QUANTSTATS_AVAILABLE = False
+
+# Signal Generator (Fincept-derived)
+try:
+    from signal_generator import SignalGenerator
+    SIGNAL_GEN_AVAILABLE = True
+except ImportError:
+    SIGNAL_GEN_AVAILABLE = False
+
+# Extended Indicators (Fincept-derived)
+try:
+    from extended_indicators import IndicatorEngine
+    EXT_INDICATORS_AVAILABLE = True
+except ImportError:
+    EXT_INDICATORS_AVAILABLE = False
+
+# Auto Trader Engine (Fincept-derived)
+try:
+    from auto_trader_engine import AutoTrader, SafetyLimits
+    AUTO_TRADER_AVAILABLE = True
+except ImportError:
+    AUTO_TRADER_AVAILABLE = False
+
 
 @dataclass
 class SolanaArbitrageResult:
@@ -370,9 +475,139 @@ class TradingBot:
                 print(f"⚠️  Multi-Agent init failed: {e}")
         else:
             print("ℹ️  Multi-Agent: Module not available")
-        
+
+        # ── Advanced Modules (ported) ──
+        self._init_advanced_modules()
+
         print()
-    
+
+    def _init_advanced_modules(self):
+        """Initialize all 16 ported modules."""
+        # Event Logger (structured logging)
+        if EVENT_LOGGER_AVAILABLE:
+            self.event_logger = EventLogger()
+            print("✅ Event Logger initialized")
+        else:
+            self.event_logger = None
+
+        # Social Sentiment Engine
+        sentiment_config = self.config.get('sentiment', {})
+        if SENTIMENT_AVAILABLE and sentiment_config.get('enabled', False):
+            self.sentiment_engine = SentimentEngine(config=sentiment_config)
+            print("✅ Sentiment Engine initialized")
+        else:
+            self.sentiment_engine = None
+
+        # Signal Generator
+        if SIGNAL_GEN_AVAILABLE:
+            self.signal_generator = SignalGenerator()
+            print("✅ Signal Generator initialized")
+        else:
+            self.signal_generator = None
+
+        # Extended Indicators
+        if EXT_INDICATORS_AVAILABLE:
+            self.indicator_engine = IndicatorEngine()
+            print("✅ Extended Indicators initialized")
+        else:
+            self.indicator_engine = None
+
+        # Strategy Interface + Registry
+        if STRATEGY_INTERFACE_AVAILABLE:
+            self.strategy_registry = StrategyRegistry
+            # Auto-register strategies
+            if NEW_STRATEGIES_AVAILABLE:
+                self.strategy_registry.register("bollinger_breakout", BollingerBandBreakout)
+                self.strategy_registry.register("macd_crossover", MACDCrossover)
+                self.strategy_registry.register("rsi_mean_reversion", RSIMeanReversion)
+                print("✅ Strategy Interface initialized (3 strategies registered)")
+            else:
+                print("✅ Strategy Interface initialized (no strategies registered)")
+        else:
+            self.strategy_registry = None
+
+        # Trade Database (enhanced)
+        if TRADE_DB_AVAILABLE:
+            self.trade_db = TradeDatabase()
+            print("✅ Enhanced Trade Database initialized")
+        else:
+            self.trade_db = None
+
+        # Advanced Metrics
+        if ADVANCED_METRICS_AVAILABLE:
+            self.advanced_metrics = True
+            print("✅ Advanced Metrics available")
+        else:
+            self.advanced_metrics = False
+
+        # Discord Notifier
+        discord_config = self.config.get('discord', {})
+        if DISCORD_AVAILABLE and discord_config.get('webhook_url'):
+            self.discord = DiscordNotifier(webhook_url=discord_config['webhook_url'])
+            print("✅ Discord Notifier initialized")
+        else:
+            self.discord = None
+
+        # Multi-Strategy Orchestrator
+        orchestrator_config = self.config.get('orchestrator', {})
+        if ORCHESTRATOR_AVAILABLE and orchestrator_config.get('enabled', False):
+            capital = orchestrator_config.get('initial_capital', 10000)
+            self.orchestrator = StrategyOrchestrator(total_capital=capital)
+            print("✅ Strategy Orchestrator initialized")
+        else:
+            self.orchestrator = None
+
+        # Portfolio Optimizer
+        if PORTFOLIO_OPT_AVAILABLE:
+            self.portfolio_optimizer = PortfolioOptimizer()
+            print("✅ Portfolio Optimizer initialized")
+        else:
+            self.portfolio_optimizer = None
+
+        # QuantStats Analyzer
+        if QUANTSTATS_AVAILABLE:
+            self.quant_analyzer = QuantAnalyzer()
+            print("✅ QuantStats Analyzer initialized")
+        else:
+            self.quant_analyzer = None
+
+        # Auto Trader Engine
+        auto_trader_config = self.config.get('auto_trader', {})
+        if AUTO_TRADER_AVAILABLE and auto_trader_config.get('enabled', False):
+            safety = SafetyLimits(
+                max_drawdown=auto_trader_config.get('max_drawdown', 0.15),
+                max_daily_loss=auto_trader_config.get('max_daily_loss', 0.05),
+                min_confidence=auto_trader_config.get('min_confidence', 0.60),
+            )
+            self.auto_trader = AutoTrader(
+                agent=None,  # Will be set later if strategies are connected
+                mode=self.mode,
+                safety_limits=safety,
+                initial_capital=auto_trader_config.get('initial_capital', 10000),
+            )
+            print("✅ Auto Trader Engine initialized")
+        else:
+            self.auto_trader = None
+
+        # Remote Control API
+        api_config = self.config.get('remote_api', {})
+        if REMOTE_API_AVAILABLE and api_config.get('enabled', False):
+            port = api_config.get('port', 8080)
+            self.state_manager = BotStateManager()
+            self.api_server = BotAPIServer(port=port)
+            self.api_thread = self.api_server.start_threaded()
+            print(f"✅ Remote Control API on port {port}")
+        else:
+            self.api_server = None
+
+        # Hyperopt Engine
+        hyperopt_config = self.config.get('hyperopt', {})
+        if HYPEROPT_AVAILABLE and hyperopt_config.get('enabled', False):
+            self.hyperopt = HyperoptEngine()
+            print("✅ Hyperopt Engine initialized")
+        else:
+            self.hyperopt = None
+
     def _init_solana(self):
         """Initialize Solana DEX connector."""
         self.solana_enabled = self.config.get('solana', {}).get('enabled', False)

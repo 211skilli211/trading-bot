@@ -339,7 +339,7 @@ class BotAPIHandler(BaseHTTPRequestHandler):
     def _handle_strategies(self, token):
         try:
             from strategy_interface import StrategyRegistry
-            strategies = StrategyRegistry.list_strategies()
+            strategies = StrategyRegistry.list()
             return self._send_json({"status": "ok", "strategies": strategies})
         except ImportError:
             return self._send_json({"status": "ok", "strategies": [], "message": "StrategyRegistry not available"})
