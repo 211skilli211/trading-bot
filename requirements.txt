@@ -21,3 +21,9 @@ scipy>=1.11.0
 
 # Optional: TA-Lib for advanced indicators (needs system lib)
 # ta-lib>=0.4.0
+
+# Scheduling (for app.py unified entry point)
+apscheduler>=3.10.0
+
+# Web server (for Render deployment)
+gunicorn>=21.2.0
