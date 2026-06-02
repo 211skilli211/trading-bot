@@ -1613,12 +1613,17 @@ class TradingBot:
         if self.sentiment_engine:
             try:
                 print("\n   🌐 Social Sentiment Analysis...")
-                sentiment = self.sentiment_engine.get_aggregate_sentiment("BTC")
+                sentiment = self.sentiment_engine.get_sentiment("BTC")
                 if sentiment:
-                    signal_label = sentiment.get('signal', 'neutral')
-                    confidence = sentiment.get('confidence', 0)
-                    print(f"      Sentiment: {signal_label} (confidence: {confidence:.0f}%)")
-                    result["sentiment"] = sentiment
+                    signal_label = getattr(sentiment, 'signal', 'neutral') if not isinstance(sentiment, dict) else sentiment.get('signal', 'neutral')
+                    confidence = getattr(sentiment, 'confidence', 0) if not isinstance(sentiment, dict) else sentiment.get('confidence', 0)
+                    score = getattr(sentiment, 'score', 0) if not isinstance(sentiment, dict) else sentiment.get('score', 0)
+                    print(f"      Sentiment: {signal_label} (confidence: {confidence:.0f}%, score: {score:+.2f})")
+                    result["sentiment"] = {
+                        'signal': signal_label,
+                        'confidence': confidence,
+                        'score': score,
+                    }
 
                     # Adjust signal based on sentiment
                     if signal['decision'] == 'TRADE':
@@ -1641,15 +1646,14 @@ class TradingBot:
         # Confidence Scoring
         if self.confidence_scorer and signal['decision'] == 'TRADE':
             try:
-                confidence_input = {
-                    'spread_pct': signal.get('spread_pct', 0),
-                    'volume_ratio': 1.2,
-                    'sentiment': result.get('sentiment', {}).get('signal', 'neutral'),
-                    'ml_direction': result.get('ml_prediction', {}).get('direction', 'UNKNOWN'),
-                    'rl_action': result.get('rl_signal', {}).get('action', 'HOLD'),
-                }
-                conf_result = self.confidence_scorer.score(signal)
-                conf_score = conf_result.get('score', 0) if isinstance(conf_result, dict) else 0
+                conf_result = self.confidence_scorer.calculate(
+                    indicator_alignment=0.6 if result.get('indicators') else 0.5,
+                    trend_strength=0.7 if result.get('ml_prediction', {}).get('direction') == 'UP' else 0.3,
+                    volume_confirmation=0.6,
+                    risk_reward_ratio=signal.get('spread_pct', 0.002) * 100,
+                    volatility_factor=self.config.get('risk', {}).get('max_position_btc', 0.05),
+                )
+                conf_score = conf_result.get('confidence', 0) if isinstance(conf_result, dict) else 0
                 print(f"   🎯 Confidence Score: {conf_score:.0f}%")
                 result["confidence"] = conf_result
 
@@ -1666,7 +1670,12 @@ class TradingBot:
         if self.tpsl_calculator and signal['decision'] == 'TRADE':
             try:
                 buy_price = signal.get('buy_price', 0)
-                tpsl = self.tpsl_calculator.calculate(buy_price, signal.get('spread_pct', 0))
+                tpsl = self.tpsl_calculator.calculate_dynamic_tp_sl(
+                    entry_price=buy_price,
+                    direction='long',
+                    volatility=buy_price * 0.02,
+                    risk_reward_ratio=2.0
+                )
                 print(f"   📐 TP: ${tpsl.get('take_profit', 0):,.2f} | SL: ${tpsl.get('stop_loss', 0):,.2f}")
                 result["tpsl"] = tpsl
             except Exception as e:
@@ -1811,13 +1820,15 @@ class TradingBot:
                 if result.get('execution') and isinstance(result['execution'], dict):
                     exec_data = result['execution']
                     if exec_data.get('status') == 'FILLED':
-                        self.discord.send_trade_notification(
-                            symbol='BTC/USDT',
-                            side='ARBITRAGE',
-                            price=exec_data.get('buy_price', 0),
-                            quantity=exec_data.get('quantity', 0),
-                            pnl=exec_data.get('net_pnl', 0)
-                        )
+                        self.discord.send_trade_alert({
+                            'symbol': 'BTC/USDT',
+                            'side': 'ARBITRAGE',
+                            'buy_price': exec_data.get('buy_price', 0),
+                            'sell_price': exec_data.get('sell_price', 0),
+                            'quantity': exec_data.get('quantity', 0),
+                            'net_pnl': exec_data.get('net_pnl', 0),
+                            'status': 'FILLED',
+                        })
             except Exception as e:
                 print(f"   Discord notification error: {e}")
 
