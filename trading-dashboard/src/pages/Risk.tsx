@@ -79,7 +79,7 @@ export function Risk() {
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.03] transition-colors">
               <div className="flex items-center gap-3">
-                <Target size={18} className="text-blue-400" />
+                <Target size={18} className="text-[#3B82F6]" />
                 <div>
                   <div className="font-medium text-[#e8ecf1] text-sm">Max Position Size (BTC)</div>
                   <div className="text-xs text-[#5a6a7e]">Maximum BTC per position</div>
@@ -156,7 +156,7 @@ export function Risk() {
 
             <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.03] transition-colors">
               <div className="flex items-center gap-3">
-                <Activity size={18} className="text-blue-400" />
+                <Activity size={18} className="text-[#3B82F6]" />
                 <div>
                   <div className="font-medium text-[#e8ecf1] text-sm">Max Total Exposure (%)</div>
                   <div className="text-xs text-[#5a6a7e]">Maximum portfolio exposure</div>

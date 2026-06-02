@@ -140,37 +140,37 @@ export function Home() {
 
         {/* ========== Row 2: Quick Navigation (Anti-slop: varied visual interest, not 4 equal cards) ========== */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <Link to="/zeroclaw" className="glass-card p-4 flex flex-col gap-2 group hover:border-blue-500/20">
+          <Link to="/zeroclaw" className="glass-card p-4 flex flex-col gap-2 group hover:border-[#0F4C75]/20">
             <div className="flex items-center justify-between">
-              <Bot size={20} className="text-blue-400" />
-              <ChevronRight size={16} className="text-[#3d4d60] group-hover:text-blue-400 transition-colors" />
+              <Bot size={20} className="text-[#3B82F6]" />
+              <ChevronRight size={16} className="text-[#3d4d60] group-hover:text-[#3B82F6] transition-colors" />
             </div>
             <span className="text-sm font-semibold text-[#e8ecf1]">ZeroClaw AI</span>
             <span className="text-xs text-[#5a6a7e]">Command center</span>
           </Link>
 
-          <Link to="/multi-agent" className="glass-card p-4 flex flex-col gap-2 group hover:border-blue-500/20">
+          <Link to="/multi-agent" className="glass-card p-4 flex flex-col gap-2 group hover:border-[#0F4C75]/20">
             <div className="flex items-center justify-between">
               <Users size={20} className="text-[#3B82F6]" />
-              <ChevronRight size={16} className="text-[#3d4d60] group-hover:text-blue-400 transition-colors" />
+              <ChevronRight size={16} className="text-[#3d4d60] group-hover:text-[#3B82F6] transition-colors" />
             </div>
             <span className="text-sm font-semibold text-[#e8ecf1]">Agents</span>
             <span className="text-xs text-[#5a6a7e]">Multi-agent swarm</span>
           </Link>
 
-          <Link to="/strategies" className="glass-card p-4 flex flex-col gap-2 group hover:border-blue-500/20">
+          <Link to="/strategies" className="glass-card p-4 flex flex-col gap-2 group hover:border-[#0F4C75]/20">
             <div className="flex items-center justify-between">
               <Settings2 size={20} className="text-[#FF6B35]" />
-              <ChevronRight size={16} className="text-[#3d4d60] group-hover:text-blue-400 transition-colors" />
+              <ChevronRight size={16} className="text-[#3d4d60] group-hover:text-[#3B82F6] transition-colors" />
             </div>
             <span className="text-sm font-semibold text-[#e8ecf1]">Strategies</span>
             <span className="text-xs text-[#5a6a7e]">Manage strategies</span>
           </Link>
 
-          <Link to="/settings" className="glass-card p-4 flex flex-col gap-2 group hover:border-blue-500/20">
+          <Link to="/settings" className="glass-card p-4 flex flex-col gap-2 group hover:border-[#0F4C75]/20">
             <div className="flex items-center justify-between">
               <LineChart size={20} className="text-[#D4AF37]" />
-              <ChevronRight size={16} className="text-[#3d4d60] group-hover:text-blue-400 transition-colors" />
+              <ChevronRight size={16} className="text-[#3d4d60] group-hover:text-[#3B82F6] transition-colors" />
             </div>
             <span className="text-sm font-semibold text-[#e8ecf1]">Analytics</span>
             <span className="text-xs text-[#5a6a7e]">Performance data</span>
@@ -192,7 +192,7 @@ export function Home() {
               <GlassCard>
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-semibold text-[#e8ecf1] flex items-center gap-2">
-                    <Coins size={16} className="text-blue-400" />
+                    <Coins size={16} className="text-[#3B82F6]" />
                     Holdings
                   </h2>
                   <Link to="/portfolio" className="btn-link text-xs">View All</Link>

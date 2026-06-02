@@ -170,19 +170,19 @@ export function PortfolioChart() {
   const winRate = (data.trades.win / (data.trades.win + data.trades.loss) * 100).toFixed(1);
 
   return (
-    <div className="bg-dark-800 rounded-xl border border-dark-700 p-4 space-y-4">
+    <div className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
-          <Activity size={18} className="text-blue-400" />
+          <Activity size={18} className="text-[#3B82F6]" />
           Portfolio Analytics
         </h3>
         
         {/* Chart Toggle */}
-        <div className="flex bg-dark-900 rounded-lg p-1">
+        <div className="flex bg-[#090d14] rounded-lg p-1">
           <button
             onClick={() => setActiveChart('equity')}
             className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-colors ${
-              activeChart === 'equity' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              activeChart === 'equity' ? 'bg-[#0F4C75] text-[#e8ecf1]' : 'text-[#5a6a7e] hover:text-[#e8ecf1]'
             }`}
           >
             <LineChart size={14} />
@@ -191,7 +191,7 @@ export function PortfolioChart() {
           <button
             onClick={() => setActiveChart('trades')}
             className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-colors ${
-              activeChart === 'trades' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              activeChart === 'trades' ? 'bg-[#0F4C75] text-[#e8ecf1]' : 'text-[#5a6a7e] hover:text-[#e8ecf1]'
             }`}
           >
             <PieChart size={14} />
@@ -200,7 +200,7 @@ export function PortfolioChart() {
           <button
             onClick={() => setActiveChart('strategy')}
             className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-colors ${
-              activeChart === 'strategy' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              activeChart === 'strategy' ? 'bg-[#0F4C75] text-[#e8ecf1]' : 'text-[#5a6a7e] hover:text-[#e8ecf1]'
             }`}
           >
             <BarChart3 size={14} />
@@ -209,7 +209,7 @@ export function PortfolioChart() {
           <button
             onClick={() => setActiveChart('daily')}
             className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-colors ${
-              activeChart === 'daily' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              activeChart === 'daily' ? 'bg-[#0F4C75] text-[#e8ecf1]' : 'text-[#5a6a7e] hover:text-[#e8ecf1]'
             }`}
           >
             <Activity size={14} />
@@ -220,21 +220,21 @@ export function PortfolioChart() {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-dark-900 rounded-lg p-3 text-center">
-          <div className={`text-2xl font-bold ${parseFloat(totalReturn) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+        <div className="bg-[#090d14] rounded-lg p-3 text-center">
+          <div className={`text-2xl font-bold ${parseFloat(totalReturn) >= 0 ? 'text-[#00C9A7]' : 'text-[#EF476F]'}`}>
             {parseFloat(totalReturn) >= 0 ? '+' : ''}{totalReturn}%
           </div>
-          <div className="text-xs text-gray-400">30-Day Return</div>
+          <div className="text-xs text-[#5a6a7e]">30-Day Return</div>
         </div>
-        <div className="bg-dark-900 rounded-lg p-3 text-center">
-          <div className="text-2xl font-bold text-blue-400">{winRate}%</div>
-          <div className="text-xs text-gray-400">Win Rate</div>
+        <div className="bg-[#090d14] rounded-lg p-3 text-center">
+          <div className="text-2xl font-bold text-[#3B82F6]">{winRate}%</div>
+          <div className="text-xs text-[#5a6a7e]">Win Rate</div>
         </div>
-        <div className="bg-dark-900 rounded-lg p-3 text-center">
-          <div className="text-2xl font-bold text-purple-400">
+        <div className="bg-[#090d14] rounded-lg p-3 text-center">
+          <div className="text-2xl font-bold text-[#D4AF37]">
             ${(data.equity[data.equity.length - 1] - 10000).toFixed(0)}
           </div>
-          <div className="text-xs text-gray-400">Total P&L</div>
+          <div className="text-xs text-[#5a6a7e]">Total P&L</div>
         </div>
       </div>
 

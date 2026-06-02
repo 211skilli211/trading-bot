@@ -9,7 +9,7 @@ interface AlertBadgeProps {
 const severityConfig = {
   error: { icon: AlertTriangle, cls: 'text-[#EF476F] bg-[#EF476F]/8 border-[#EF476F]/20' },
   warning: { icon: AlertTriangle, cls: 'text-[#D4AF37] bg-[#D4AF37]/8 border-[#D4AF37]/20' },
-  info: { icon: Info, cls: 'text-blue-400 bg-blue-500/8 border-blue-500/20' },
+  info: { icon: Info, cls: 'text-[#3B82F6] bg-[#0F4C75]/8 border-[#0F4C75]/20' },
   success: { icon: CheckCircle, cls: 'text-[#00C9A7] bg-[#00C9A7]/8 border-[#00C9A7]/20' },
 };
 

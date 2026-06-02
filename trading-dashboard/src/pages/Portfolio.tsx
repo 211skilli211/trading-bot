@@ -102,7 +102,7 @@ export function Portfolio() {
               className={[
                 'flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors',
                 activeTab === id
-                  ? 'bg-[#0F4C75]/15 text-blue-400'
+                  ? 'bg-[#0F4C75]/15 text-[#3B82F6]'
                   : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
               ].join(' ')}
             >
@@ -131,7 +131,7 @@ export function Portfolio() {
             {currencyBalances.length > 0 ? (
               <GlassCard>
                 <h3 className="text-sm font-semibold text-[#e8ecf1] mb-3 flex items-center gap-2">
-                  <Coins size={15} className="text-blue-400" />
+                  <Coins size={15} className="text-[#3B82F6]" />
                   Holdings
                 </h3>
                 <div className="space-y-1">

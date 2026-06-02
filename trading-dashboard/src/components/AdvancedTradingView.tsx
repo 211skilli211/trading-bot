@@ -539,7 +539,7 @@ export function AdvancedTradingView({
         <div className="absolute top-4 right-4 z-50">
           <button
             onClick={onExitFullscreen}
-            className="p-2 bg-dark-800 border border-dark-600 rounded-lg hover:bg-dark-700 shadow-lg flex items-center gap-2"
+            className="p-2 glass-card border border-[rgba(30,50,70,0.35)] rounded-lg hover:bg-[#151d28] shadow-lg flex items-center gap-2"
           >
             <X size={20} />
             <span className="text-sm">Exit Fullscreen</span>
@@ -555,8 +555,8 @@ export function AdvancedTradingView({
               onClick={onToggleVolume}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 showVolume
-                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                  : 'bg-dark-800 text-gray-400 border border-dark-700'
+                  ? 'bg-[#0F4C75]/20 text-[#3B82F6] border border-[#0F4C75]/50'
+                  : 'glass-card text-[#5a6a7e] border border-[rgba(30,50,70,0.3)]'
               }`}
             >
               Volume
@@ -567,8 +567,8 @@ export function AdvancedTradingView({
               onClick={onToggleEMA}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 showEMA
-                  ? (isAboveEMA ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50')
-                  : 'bg-dark-800 text-gray-400 border border-dark-700'
+                  ? (isAboveEMA ? 'bg-[#00C9A7]/20 text-[#00C9A7] border border-[#00C9A7]/50' : 'bg-[#EF476F]/20 text-[#EF476F] border border-[#EF476F]/50')
+                  : 'glass-card text-[#5a6a7e] border border-[rgba(30,50,70,0.3)]'
               }`}
             >
               EMA {showEMA && (isAboveEMA ? '(Bullish)' : '(Bearish)')}
@@ -580,7 +580,7 @@ export function AdvancedTradingView({
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 showBollinger
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
-                  : 'bg-dark-800 text-gray-400 border border-dark-700'
+                  : 'glass-card text-[#5a6a7e] border border-[rgba(30,50,70,0.3)]'
               }`}
             >
               Bollinger
@@ -592,7 +592,7 @@ export function AdvancedTradingView({
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 showPivots
                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
-                  : 'bg-dark-800 text-gray-400 border border-dark-700'
+                  : 'glass-card text-[#5a6a7e] border border-[rgba(30,50,70,0.3)]'
               }`}
             >
               Pivots (H1)
@@ -604,18 +604,18 @@ export function AdvancedTradingView({
       {/* Chart */}
       <div className="relative">
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-dark-900/50 z-10">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+          <div className="absolute inset-0 flex items-center justify-center bg-[#090d14]/50 z-10">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
           </div>
         )}
         <div ref={chartContainerRef} className="w-full rounded-xl overflow-hidden" style={{ height }} />
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-3 mt-3 text-xs text-gray-400 flex-wrap">
+      <div className="flex items-center gap-3 mt-3 text-xs text-[#5a6a7e] flex-wrap">
         {showEMA && (
           <div className="flex items-center gap-1">
-            <div className={`w-3 h-0.5 ${isAboveEMA ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <div className={`w-3 h-0.5 ${isAboveEMA ? 'bg-[#00C9A7]' : 'bg-[#EF476F]'}`}></div>
             <span>EMA 20 ({isAboveEMA ? 'Above' : 'Below'})</span>
           </div>
         )}
@@ -632,24 +632,24 @@ export function AdvancedTradingView({
               <span>PP</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-0.5 bg-green-500"></div>
+              <div className="w-3 h-0.5 bg-[#00C9A7]"></div>
               <span>R1/R2</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-0.5 bg-red-500"></div>
+              <div className="w-3 h-0.5 bg-[#EF476F]"></div>
               <span>S1/S2</span>
             </div>
           </>
         )}
         {stopLoss && (
           <div className="flex items-center gap-1">
-            <div className="w-3 h-0.5 bg-orange-500"></div>
+            <div className="w-3 h-0.5 bg-[#FF6B35]"></div>
             <span>SL</span>
           </div>
         )}
         {takeProfit && (
           <div className="flex items-center gap-1">
-            <div className="w-3 h-0.5 bg-green-500"></div>
+            <div className="w-3 h-0.5 bg-[#00C9A7]"></div>
             <span>TP</span>
           </div>
         )}

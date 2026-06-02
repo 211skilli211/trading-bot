@@ -112,11 +112,11 @@ export function Strategies() {
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
-      case 'low': return 'text-green-400 bg-green-500/20 border-green-500/30';
-      case 'medium': return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30';
-      case 'high': return 'text-orange-400 bg-orange-500/20 border-orange-500/30';
-      case 'very_high': return 'text-red-400 bg-red-500/20 border-red-500/30';
-      default: return 'text-gray-400 bg-gray-500/20 border-gray-500/30';
+      case 'low': return 'text-[#00C9A7] bg-[#00C9A7]/20 border-[#00C9A7]/30';
+      case 'medium': return 'text-[#D4AF37] bg-[#D4AF37]/20 border-[#D4AF37]/30';
+      case 'high': return 'text-[#FF6B35] bg-[#FF6B35]/20 border-[#FF6B35]/30';
+      case 'very_high': return 'text-[#EF476F] bg-[#EF476F]/20 border-[#EF476F]/30';
+      default: return 'text-[#5a6a7e] bg-[#3d4d60]/20 border-[#3d4d60]/30';
     }
   };
 
@@ -135,7 +135,7 @@ export function Strategies() {
       <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Strategy Management" />
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
         </div>
       </div>
     );
@@ -150,27 +150,27 @@ export function Strategies() {
       <div className="p-4 space-y-4">
         {/* Stats Overview */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-dark-800 rounded-xl p-4 border border-green-500/30 text-center">
-            <div className="text-2xl font-bold text-green-400">{activeCount}</div>
-            <div className="text-xs text-gray-400">Active Strategies</div>
+          <div className="glass-card rounded-xl p-4 border border-[#00C9A7]/30 text-center">
+            <div className="text-2xl font-bold text-[#00C9A7]">{activeCount}</div>
+            <div className="text-xs text-[#5a6a7e]">Active Strategies</div>
           </div>
-          <div className="bg-dark-800 rounded-xl p-4 border border-blue-500/30 text-center">
-            <div className="text-2xl font-bold text-blue-400">{strategies.length}</div>
-            <div className="text-xs text-gray-400">Total Strategies</div>
+          <div className="glass-card rounded-xl p-4 border border-[#0F4C75]/30 text-center">
+            <div className="text-2xl font-bold text-[#3B82F6]">{strategies.length}</div>
+            <div className="text-xs text-[#5a6a7e]">Total Strategies</div>
           </div>
-          <div className="bg-dark-800 rounded-xl p-4 border border-purple-500/30 text-center">
-            <div className="text-2xl font-bold text-purple-400">
+          <div className="glass-card rounded-xl p-4 border border-[#D4AF37]/30 text-center">
+            <div className="text-2xl font-bold text-[#D4AF37]">
               {strategies.reduce((sum, s) => sum + (s.performance?.pnl || 0), 0).toFixed(0)}
             </div>
-            <div className="text-xs text-gray-400">Total P&L ($)</div>
+            <div className="text-xs text-[#5a6a7e]">Total P&L ($)</div>
           </div>
         </div>
 
         {/* Info Card */}
-        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+        <div className="bg-[#0F4C75]/10 border border-[#0F4C75]/30 rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <Info className="text-blue-400 flex-shrink-0 mt-0.5" size={18} />
-            <div className="text-sm text-gray-300">
+            <Info className="text-[#3B82F6] flex-shrink-0 mt-0.5" size={18} />
+            <div className="text-sm text-[#e8ecf1]">
               <p className="mb-1"><strong>Strategy Configuration</strong></p>
               <p>Enable/disable strategies and customize their parameters. Edit the strategy description and trading prompt to fine-tune how the AI executes trades. Each strategy has adjustable risk levels, position sizes, and technical parameters.</p>
             </div>
@@ -184,20 +184,20 @@ export function Strategies() {
           return (
             <div 
               key={strategy.id} 
-              className={`bg-dark-800 rounded-xl border overflow-hidden transition-all ${
-                strategy.enabled ? 'border-green-500/30' : 'border-dark-700'
+              className={`glass-card rounded-xl border overflow-hidden transition-all ${
+                strategy.enabled ? 'border-[#00C9A7]/30' : 'border-[rgba(30,50,70,0.3)]'
               }`}
             >
               {/* Header */}
               <div className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${strategy.enabled ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-400'}`}>
+                    <div className={`p-2 rounded-lg ${strategy.enabled ? 'bg-[#0F4C75]/20 text-[#3B82F6]' : 'bg-[#151d28] text-[#5a6a7e]'}`}>
                       {getStrategyIcon(strategy.id)}
                     </div>
                     <div>
                       <div className="font-semibold">{strategy.name}</div>
-                      <div className="text-sm text-gray-400 line-clamp-1">{strategy.description}</div>
+                      <div className="text-sm text-[#5a6a7e] line-clamp-1">{strategy.description}</div>
                     </div>
                   </div>
 
@@ -207,7 +207,7 @@ export function Strategies() {
                     </span>
                     <button 
                       onClick={() => toggleStrategy(strategy.id)}
-                      className={`transition-colors ${strategy.enabled ? 'text-green-400' : 'text-gray-600'}`}
+                      className={`transition-colors ${strategy.enabled ? 'text-[#00C9A7]' : 'text-[#3d4d60]'}`}
                     >
                       {strategy.enabled ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
                     </button>
@@ -215,26 +215,26 @@ export function Strategies() {
                 </div>
 
                 {/* Performance Stats */}
-                <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-dark-700">
+                <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-[rgba(30,50,70,0.3)]">
                   <div>
-                    <div className="text-xs text-gray-400">Position Size</div>
+                    <div className="text-xs text-[#5a6a7e]">Position Size</div>
                     <div className="font-mono text-sm">${strategy.max_position_usd}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-400">Trades</div>
+                    <div className="text-xs text-[#5a6a7e]">Trades</div>
                     <div className="font-mono">{strategy.performance?.trades ?? 0}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-400">Win Rate</div>
-                    <div className={`font-mono ${((strategy.performance?.wins || 0) / ((strategy.performance?.trades || 0) > 0 ? strategy.performance!.trades : 1)) > 0.5 ? 'text-green-400' : 'text-yellow-400'}`}>
+                    <div className="text-xs text-[#5a6a7e]">Win Rate</div>
+                    <div className={`font-mono ${((strategy.performance?.wins || 0) / ((strategy.performance?.trades || 0) > 0 ? strategy.performance!.trades : 1)) > 0.5 ? 'text-[#00C9A7]' : 'text-[#D4AF37]'}`}>
                       {(strategy.performance?.trades || 0) > 0 
                         ? (((strategy.performance?.wins || 0) / (strategy.performance?.trades || 1)) * 100).toFixed(0)
                         : 0}%
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-400">P&L</div>
-                    <div className={`font-mono ${(strategy.performance?.pnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    <div className="text-xs text-[#5a6a7e]">P&L</div>
+                    <div className={`font-mono ${(strategy.performance?.pnl || 0) >= 0 ? 'text-[#00C9A7]' : 'text-[#EF476F]'}`}>
                       ${(strategy.performance?.pnl || 0).toFixed(0)}
                     </div>
                   </div>
@@ -246,8 +246,8 @@ export function Strategies() {
                     onClick={() => isEditing ? setExpandedId(null) : startEditing(strategy)}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                       isEditing 
-                        ? 'bg-gray-700 text-gray-300' 
-                        : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
+                        ? 'bg-[#151d28] text-[#e8ecf1]' 
+                        : 'bg-[#0F4C75]/20 text-[#3B82F6] hover:bg-[#0F4C75]/30'
                     }`}
                   >
                     {isEditing ? <ChevronUp size={16} /> : <Settings size={16} />}
@@ -255,7 +255,7 @@ export function Strategies() {
                   </button>
                   
                   {strategy.enabled && (
-                    <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm bg-green-500/20 text-green-400">
+                    <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm bg-[#00C9A7]/20 text-[#00C9A7]">
                       <Play size={14} />
                       Active
                     </span>
@@ -265,15 +265,15 @@ export function Strategies() {
 
               {/* Expanded Editor */}
               {isEditing && editingStrategy && (
-                <div className="px-4 pb-4 border-t border-dark-700">
+                <div className="px-4 pb-4 border-t border-[rgba(30,50,70,0.3)]">
                   {/* Tabs */}
                   <div className="flex gap-2 mt-4 mb-4">
                     <button
                       onClick={() => setActiveTab('params')}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         activeTab === 'params' 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-dark-700 text-gray-400 hover:text-white'
+                          ? 'bg-[#0F4C75] text-[#e8ecf1] 
+                          : 'bg-[#151d28] text-[#5a6a7e] hover:text-[#e8ecf1]
                       }`}
                     >
                       <Sliders size={16} className="inline mr-1" />
@@ -283,8 +283,8 @@ export function Strategies() {
                       onClick={() => setActiveTab('prompt')}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         activeTab === 'prompt' 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-dark-700 text-gray-400 hover:text-white'
+                          ? 'bg-[#0F4C75] text-[#e8ecf1] 
+                          : 'bg-[#151d28] text-[#5a6a7e] hover:text-[#e8ecf1]
                       }`}
                     >
                       <Code size={16} className="inline mr-1" />
@@ -296,70 +296,70 @@ export function Strategies() {
                     <div className="space-y-4">
                       {/* Description */}
                       <div>
-                        <label className="block text-sm text-gray-400 mb-1">Strategy Description</label>
+                        <label className="block text-sm text-[#5a6a7e] mb-1">Strategy Description</label>
                         <textarea
                           value={editingStrategy.description}
                           onChange={(e) => updateEditingField('description', e.target.value)}
                           rows={2}
-                          className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none"
+                          className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 text-sm focus:border-[#0F4C75] focus:outline-none resize-none"
                         />
                       </div>
 
                       {/* Main Params */}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm text-gray-400 mb-1">Max Position ($)</label>
+                          <label className="block text-sm text-[#5a6a7e] mb-1">Max Position ($)</label>
                           <input
                             type="number"
                             value={editingStrategy.max_position_usd}
                             onChange={(e) => updateEditingField('max_position_usd', parseFloat(e.target.value))}
-                            className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"
+                            className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 focus:border-[#0F4C75] focus:outline-none"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-400 mb-1">Check Interval (sec)</label>
+                          <label className="block text-sm text-[#5a6a7e] mb-1">Check Interval (sec)</label>
                           <input
                             type="number"
                             value={editingStrategy.check_interval_seconds}
                             onChange={(e) => updateEditingField('check_interval_seconds', parseInt(e.target.value))}
-                            className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"
+                            className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 focus:border-[#0F4C75] focus:outline-none"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-400 mb-1">Stop Loss (%)</label>
+                          <label className="block text-sm text-[#5a6a7e] mb-1">Stop Loss (%)</label>
                           <input
                             type="number"
                             step="0.01"
                             value={editingStrategy.stop_loss_pct}
                             onChange={(e) => updateEditingField('stop_loss_pct', parseFloat(e.target.value))}
-                            className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"
+                            className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 focus:border-[#0F4C75] focus:outline-none"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-400 mb-1">Take Profit (%)</label>
+                          <label className="block text-sm text-[#5a6a7e] mb-1">Take Profit (%)</label>
                           <input
                             type="number"
                             step="0.01"
                             value={editingStrategy.take_profit_pct}
                             onChange={(e) => updateEditingField('take_profit_pct', parseFloat(e.target.value))}
-                            className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"
+                            className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 focus:border-[#0F4C75] focus:outline-none"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-400 mb-1">Max Concurrent</label>
+                          <label className="block text-sm text-[#5a6a7e] mb-1">Max Concurrent</label>
                           <input
                             type="number"
                             value={editingStrategy.max_concurrent}
                             onChange={(e) => updateEditingField('max_concurrent', parseInt(e.target.value))}
-                            className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"
+                            className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 focus:border-[#0F4C75] focus:outline-none"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-400 mb-1">Risk Level</label>
+                          <label className="block text-sm text-[#5a6a7e] mb-1">Risk Level</label>
                           <select
                             value={editingStrategy.risk}
                             onChange={(e) => updateEditingField('risk', e.target.value)}
-                            className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"
+                            className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 focus:border-[#0F4C75] focus:outline-none"
                           >
                             <option value="low">Low</option>
                             <option value="medium">Medium</option>
@@ -370,19 +370,19 @@ export function Strategies() {
                       </div>
 
                       {/* Strategy-specific Params */}
-                      <div className="pt-4 border-t border-dark-700">
-                        <h4 className="text-sm font-medium text-gray-400 mb-3">Strategy-Specific Parameters</h4>
+                      <div className="pt-4 border-t border-[rgba(30,50,70,0.3)]">
+                        <h4 className="text-sm font-medium text-[#5a6a7e] mb-3">Strategy-Specific Parameters</h4>
                         <div className="grid grid-cols-2 gap-4">
                           {Object.entries(editingStrategy.params || {}).map(([key, value]) => (
                             <div key={key}>
-                              <label className="block text-sm text-gray-400 mb-1 capitalize">
+                              <label className="block text-sm text-[#5a6a7e] mb-1 capitalize">
                                 {key.replace(/_/g, ' ')}
                               </label>
                               <input
                                 type={typeof value === 'number' ? 'number' : 'text'}
                                 value={value as any}
                                 onChange={(e) => updateEditingParam(key, typeof value === 'number' ? parseFloat(e.target.value) : e.target.value)}
-                                className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"
+                                className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 focus:border-[#0F4C75] focus:outline-none"
                               />
                             </div>
                           ))}
@@ -392,27 +392,27 @@ export function Strategies() {
                   ) : (
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm text-gray-400 mb-1 flex items-center gap-2">
+                        <label className="block text-sm text-[#5a6a7e] mb-1 flex items-center gap-2">
                           <Code size={14} />
                           Trading Prompt / Instructions
                         </label>
-                        <p className="text-xs text-gray-500 mb-2">
+                        <p className="text-xs text-[#3d4d60] mb-2">
                           Define how this strategy executes trades. The AI uses these instructions to make trading decisions.
                         </p>
                         <textarea
                           value={editingStrategy.prompt}
                           onChange={(e) => updateEditingField('prompt', e.target.value)}
                           rows={10}
-                          className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none resize-none"
+                          className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 text-sm font-mono focus:border-[#0F4C75] focus:outline-none resize-none"
                           placeholder="Enter strategy trading instructions..."
                         />
                       </div>
                       
-                      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                      <div className="bg-[#0F4C75]/10 border border-[#0F4C75]/30 rounded-lg p-3">
                         <div className="flex items-start gap-2">
-                          <AlertTriangle size={16} className="text-blue-400 mt-0.5" />
-                          <div className="text-xs text-gray-400">
-                            <strong className="text-blue-400">Prompt Tips:</strong> Be specific about entry/exit conditions, indicators to use, and risk management rules. The AI interprets these instructions to execute trades.
+                          <AlertTriangle size={16} className="text-[#3B82F6] mt-0.5" />
+                          <div className="text-xs text-[#5a6a7e]">
+                            <strong className="text-[#3B82F6]">Prompt Tips:</strong> Be specific about entry/exit conditions, indicators to use, and risk management rules. The AI interprets these instructions to execute trades.
                           </div>
                         </div>
                       </div>
@@ -420,20 +420,20 @@ export function Strategies() {
                   )}
 
                   {/* Save/Cancel Buttons */}
-                  <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-dark-700">
+                  <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-[rgba(30,50,70,0.3)]">
                     <button 
                       onClick={() => {
                         setExpandedId(null);
                         setEditingStrategy(null);
                       }}
-                      className="px-4 py-2 text-gray-400 hover:text-white"
+                      className="px-4 py-2 text-[#5a6a7e] hover:text-[#e8ecf1]"
                     >
                       Cancel
                     </button>
                     <button 
                       onClick={saveStrategy}
                       disabled={saving}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#0F4C75] rounded-lg hover:bg-[#1A5F8A] disabled:opacity-50"
                     >
                       {saving ? (
                         <RefreshCw size={16} className="animate-spin" />
@@ -450,7 +450,7 @@ export function Strategies() {
         })}
 
         {strategies.length === 0 && (
-          <div className="text-center py-12 text-gray-400 bg-dark-800 rounded-xl border border-dark-700">
+          <div className="text-center py-12 text-[#5a6a7e] glass-card rounded-xl border border-[rgba(30,50,70,0.3)]">
             <Target size={48} className="mx-auto mb-4 opacity-50" />
             <p>No strategies configured</p>
           </div>

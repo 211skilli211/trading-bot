@@ -46,8 +46,8 @@ const AVAILABLE_COINS: CoinOption[] = [
 ];
 
 const chainLabels: Record<string, { label: string; activeClass: string }> = {
-  ethereum: { label: 'Ethereum', activeClass: 'bg-blue-500/15 text-blue-400' },
-  solana: { label: 'Solana', activeClass: 'bg-blue-500/15 text-blue-400' },
+  ethereum: { label: 'Ethereum', activeClass: 'bg-[#0F4C75]/15 text-[#3B82F6]' },
+  solana: { label: 'Solana', activeClass: 'bg-[#0F4C75]/15 text-[#3B82F6]' },
   binance: { label: 'BNB Chain', activeClass: 'bg-[#D4AF37]/15 text-[#D4AF37]' },
   layer1: { label: 'Layer 1', activeClass: 'bg-[#00C9A7]/15 text-[#00C9A7]' },
   layer2: { label: 'Layer 2', activeClass: 'bg-[#00C9A7]/15 text-[#00C9A7]' },
@@ -171,7 +171,7 @@ export function Prices() {
             onClick={() => setShowFilters(!showFilters)}
             className={[
               'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors',
-              showFilters ? 'bg-[#0F4C75]/15 text-blue-400' : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
+              showFilters ? 'bg-[#0F4C75]/15 text-[#3B82F6]' : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
             ].join(' ')}
           >
             <Filter size={15} />
@@ -209,13 +209,13 @@ export function Prices() {
           <div className="flex rounded-lg overflow-hidden border border-[rgba(30,50,70,0.3)]">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-[#0F4C75]/15 text-blue-400' : 'text-[#5a6a7e]'}`}
+              className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-[#0F4C75]/15 text-[#3B82F6]' : 'text-[#5a6a7e]'}`}
             >
               <Grid3X3 size={16} />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-[#0F4C75]/15 text-blue-400' : 'text-[#5a6a7e]'}`}
+              className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-[#0F4C75]/15 text-[#3B82F6]' : 'text-[#5a6a7e]'}`}
             >
               <List size={16} />
             </button>
@@ -238,7 +238,7 @@ export function Prices() {
                   className={[
                     'px-3 py-1 rounded-lg text-xs font-medium transition-colors',
                     exchangeFilter === key
-                      ? 'bg-[#0F4C75]/15 text-blue-400'
+                      ? 'bg-[#0F4C75]/15 text-[#3B82F6]'
                       : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
                   ].join(' ')}
                 >
@@ -274,7 +274,7 @@ export function Prices() {
             className={[
               'flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors',
               activeTab === 'prices'
-                ? 'bg-[#0F4C75]/15 text-blue-400'
+                ? 'bg-[#0F4C75]/15 text-[#3B82F6]'
                 : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
             ].join(' ')}
           >
@@ -286,7 +286,7 @@ export function Prices() {
             className={[
               'flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors',
               activeTab === 'arbitrage'
-                ? 'bg-[#0F4C75]/15 text-blue-400'
+                ? 'bg-[#0F4C75]/15 text-[#3B82F6]'
                 : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
             ].join(' ')}
           >

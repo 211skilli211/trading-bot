@@ -113,7 +113,7 @@ export function CoinDetail() {
       <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Coin Details" />
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
         </div>
       </div>
     );
@@ -123,11 +123,11 @@ export function CoinDetail() {
     return (
       <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Coin Not Found" />
-        <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+        <div className="flex flex-col items-center justify-center h-64 text-[#5a6a7e]">
           <p>Coin not found</p>
           <button 
             onClick={() => navigate('/prices')}
-            className="mt-4 text-blue-400 hover:underline"
+            className="mt-4 text-[#3B82F6] hover:underline"
           >
             Back to Prices
           </button>
@@ -143,29 +143,29 @@ export function CoinDetail() {
 
   return (
     <div className="pb-20 lg:pb-8 lg:pl-[224px]">
-      <div className="sticky top-0 z-40 bg-dark-900/95 backdrop-blur border-b border-dark-700">
+      <div className="sticky top-0 z-40 bg-[#090d14]/95 backdrop-blur border-b border-[rgba(30,50,70,0.3)]">
         <div className="flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => navigate(-1)}
-              className="p-2 -ml-2 rounded-lg hover:bg-dark-800"
+              className="p-2 -ml-2 rounded-lg hover:glass-card"
             >
               <ArrowLeft size={24} />
             </button>
             <CryptoIcon symbol={symbol || ''} size={32} />
             <div>
               <h1 className="font-semibold">{baseSymbol}</h1>
-              <span className="text-xs text-gray-400">{symbol}</span>
+              <span className="text-xs text-[#5a6a7e]">{symbol}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button 
               onClick={toggleFavorite}
-              className={`p-2 rounded-lg hover:bg-dark-800 ${favorite ? 'text-yellow-400' : 'text-gray-400'}`}
+              className={`p-2 rounded-lg hover:glass-card ${favorite ? 'text-[#D4AF37]' : 'text-[#5a6a7e]'}`}
             >
               <Star size={20} fill={favorite ? 'currentColor' : 'none'} />
             </button>
-            <button className="p-2 rounded-lg hover:bg-dark-800 text-gray-400">
+            <button className="p-2 rounded-lg hover:glass-card text-[#5a6a7e]">
               <Share2 size={20} />
             </button>
           </div>
@@ -178,23 +178,23 @@ export function CoinDetail() {
           <div className="text-4xl font-bold font-mono">
             {formatCurrency(price.price)}
           </div>
-          <div className={`flex items-center justify-center gap-2 mt-2 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+          <div className={`flex items-center justify-center gap-2 mt-2 ${isPositive ? 'text-[#00C9A7]' : 'text-[#EF476F]'}`}>
             {isPositive ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
             <span className="font-mono text-lg">{formatPercent(priceChange)}</span>
-            <span className="text-gray-400 text-sm">(24h)</span>
+            <span className="text-[#5a6a7e] text-sm">(24h)</span>
           </div>
         </div>
 
         {/* Time Range Selector */}
-        <div className="flex gap-1 bg-dark-800 rounded-xl p-1">
+        <div className="flex gap-1 glass-card rounded-xl p-1">
           {(['1h', '24h', '1w', '1m', '1y', 'all'] as TimeRange[]).map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
                 timeRange === range 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-[#0F4C75] text-[#e8ecf1] 
+                  : 'text-[#5a6a7e] hover:text-[#e8ecf1]
               }`}
             >
               {range === '1h' && '1H'}
@@ -208,7 +208,7 @@ export function CoinDetail() {
         </div>
 
         {/* Chart */}
-        <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+        <div className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] p-4">
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
@@ -255,8 +255,8 @@ export function CoinDetail() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-dark-800 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-gray-400 mb-1">
+          <div className="glass-card rounded-xl p-4">
+            <div className="flex items-center gap-2 text-[#5a6a7e] mb-1">
               <BarChart3 size={16} />
               <span className="text-sm">Volume (24h)</span>
             </div>
@@ -265,28 +265,28 @@ export function CoinDetail() {
             </div>
           </div>
 
-          <div className="bg-dark-800 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-gray-400 mb-1">
+          <div className="glass-card rounded-xl p-4">
+            <div className="flex items-center gap-2 text-[#5a6a7e] mb-1">
               <Activity size={16} />
               <span className="text-sm">High / Low</span>
             </div>
             <div className="font-mono font-semibold text-sm">
-              <span className="text-green-400">${formatNumber(price.price * 1.02)}</span>
-              <span className="text-gray-500 mx-1">/</span>
-              <span className="text-red-400">${formatNumber(price.price * 0.98)}</span>
+              <span className="text-[#00C9A7]">${formatNumber(price.price * 1.02)}</span>
+              <span className="text-[#3d4d60] mx-1">/</span>
+              <span className="text-[#EF476F]">${formatNumber(price.price * 0.98)}</span>
             </div>
           </div>
 
-          <div className="bg-dark-800 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-gray-400 mb-1">
+          <div className="glass-card rounded-xl p-4">
+            <div className="flex items-center gap-2 text-[#5a6a7e] mb-1">
               <Globe size={16} />
               <span className="text-sm">Exchange</span>
             </div>
             <div className="font-semibold">{price.exchange}</div>
           </div>
 
-          <div className="bg-dark-800 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-gray-400 mb-1">
+          <div className="glass-card rounded-xl p-4">
+            <div className="flex items-center gap-2 text-[#5a6a7e] mb-1">
               <Clock size={16} />
               <span className="text-sm">Updated</span>
             </div>
@@ -297,13 +297,13 @@ export function CoinDetail() {
         {/* Trading Actions */}
         <div className="grid grid-cols-2 gap-3">
           <button 
-            className="flex items-center justify-center gap-2 p-4 bg-green-600 rounded-xl hover:bg-green-700 transition-colors"
+            className="flex items-center justify-center gap-2 p-4 bg-[#00A88A] rounded-xl hover:bg-green-700 transition-colors"
           >
             <TrendingUp size={20} />
             <span className="font-semibold">Buy {baseSymbol}</span>
           </button>
           <button 
-            className="flex items-center justify-center gap-2 p-4 bg-red-600 rounded-xl hover:bg-red-700 transition-colors"
+            className="flex items-center justify-center gap-2 p-4 bg-[#D63D5E] rounded-xl hover:bg-red-700 transition-colors"
           >
             <TrendingDown size={20} />
             <span className="font-semibold">Sell {baseSymbol}</span>

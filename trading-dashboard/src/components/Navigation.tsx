@@ -75,8 +75,8 @@ export function Navigation() {
             : 'gap-3 px-3 py-2.5 rounded-xl mx-1',
           active
             ? compact
-              ? 'text-blue-400'
-              : 'bg-[#0F4C75]/15 text-blue-400'
+              ? 'text-[#3B82F6]'
+              : 'bg-[#0F4C75]/15 text-[#3B82F6]'
             : compact
               ? 'text-[#5a6a7e]'
               : 'text-[#5a6a7e] hover:text-[#e8ecf1] hover:bg-white/[0.03]',
@@ -130,7 +130,7 @@ export function Navigation() {
         <div className="px-4 pt-5 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#0F4C75]/20 flex items-center justify-center">
-              <Activity size={18} className="text-blue-400" />
+              <Activity size={18} className="text-[#3B82F6]" />
             </div>
             <span className="text-[1.15rem] font-bold tracking-tight text-[#e8ecf1]">
               ZeroClaw
@@ -244,7 +244,7 @@ export function Navigation() {
                           className={[
                             'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors',
                             active
-                              ? 'bg-[#0F4C75]/15 text-blue-400'
+                              ? 'bg-[#0F4C75]/15 text-[#3B82F6]'
                               : 'text-[#5a6a7e] hover:text-[#e8ecf1] hover:bg-white/[0.03]',
                           ].join(' ')}
                         >

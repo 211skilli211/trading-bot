@@ -49,7 +49,7 @@ export function Backtest() {
         {/* Configuration */}
         <GlassCard>
           <div className="flex items-center gap-2 mb-4">
-            <Settings className="text-blue-400" size={20} />
+            <Settings className="text-[#3B82F6]" size={20} />
             <span className="font-semibold text-[#e8ecf1]">Backtest Configuration</span>
           </div>
 
@@ -145,7 +145,7 @@ export function Backtest() {
 
               <GlassCard className="text-center">
                 <div className="text-xs text-[#5a6a7e] mb-1">Sharpe Ratio</div>
-                <div className="text-xl font-bold mono text-blue-400">
+                <div className="text-xl font-bold mono text-[#3B82F6]">
                   {result.sharpeRatio.toFixed(2)}
                 </div>
               </GlassCard>

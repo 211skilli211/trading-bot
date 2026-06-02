@@ -205,7 +205,7 @@ export function ZeroClaw() {
       <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="24/7 Autonomous Agent" />
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
         </div>
       </div>
     );
@@ -222,27 +222,27 @@ export function ZeroClaw() {
         {/* Status Banner */}
         <div className={`rounded-xl border p-4 ${
           status?.enabled 
-            ? 'bg-gradient-to-r from-green-600/20 to-emerald-600/20 border-green-500/50' 
-            : 'bg-gradient-to-r from-gray-700/20 to-gray-600/20 border-gray-500/30'
+            ? 'bg-gradient-to-r from-green-600/20 to-emerald-600/20 border-[#00C9A7]/50' 
+            : 'bg-gradient-to-r from-[#151d28] to-[#1a2332] border-[rgba(30,50,70,0.3)]'
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-xl ${status?.enabled ? 'bg-green-500/30 animate-pulse' : 'bg-gray-600/30'}`}>
-                <Brain size={24} className={status?.enabled ? 'text-green-400' : 'text-gray-400'} />
+              <div className={`p-3 rounded-xl ${status?.enabled ? 'bg-[#00C9A7]/30 animate-pulse' : 'bg-[#3d4d60]/30'}`}>
+                <Brain size={24} className={status?.enabled ? 'text-[#00C9A7]' : 'text-[#5a6a7e]'} />
               </div>
               <div>
                 <div className="font-bold text-lg flex items-center gap-2">
                   {status?.enabled ? (
                     <>
-                      <span className="text-green-400">● AUTONOMOUS MODE ACTIVE</span>
+                      <span className="text-[#00C9A7]">● AUTONOMOUS MODE ACTIVE</span>
                     </>
                   ) : (
                     <>
-                      <span className="text-gray-400">○ STANDBY MODE</span>
+                      <span className="text-[#5a6a7e]">○ STANDBY MODE</span>
                     </>
                   )}
                 </div>
-                <div className="text-sm text-gray-400">
+                <div className="text-sm text-[#5a6a7e]">
                   {status?.enabled 
                     ? `AI making decisions for ${status.uptime_hours?.toFixed(1) || 0} hours • Health: ${status.health_score || 100}%`
                     : 'Enable to start 24/7 autonomous trading'}
@@ -255,8 +255,8 @@ export function ZeroClaw() {
               disabled={toggling}
               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50 ${
                 status?.enabled 
-                  ? 'bg-red-500 hover:bg-red-600 text-white' 
-                  : 'bg-green-500 hover:bg-green-600 text-white'
+                  ? 'bg-[#EF476F] hover:bg-[#D63D5E] text-[#e8ecf1] 
+                  : 'bg-[#00C9A7] hover:bg-[#00A88A] text-[#e8ecf1]
               }`}
             >
               {toggling ? (
@@ -273,21 +273,21 @@ export function ZeroClaw() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-4 gap-3">
-          <div className="bg-dark-800 rounded-xl p-4 border border-green-500/30 text-center">
-            <div className="text-2xl font-bold text-green-400">{status?.decisions_made || 0}</div>
-            <div className="text-xs text-gray-400">Decisions Made</div>
+          <div className="glass-card rounded-xl p-4 border border-[#00C9A7]/30 text-center">
+            <div className="text-2xl font-bold text-[#00C9A7]">{status?.decisions_made || 0}</div>
+            <div className="text-xs text-[#5a6a7e]">Decisions Made</div>
           </div>
-          <div className="bg-dark-800 rounded-xl p-4 border border-yellow-500/30 text-center">
-            <div className="text-2xl font-bold text-yellow-400">{pendingDecisions.length}</div>
-            <div className="text-xs text-gray-400">Pending Approval</div>
+          <div className="glass-card rounded-xl p-4 border border-[#D4AF37]/30 text-center">
+            <div className="text-2xl font-bold text-[#D4AF37]">{pendingDecisions.length}</div>
+            <div className="text-xs text-[#5a6a7e]">Pending Approval</div>
           </div>
-          <div className="bg-dark-800 rounded-xl p-4 border border-blue-500/30 text-center">
-            <div className="text-2xl font-bold text-blue-400">{status?.approval_rate || 0}%</div>
-            <div className="text-xs text-gray-400">Approval Rate</div>
+          <div className="glass-card rounded-xl p-4 border border-[#0F4C75]/30 text-center">
+            <div className="text-2xl font-bold text-[#3B82F6]">{status?.approval_rate || 0}%</div>
+            <div className="text-xs text-[#5a6a7e]">Approval Rate</div>
           </div>
-          <div className="bg-dark-800 rounded-xl p-4 border border-red-500/30 text-center">
-            <div className="text-2xl font-bold text-red-400">{openIssues.length}</div>
-            <div className="text-xs text-gray-400">Active Issues</div>
+          <div className="glass-card rounded-xl p-4 border border-[#EF476F]/30 text-center">
+            <div className="text-2xl font-bold text-[#EF476F]">{openIssues.length}</div>
+            <div className="text-xs text-[#5a6a7e]">Active Issues</div>
           </div>
         </div>
 
@@ -304,8 +304,8 @@ export function ZeroClaw() {
                 onClick={() => setActiveTab(id as any)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === id 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-dark-800 text-gray-400 hover:text-white'
+                  ? 'bg-[#0F4C75] text-[#e8ecf1] 
+                  : 'glass-card text-[#5a6a7e] hover:text-[#e8ecf1]
               }`}
             >
               <Icon size={16} />
@@ -317,7 +317,7 @@ export function ZeroClaw() {
           {/* Settings Button */}
           <button
             onClick={() => setShowSettings(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-gray-400 hover:text-white rounded-lg font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 glass-card hover:bg-[#151d28] text-[#5a6a7e] hover:text-[#e8ecf1] rounded-lg font-medium transition-colors"
           >
             <Settings size={16} />
             Settings
@@ -328,44 +328,44 @@ export function ZeroClaw() {
         {activeTab === 'overview' && (
           <div className="space-y-4">
             {/* System Health */}
-            <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+            <div className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] p-4">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <Activity size={18} className="text-blue-400" />
+                <Activity size={18} className="text-[#3B82F6]" />
                 System Health
               </h3>
               <div className="grid grid-cols-3 gap-4">
-                <div className="p-3 bg-dark-900 rounded-lg">
-                  <div className="text-xs text-gray-400 mb-1">Health Score</div>
-                  <div className={`text-xl font-bold ${(status?.health_score || 100) > 80 ? 'text-green-400' : 'text-yellow-400'}`}>
+                <div className="p-3 bg-[#090d14] rounded-lg">
+                  <div className="text-xs text-[#5a6a7e] mb-1">Health Score</div>
+                  <div className={`text-xl font-bold ${(status?.health_score || 100) > 80 ? 'text-[#00C9A7]' : 'text-[#D4AF37]'}`}>
                     {status?.health_score || 100}%
                   </div>
                 </div>
-                <div className="p-3 bg-dark-900 rounded-lg">
-                  <div className="text-xs text-gray-400 mb-1">CPU Usage</div>
-                  <div className="text-xl font-bold text-blue-400">{status?.cpu_usage || 0}%</div>
+                <div className="p-3 bg-[#090d14] rounded-lg">
+                  <div className="text-xs text-[#5a6a7e] mb-1">CPU Usage</div>
+                  <div className="text-xl font-bold text-[#3B82F6]">{status?.cpu_usage || 0}%</div>
                 </div>
-                <div className="p-3 bg-dark-900 rounded-lg">
-                  <div className="text-xs text-gray-400 mb-1">Memory</div>
-                  <div className="text-xl font-bold text-purple-400">{status?.memory_usage || 0}%</div>
+                <div className="p-3 bg-[#090d14] rounded-lg">
+                  <div className="text-xs text-[#5a6a7e] mb-1">Memory</div>
+                  <div className="text-xl font-bold text-[#D4AF37]">{status?.memory_usage || 0}%</div>
                 </div>
               </div>
             </div>
 
             {/* Recent Activity */}
-            <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+            <div className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] p-4">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <History size={18} className="text-green-400" />
+                <History size={18} className="text-[#00C9A7]" />
                 Recent Activity
               </h3>
               <div className="space-y-2">
                 {decisions.slice(0, 5).map((decision) => (
-                  <div key={decision.id} className="flex items-center justify-between p-3 bg-dark-900 rounded-lg">
+                  <div key={decision.id} className="flex items-center justify-between p-3 bg-[#090d14] rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${
-                        decision.type === 'trade' ? 'bg-green-500/20 text-green-400' :
-                        decision.type === 'config' ? 'bg-blue-500/20 text-blue-400' :
-                        decision.type === 'risk' ? 'bg-red-500/20 text-red-400' :
-                        'bg-yellow-500/20 text-yellow-400'
+                        decision.type === 'trade' ? 'bg-[#00C9A7]/20 text-[#00C9A7]' :
+                        decision.type === 'config' ? 'bg-[#0F4C75]/20 text-[#3B82F6]' :
+                        decision.type === 'risk' ? 'bg-[#EF476F]/20 text-[#EF476F]' :
+                        'bg-[#D4AF37]/20 text-[#D4AF37]'
                       }`}>
                         {decision.type === 'trade' ? <TrendingUp size={16} /> :
                          decision.type === 'config' ? <Settings size={16} /> :
@@ -374,24 +374,24 @@ export function ZeroClaw() {
                       </div>
                       <div>
                         <div className="font-medium">{decision.action}</div>
-                        <div className="text-xs text-gray-400">{decision.symbol || decision.type}</div>
+                        <div className="text-xs text-[#5a6a7e]">{decision.symbol || decision.type}</div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className={`text-sm font-medium ${
-                        decision.status === 'executed' ? 'text-green-400' :
-                        decision.status === 'pending' ? 'text-yellow-400' :
-                        decision.status === 'approved' ? 'text-blue-400' :
-                        'text-red-400'
+                        decision.status === 'executed' ? 'text-[#00C9A7]' :
+                        decision.status === 'pending' ? 'text-[#D4AF37]' :
+                        decision.status === 'approved' ? 'text-[#3B82F6]' :
+                        'text-[#EF476F]'
                       }`}>
                         {decision.status.toUpperCase()}
                       </div>
-                      <div className="text-xs text-gray-500">{decision.confidence}% confidence</div>
+                      <div className="text-xs text-[#3d4d60]">{decision.confidence}% confidence</div>
                     </div>
                   </div>
                 ))}
                 {decisions.length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center py-8 text-[#5a6a7e]">
                     <Sparkles size={48} className="mx-auto mb-2 opacity-30" />
                     <p>No decisions yet</p>
                   </div>
@@ -400,19 +400,19 @@ export function ZeroClaw() {
             </div>
 
             {/* AI Chat - Now on Overview Screen */}
-            <div className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-              <div className="p-4 border-b border-dark-700 flex items-center justify-between">
+            <div className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] overflow-hidden">
+              <div className="p-4 border-b border-[rgba(30,50,70,0.3)] flex items-center justify-between">
                 <h3 className="font-semibold flex items-center gap-2">
-                  <MessageSquare size={18} className="text-green-400" />
+                  <MessageSquare size={18} className="text-[#00C9A7]" />
                   AI Chat Assistant
                 </h3>
-                <span className="text-xs text-gray-400">Ask about markets, strategies, or status</span>
+                <span className="text-xs text-[#5a6a7e]">Ask about markets, strategies, or status</span>
               </div>
               
               {/* Chat Messages */}
-              <div className="h-64 overflow-y-auto p-4 space-y-4 bg-dark-900/50">
+              <div className="h-64 overflow-y-auto p-4 space-y-4 bg-[#090d14]/50">
                 {messages.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center py-8 text-[#5a6a7e]">
                     <Bot size={40} className="mx-auto mb-3 opacity-30" />
                     <p className="text-sm mb-3">Chat with ZeroClaw AI</p>
                     <div className="flex flex-wrap gap-2 justify-center">
@@ -420,7 +420,7 @@ export function ZeroClaw() {
                         <button
                           key={suggestion}
                           onClick={() => { setInputMessage(suggestion); }}
-                          className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg text-xs text-gray-300 transition-colors"
+                          className="px-3 py-1.5 bg-[#151d28] hover:bg-[#1a2332] rounded-lg text-xs text-[#e8ecf1] transition-colors"
                         >
                           {suggestion}
                         </button>
@@ -430,16 +430,16 @@ export function ZeroClaw() {
                 ) : (
                   messages.map((msg) => (
                     <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                      <div className={`p-2 rounded-xl ${msg.role === 'user' ? 'bg-blue-600' : 'bg-green-600/20'}`}>
-                        {msg.role === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} className="text-green-400" />}
+                      <div className={`p-2 rounded-xl ${msg.role === 'user' ? 'bg-[#0F4C75]' : 'bg-[#00A88A]/20'}`}>
+                        {msg.role === 'user' ? <User size={16} className="text-[#e8ecf1]" /> : <Bot size={16} className="text-[#00C9A7]" />}
                       </div>
                       <div className={`max-w-[80%] p-3 rounded-xl text-sm ${
                         msg.role === 'user' 
-                          ? 'bg-blue-600/20 text-blue-100' 
-                          : 'bg-dark-700 text-gray-200'
+                          ? 'bg-[#0F4C75]/20 text-blue-100' 
+                          : 'bg-[#151d28] text-[#e8ecf1]'
                       }`}>
                         <p className="whitespace-pre-wrap">{msg.content}</p>
-                        <span className="text-xs text-gray-500 mt-1 block">
+                        <span className="text-xs text-[#3d4d60] mt-1 block">
                           {new Date(msg.timestamp).toLocaleTimeString()}
                         </span>
                       </div>
@@ -448,12 +448,12 @@ export function ZeroClaw() {
                 )}
                 {chatLoading && (
                   <div className="flex gap-3">
-                    <div className="p-2 rounded-xl bg-green-600/20">
-                      <Bot size={16} className="text-green-400" />
+                    <div className="p-2 rounded-xl bg-[#00A88A]/20">
+                      <Bot size={16} className="text-[#00C9A7]" />
                     </div>
-                    <div className="p-3 rounded-xl bg-dark-700 flex items-center gap-2">
-                      <Loader2 size={14} className="animate-spin text-green-400" />
-                      <span className="text-xs text-gray-400">ZeroClaw is thinking...</span>
+                    <div className="p-3 rounded-xl bg-[#151d28] flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin text-[#00C9A7]" />
+                      <span className="text-xs text-[#5a6a7e]">ZeroClaw is thinking...</span>
                     </div>
                   </div>
                 )}
@@ -461,7 +461,7 @@ export function ZeroClaw() {
               </div>
               
               {/* Chat Input */}
-              <div className="p-4 border-t border-dark-700">
+              <div className="p-4 border-t border-[rgba(30,50,70,0.3)]">
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -469,12 +469,12 @@ export function ZeroClaw() {
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                     placeholder="Ask ZeroClaw about markets, strategies, or bot status..."
-                    className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    className="flex-1 bg-[#090d14] border border-[rgba(30,50,70,0.35)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#0F4C75]"
                   />
                   <button
                     onClick={sendMessage}
                     disabled={chatLoading || !inputMessage.trim()}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors"
+                    className="px-4 py-2 bg-[#0F4C75] hover:bg-[#1A5F8A] disabled:opacity-50 rounded-lg transition-colors"
                   >
                     <Send size={18} />
                   </button>
@@ -488,15 +488,15 @@ export function ZeroClaw() {
         {activeTab === 'decisions' && (
           <div className="space-y-3">
             {decisions.map((decision) => (
-              <div key={decision.id} className="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+              <div key={decision.id} className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] overflow-hidden">
                 <div className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${
-                        decision.type === 'trade' ? 'bg-green-500/20 text-green-400' :
-                        decision.type === 'config' ? 'bg-blue-500/20 text-blue-400' :
-                        decision.type === 'risk' ? 'bg-red-500/20 text-red-400' :
-                        'bg-yellow-500/20 text-yellow-400'
+                        decision.type === 'trade' ? 'bg-[#00C9A7]/20 text-[#00C9A7]' :
+                        decision.type === 'config' ? 'bg-[#0F4C75]/20 text-[#3B82F6]' :
+                        decision.type === 'risk' ? 'bg-[#EF476F]/20 text-[#EF476F]' :
+                        'bg-[#D4AF37]/20 text-[#D4AF37]'
                       }`}>
                         {decision.type === 'trade' ? <TrendingUp size={18} /> :
                          decision.type === 'config' ? <Settings size={18} /> :
@@ -505,7 +505,7 @@ export function ZeroClaw() {
                       </div>
                       <div>
                         <div className="font-semibold">{decision.action}</div>
-                        <div className="text-sm text-gray-400">
+                        <div className="text-sm text-[#5a6a7e]">
                           {decision.symbol || decision.type} • {new Date(decision.timestamp).toLocaleString()}
                         </div>
                       </div>
@@ -513,16 +513,16 @@ export function ZeroClaw() {
                     
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 rounded text-xs ${
-                        decision.status === 'executed' ? 'bg-green-500/20 text-green-400' :
-                        decision.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                        decision.status === 'approved' ? 'bg-blue-500/20 text-blue-400' :
-                        'bg-red-500/20 text-red-400'
+                        decision.status === 'executed' ? 'bg-[#00C9A7]/20 text-[#00C9A7]' :
+                        decision.status === 'pending' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' :
+                        decision.status === 'approved' ? 'bg-[#0F4C75]/20 text-[#3B82F6]' :
+                        'bg-[#EF476F]/20 text-[#EF476F]'
                       }`}>
                         {decision.status}
                       </span>
                       <button
                         onClick={() => setExpandedDecision(expandedDecision === decision.id ? null : decision.id)}
-                        className="p-1 text-gray-400 hover:text-white"
+                        className="p-1 text-[#5a6a7e] hover:text-[#e8ecf1]"
                       >
                         {expandedDecision === decision.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </button>
@@ -533,14 +533,14 @@ export function ZeroClaw() {
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={() => approveDecision(decision.id)}
-                        className="flex-1 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                        className="flex-1 py-2 bg-[#00A88A] hover:bg-green-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
                       >
                         <CheckCircle size={14} />
                         Approve
                       </button>
                       <button
                         onClick={() => rejectDecision(decision.id)}
-                        className="flex-1 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                        className="flex-1 py-2 bg-[#D63D5E] hover:bg-red-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
                       >
                         <AlertTriangle size={14} />
                         Reject
@@ -549,11 +549,11 @@ export function ZeroClaw() {
                   )}
 
                   {expandedDecision === decision.id && (
-                    <div className="mt-3 pt-3 border-t border-dark-700">
-                      <div className="text-sm text-gray-400 mb-2">AI Reasoning:</div>
-                      <div className="text-sm bg-dark-900 rounded-lg p-3">{decision.reasoning}</div>
+                    <div className="mt-3 pt-3 border-t border-[rgba(30,50,70,0.3)]">
+                      <div className="text-sm text-[#5a6a7e] mb-2">AI Reasoning:</div>
+                      <div className="text-sm bg-[#090d14] rounded-lg p-3">{decision.reasoning}</div>
                       {decision.pnl !== undefined && (
-                        <div className={`mt-2 text-sm ${decision.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <div className={`mt-2 text-sm ${decision.pnl >= 0 ? 'text-[#00C9A7]' : 'text-[#EF476F]'}`}>
                           P&L: {decision.pnl >= 0 ? '+' : ''}{decision.pnl.toFixed(2)}%
                         </div>
                       )}
@@ -564,7 +564,7 @@ export function ZeroClaw() {
             ))}
             
             {decisions.length === 0 && (
-              <div className="text-center py-12 text-gray-400 bg-dark-800 rounded-xl border border-dark-700">
+              <div className="text-center py-12 text-[#5a6a7e] glass-card rounded-xl border border-[rgba(30,50,70,0.3)]">
                 <Brain size={48} className="mx-auto mb-3 opacity-30" />
                 <p>No decisions recorded yet</p>
                 <p className="text-sm">Enable autonomous mode to start making decisions</p>
@@ -577,57 +577,57 @@ export function ZeroClaw() {
         {activeTab === 'healing' && (
           <div className="space-y-3">
             {issues.map((issue) => (
-              <div key={issue.id} className={`bg-dark-800 rounded-xl border p-4 ${
-                issue.severity === 'critical' ? 'border-red-500/50' :
-                issue.severity === 'high' ? 'border-orange-500/50' :
-                issue.severity === 'medium' ? 'border-yellow-500/50' :
-                'border-dark-700'
+              <div key={issue.id} className={`glass-card rounded-xl border p-4 ${
+                issue.severity === 'critical' ? 'border-[#EF476F]/50' :
+                issue.severity === 'high' ? 'border-[#FF6B35]/50' :
+                issue.severity === 'medium' ? 'border-[#D4AF37]/50' :
+                'border-[rgba(30,50,70,0.3)]'
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${
-                      issue.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
-                      issue.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                      issue.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                      'bg-blue-500/20 text-blue-400'
+                      issue.severity === 'critical' ? 'bg-[#EF476F]/20 text-[#EF476F]' :
+                      issue.severity === 'high' ? 'bg-[#FF6B35]/20 text-[#FF6B35]' :
+                      issue.severity === 'medium' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' :
+                      'bg-[#0F4C75]/20 text-[#3B82F6]'
                     }`}>
                       <Shield size={18} />
                     </div>
                     <div>
                       <div className="font-semibold">{issue.component}</div>
-                      <div className="text-sm text-gray-400">{issue.issue}</div>
+                      <div className="text-sm text-[#5a6a7e]">{issue.issue}</div>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-1 rounded text-xs ${
-                      issue.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                      issue.status === 'remediating' ? 'bg-blue-500/20 text-blue-400' :
-                      'bg-red-500/20 text-red-400'
+                      issue.status === 'resolved' ? 'bg-[#00C9A7]/20 text-[#00C9A7]' :
+                      issue.status === 'remediating' ? 'bg-[#0F4C75]/20 text-[#3B82F6]' :
+                      'bg-[#EF476F]/20 text-[#EF476F]'
                     }`}>
                       {issue.status}
                     </span>
                     <span className={`px-2 py-1 rounded text-xs ${
-                      issue.severity === 'critical' ? 'bg-red-500 text-white' :
-                      issue.severity === 'high' ? 'bg-orange-500 text-white' :
-                      issue.severity === 'medium' ? 'bg-yellow-500 text-black' :
-                      'bg-blue-500 text-white'
+                      issue.severity === 'critical' ? 'bg-[#EF476F] text-[#e8ecf1] :
+                      issue.severity === 'high' ? 'bg-[#FF6B35] text-[#e8ecf1] :
+                      issue.severity === 'medium' ? 'bg-[#D4AF37] text-black' :
+                      'bg-[#0F4C75] text-[#e8ecf1]
                     }`}>
                       {issue.severity}
                     </span>
                   </div>
                 </div>
                 
-                <div className="mt-2 text-xs text-gray-500">
+                <div className="mt-2 text-xs text-[#3d4d60]">
                   Detected: {new Date(issue.detected_at).toLocaleString()}
                 </div>
               </div>
             ))}
             
             {issues.length === 0 && (
-              <div className="text-center py-12 text-gray-400 bg-dark-800 rounded-xl border border-dark-700">
-                <CheckCircle size={48} className="mx-auto mb-3 text-green-400 opacity-50" />
-                <p className="text-green-400 font-medium">All Systems Operational</p>
+              <div className="text-center py-12 text-[#5a6a7e] glass-card rounded-xl border border-[rgba(30,50,70,0.3)]">
+                <CheckCircle size={48} className="mx-auto mb-3 text-[#00C9A7] opacity-50" />
+                <p className="text-[#00C9A7] font-medium">All Systems Operational</p>
                 <p className="text-sm">No healing issues detected</p>
               </div>
             )}
@@ -636,33 +636,33 @@ export function ZeroClaw() {
 
         {/* Settings Modal */}
         {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="bg-dark-800 rounded-2xl border border-dark-600 max-w-2xl w-full max-h-[90vh] overflow-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/70 backdrop-blur-sm p-4">
+            <div className="glass-card rounded-2xl border border-[rgba(30,50,70,0.35)] max-w-2xl w-full max-h-[90vh] overflow-auto">
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-dark-700">
+              <div className="flex items-center justify-between p-4 border-b border-[rgba(30,50,70,0.3)]">
                 <div className="flex items-center gap-2">
-                  <Settings className="text-blue-400" size={24} />
+                  <Settings className="text-[#3B82F6]" size={24} />
                   <span className="text-xl font-bold">ZeroClaw Settings</span>
                 </div>
                 <button 
                   onClick={() => setShowSettings(false)}
-                  className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                  className="p-2 hover:bg-[#151d28] rounded-lg transition-colors"
                 >
-                  <X size={20} className="text-gray-400" />
+                  <X size={20} className="text-[#5a6a7e]" />
                 </button>
               </div>
 
               <div className="p-6 space-y-6">
                 {/* Model Selection */}
-                <div className="bg-dark-900 rounded-xl p-4">
+                <div className="bg-[#090d14] rounded-xl p-4">
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <Brain size={18} className="text-purple-400" />
+                    <Brain size={18} className="text-[#D4AF37]" />
                     AI Model
                   </h3>
                   <select
                     value={settings.model}
                     onChange={(e) => setSettings({...settings, model: e.target.value})}
-                    className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm"
+                    className="w-full glass-card border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 text-sm"
                   >
                     <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Recommended)</option>
                     <option value="anthropic/claude-3-opus">Claude 3 Opus (Most Capable)</option>
@@ -670,15 +670,15 @@ export function ZeroClaw() {
                     <option value="google/gemini-pro">Gemini Pro (Google)</option>
                     <option value="meta-llama/llama-3-70b">Llama 3 70B (Meta)</option>
                   </select>
-                  <p className="text-xs text-gray-400 mt-2">
+                  <p className="text-xs text-[#5a6a7e] mt-2">
                     Select the AI model that powers ZeroClaw's decision making. More capable models may have higher latency.
                   </p>
                 </div>
 
                 {/* Tools */}
-                <div className="bg-dark-900 rounded-xl p-4">
+                <div className="bg-[#090d14] rounded-xl p-4">
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <Zap size={18} className="text-yellow-400" />
+                    <Zap size={18} className="text-[#D4AF37]" />
                     Assistant Tools
                   </h3>
                   <div className="space-y-3">
@@ -696,11 +696,11 @@ export function ZeroClaw() {
                             ...settings,
                             tools: { ...settings.tools, [key]: e.target.checked }
                           })}
-                          className="mt-1 w-4 h-4 rounded border-dark-600"
+                          className="mt-1 w-4 h-4 rounded border-[rgba(30,50,70,0.35)]"
                         />
                         <div>
                           <div className="font-medium text-sm">{label}</div>
-                          <div className="text-xs text-gray-400">{desc}</div>
+                          <div className="text-xs text-[#5a6a7e]">{desc}</div>
                         </div>
                       </label>
                     ))}
@@ -708,9 +708,9 @@ export function ZeroClaw() {
                 </div>
 
                 {/* Permissions */}
-                <div className="bg-dark-900 rounded-xl p-4">
+                <div className="bg-[#090d14] rounded-xl p-4">
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <Shield size={18} className="text-green-400" />
+                    <Shield size={18} className="text-[#00C9A7]" />
                     Controls & Permissions
                   </h3>
                   <div className="space-y-4">
@@ -722,11 +722,11 @@ export function ZeroClaw() {
                           ...settings,
                           permissions: { ...settings.permissions, autoTrade: e.target.checked }
                         })}
-                        className="mt-1 w-4 h-4 rounded border-dark-600"
+                        className="mt-1 w-4 h-4 rounded border-[rgba(30,50,70,0.35)]"
                       />
                       <div>
                         <div className="font-medium text-sm">Auto-Trading</div>
-                        <div className="text-xs text-gray-400">Allow ZeroClaw to execute trades automatically without approval</div>
+                        <div className="text-xs text-[#5a6a7e]">Allow ZeroClaw to execute trades automatically without approval</div>
                       </div>
                     </label>
                     
@@ -738,11 +738,11 @@ export function ZeroClaw() {
                           ...settings,
                           permissions: { ...settings.permissions, requireApproval: e.target.checked }
                         })}
-                        className="mt-1 w-4 h-4 rounded border-dark-600"
+                        className="mt-1 w-4 h-4 rounded border-[rgba(30,50,70,0.35)]"
                       />
                       <div>
                         <div className="font-medium text-sm">Require Approval</div>
-                        <div className="text-xs text-gray-400">Require manual approval for trades above $100</div>
+                        <div className="text-xs text-[#5a6a7e]">Require manual approval for trades above $100</div>
                       </div>
                     </label>
 
@@ -755,16 +755,16 @@ export function ZeroClaw() {
                           ...settings,
                           permissions: { ...settings.permissions, maxPositionSize: parseInt(e.target.value) }
                         })}
-                        className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm"
+                        className="w-full glass-card border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 text-sm"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* MCP */}
-                <div className="bg-dark-900 rounded-xl p-4">
+                <div className="bg-[#090d14] rounded-xl p-4">
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <Activity size={18} className="text-blue-400" />
+                    <Activity size={18} className="text-[#3B82F6]" />
                     MCP (Multi-Control Protocol)
                   </h3>
                   <div className="space-y-3">
@@ -776,11 +776,11 @@ export function ZeroClaw() {
                           ...settings,
                           mcp: { ...settings.mcp, enabled: e.target.checked }
                         })}
-                        className="mt-1 w-4 h-4 rounded border-dark-600"
+                        className="mt-1 w-4 h-4 rounded border-[rgba(30,50,70,0.35)]"
                       />
                       <div>
                         <div className="font-medium text-sm">Enable MCP</div>
-                        <div className="text-xs text-gray-400">Allow external systems to control ZeroClaw via API</div>
+                        <div className="text-xs text-[#5a6a7e]">Allow external systems to control ZeroClaw via API</div>
                       </div>
                     </label>
                     
@@ -791,7 +791,7 @@ export function ZeroClaw() {
                           ...settings,
                           mcp: { ...settings.mcp, protocol: e.target.value }
                         })}
-                        className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm"
+                        className="w-full glass-card border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2 text-sm"
                       >
                         <option value="standard">Standard Protocol</option>
                         <option value="extended">Extended Protocol (More commands)</option>
@@ -803,10 +803,10 @@ export function ZeroClaw() {
               </div>
 
               {/* Footer */}
-              <div className="flex gap-3 p-4 border-t border-dark-700">
+              <div className="flex gap-3 p-4 border-t border-[rgba(30,50,70,0.3)]">
                 <button 
                   onClick={() => setShowSettings(false)}
-                  className="flex-1 py-2.5 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors"
+                  className="flex-1 py-2.5 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors"
                 >
                   Cancel
                 </button>
@@ -815,7 +815,7 @@ export function ZeroClaw() {
                     // TODO: Save settings to backend
                     setShowSettings(false);
                   }}
-                  className="flex-1 py-2.5 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex-1 py-2.5 bg-[#0F4C75] rounded-lg hover:bg-[#1A5F8A] transition-colors"
                 >
                   Save Settings
                 </button>
@@ -825,11 +825,11 @@ export function ZeroClaw() {
         )}
 
         {/* Info */}
-        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+        <div className="bg-[#0F4C75]/10 border border-[#0F4C75]/30 rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <Terminal className="text-blue-400 flex-shrink-0 mt-0.5" size={18} />
-            <div className="text-sm text-gray-300">
-              <p className="font-medium text-blue-400 mb-1">24/7 Autonomous Agent</p>
+            <Terminal className="text-[#3B82F6] flex-shrink-0 mt-0.5" size={18} />
+            <div className="text-sm text-[#e8ecf1]">
+              <p className="font-medium text-[#3B82F6] mb-1">24/7 Autonomous Agent</p>
               <p>The ZeroClaw AI operates continuously, making trading decisions, monitoring system health, and self-healing issues. It requires approval for high-risk decisions while handling routine operations automatically.</p>
             </div>
           </div>

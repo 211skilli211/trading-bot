@@ -42,7 +42,7 @@ export function Header({ title, totalPnl, alertCount, isLive }: HeaderProps) {
           {alertCount !== undefined && alertCount > 0 && (
             <button className="relative p-2 rounded-lg hover:bg-white/[0.04] transition-colors">
               <Bell size={18} className="text-[#5a6a7e]" />
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#EF476F] text-white text-[9px] font-bold flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#EF476F] text-[#e8ecf1] text-[9px] font-bold flex items-center justify-center">
                 {alertCount > 9 ? '9+' : alertCount}
               </span>
             </button>

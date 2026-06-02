@@ -120,7 +120,7 @@ export function CryptoIcon({ symbol, size = 32, className = '' }: CryptoIconProp
     // Fallback to colored circle with letter
     return (
       <div
-        className={`rounded-full flex items-center justify-center font-bold text-white ${className}`}
+        className={`rounded-full flex items-center justify-center font-bold text-[#e8ecf1] ${className}`}
         style={{ 
           width: size, 
           height: size, 

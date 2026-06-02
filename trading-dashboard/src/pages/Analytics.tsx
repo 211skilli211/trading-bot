@@ -362,41 +362,41 @@ plot(s1, "S1", color.red)`);
           <div className="relative flex-1 min-w-[140px] sm:min-w-0">
             <button
               onClick={() => setShowCoinDropdown(!showCoinDropdown)}
-              className="w-full flex items-center justify-between gap-2 px-3 sm:px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg hover:border-blue-500 transition-colors"
+              className="w-full flex items-center justify-between gap-2 px-3 sm:px-4 py-2 glass-card border border-[rgba(30,50,70,0.3)] rounded-lg hover:border-[#0F4C75] transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="font-semibold text-sm sm:text-base truncate">{selectedCoin}</span>
                 <Star 
                   size={14} 
-                  className={`flex-shrink-0 ${selectedCoin === preferences.primaryCoin ? 'text-yellow-400 fill-yellow-400' : 'text-gray-400'}`}
+                  className={`flex-shrink-0 ${selectedCoin === preferences.primaryCoin ? 'text-[#D4AF37] fill-yellow-400' : 'text-[#5a6a7e]'}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     setPrimaryCoin(selectedCoin);
                   }}
                 />
               </div>
-              <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+              <ChevronDown size={16} className="text-[#5a6a7e] flex-shrink-0" />
             </button>
             
             {showCoinDropdown && (
-              <div className="absolute top-full left-0 right-0 sm:w-80 mt-1 bg-dark-800 border border-dark-700 rounded-lg shadow-xl z-50 max-h-[60vh] overflow-auto">
+              <div className="absolute top-full left-0 right-0 sm:w-80 mt-1 glass-card border border-[rgba(30,50,70,0.3)] rounded-lg shadow-xl z-50 max-h-[60vh] overflow-auto">
                 <div className="p-2">
-                  <div className="text-xs text-gray-500 mb-2 px-2 sticky top-0 bg-dark-800">Select Market ({AVAILABLE_COINS.length} assets)</div>
+                  <div className="text-xs text-[#3d4d60] mb-2 px-2 sticky top-0 glass-card">Select Market ({AVAILABLE_COINS.length} assets)</div>
                   {AVAILABLE_COINS.map((coin) => (
                     <button
                       key={coin.symbol}
                       onClick={() => handleCoinChange(coin.symbol)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-dark-700 transition-colors ${
-                        coin.symbol === selectedCoin ? 'bg-blue-600/20 border-l-2 border-blue-400' : ''
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#151d28] transition-colors ${
+                        coin.symbol === selectedCoin ? 'bg-[#0F4C75]/20 border-l-2 border-[#3B82F6]' : ''
                       }`}
                     >
                       <div className="min-w-0 text-left">
                         <div className="font-medium text-sm">{coin.symbol}</div>
-                        <div className="text-xs text-gray-400 truncate">{coin.name}</div>
+                        <div className="text-xs text-[#5a6a7e] truncate">{coin.name}</div>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <div className="font-mono text-sm">${coin.price.toLocaleString()}</div>
-                        <div className={`text-xs ${coin.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <div className={`text-xs ${coin.change24h >= 0 ? 'text-[#00C9A7]' : 'text-[#EF476F]'}`}>
                           {coin.change24h >= 0 ? '+' : ''}{coin.change24h.toFixed(1)}%
                         </div>
                       </div>
@@ -409,15 +409,15 @@ plot(s1, "S1", color.red)`);
 
           {/* Timeframe */}
           <div className="flex-1 overflow-x-auto scrollbar-hide">
-            <div className="flex items-center gap-1 bg-dark-800 border border-dark-700 rounded-lg p-1 w-max">
+            <div className="flex items-center gap-1 glass-card border border-[rgba(30,50,70,0.3)] rounded-lg p-1 w-max">
               {TIMEFRAMES.map((tf) => (
                 <button
                   key={tf.value}
                   onClick={() => setTimeframe(tf.value)}
                   className={`px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                     timeframe === tf.value 
-                      ? 'bg-blue-600 text-white' 
-                      : 'text-gray-400 hover:text-white hover:bg-dark-700'
+                      ? 'bg-[#0F4C75] text-[#e8ecf1] 
+                      : 'text-[#5a6a7e] hover:text-[#e8ecf1] hover:bg-[#151d28]'
                   }`}
                 >
                   {tf.label}
@@ -430,14 +430,14 @@ plot(s1, "S1", color.red)`);
           <div className="flex items-center gap-1">
             <button
               onClick={toggleFullscreen}
-              className="p-2 bg-dark-800 border border-dark-700 rounded-lg hover:border-blue-500 transition-colors"
+              className="p-2 glass-card border border-[rgba(30,50,70,0.3)] rounded-lg hover:border-[#0F4C75] transition-colors"
             >
               {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
             </button>
             <button
               onClick={() => setShowSuggestions(!showSuggestions)}
               className={`p-2 rounded-lg transition-colors ${
-                showSuggestions ? 'bg-purple-600 text-white' : 'bg-dark-800 border border-dark-700'
+                showSuggestions ? 'bg-purple-600 text-[#e8ecf1] : 'glass-card border border-[rgba(30,50,70,0.3)]'
               }`}
             >
               <Brain size={18} />
@@ -447,11 +447,11 @@ plot(s1, "S1", color.red)`);
 
         {/* Position Toggle */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-dark-800 border border-dark-700 rounded-lg p-1">
+          <div className="flex items-center gap-1 glass-card border border-[rgba(30,50,70,0.3)] rounded-lg p-1">
             <button
               onClick={() => setPosition('long')}
               className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${
-                position === 'long' ? 'bg-green-600 text-white' : 'text-gray-400'
+                position === 'long' ? 'bg-[#00A88A] text-[#e8ecf1] : 'text-[#5a6a7e]'
               }`}
             >
               <TrendingUp size={14} />
@@ -460,7 +460,7 @@ plot(s1, "S1", color.red)`);
             <button
               onClick={() => setPosition('short')}
               className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${
-                position === 'short' ? 'bg-red-600 text-white' : 'text-gray-400'
+                position === 'short' ? 'bg-[#D63D5E] text-[#e8ecf1] : 'text-[#5a6a7e]'
               }`}
             >
               <TrendingDown size={14} />
@@ -470,7 +470,7 @@ plot(s1, "S1", color.red)`);
           <button
             onClick={() => setShowSettings(!showSettings)}
             className={`px-3 py-2 rounded-lg text-sm ${
-              showSettings ? 'bg-blue-600 text-white' : 'bg-dark-800 border border-dark-700'
+              showSettings ? 'bg-[#0F4C75] text-[#e8ecf1] : 'glass-card border border-[rgba(30,50,70,0.3)]'
             }`}
           >
             <Settings size={16} />
@@ -478,7 +478,7 @@ plot(s1, "S1", color.red)`);
           <button
             onClick={() => setShowPineScript(!showPineScript)}
             className={`px-3 py-2 rounded-lg text-sm ${
-              showPineScript ? 'bg-green-600 text-white' : 'bg-dark-800 border border-dark-700'
+              showPineScript ? 'bg-[#00A88A] text-[#e8ecf1] : 'glass-card border border-[rgba(30,50,70,0.3)]'
             }`}
           >
             <Code2 size={16} />
@@ -487,7 +487,7 @@ plot(s1, "S1", color.red)`);
 
         {/* Settings Panel */}
         {showSettings && (
-          <div className="bg-dark-800 border border-dark-700 rounded-xl p-3 sm:p-4">
+          <div className="glass-card border border-[rgba(30,50,70,0.3)] rounded-xl p-3 sm:p-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               <div>
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -495,31 +495,31 @@ plot(s1, "S1", color.red)`);
                     type="checkbox"
                     checked={useAISuggestions}
                     onChange={(e) => setUseAISuggestions(e.target.checked)}
-                    className="w-4 h-4 rounded border-dark-600"
+                    className="w-4 h-4 rounded border-[rgba(30,50,70,0.35)]"
                   />
                   <span className="text-sm">AI Auto-SL/TP</span>
                 </label>
               </div>
               
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Account Size ($)</label>
+                <label className="block text-xs text-[#5a6a7e] mb-1">Account Size ($)</label>
                 <input
                   type="number"
                   value={accountSize}
                   onChange={(e) => setAccountSize(Number(e.target.value))}
-                  className="w-full bg-dark-900 border border-dark-600 rounded-lg px-2 py-1 text-sm"
+                  className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.35)] rounded-lg px-2 py-1 text-sm"
                   min="100"
                   step="100"
                 />
               </div>
               
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Risk Per Trade (%)</label>
+                <label className="block text-xs text-[#5a6a7e] mb-1">Risk Per Trade (%)</label>
                 <input
                   type="number"
                   value={riskPercent}
                   onChange={(e) => setRiskPercent(Number(e.target.value))}
-                  className="w-full bg-dark-900 border border-dark-600 rounded-lg px-2 py-1 text-sm"
+                  className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.35)] rounded-lg px-2 py-1 text-sm"
                   min="0.1"
                   max="10"
                   step="0.1"
@@ -527,7 +527,7 @@ plot(s1, "S1", color.red)`);
               </div>
 
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Indicators</label>
+                <label className="block text-xs text-[#5a6a7e] mb-1">Indicators</label>
                 <div className="flex flex-wrap gap-2">
                   <label className="flex items-center gap-1 cursor-pointer text-sm">
                     <input
@@ -573,16 +573,16 @@ plot(s1, "S1", color.red)`);
 
         {/* Pine Script Panel */}
         {showPineScript && (
-          <div className="bg-dark-800 border border-dark-700 rounded-xl p-3 sm:p-4">
+          <div className="glass-card border border-[rgba(30,50,70,0.3)] rounded-xl p-3 sm:p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Code2 size={18} className="text-green-400" />
+                <Code2 size={18} className="text-[#00C9A7]" />
                 <h3 className="font-semibold">Pine Script Editor</h3>
-                <span className="text-xs text-gray-400">(AI-powered indicators)</span>
+                <span className="text-xs text-[#5a6a7e]">(AI-powered indicators)</span>
               </div>
               <button
                 onClick={() => setShowPineScript(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-[#5a6a7e] hover:text-[#e8ecf1]"
               >
                 <X size={18} />
               </button>
@@ -590,11 +590,11 @@ plot(s1, "S1", color.red)`);
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Script</label>
+                <label className="block text-xs text-[#5a6a7e] mb-1">Script</label>
                 <textarea
                   value={pineScriptCode}
                   onChange={(e) => setPineScriptCode(e.target.value)}
-                  className="w-full h-48 bg-dark-900 border border-dark-600 rounded-lg p-3 text-xs font-mono text-green-300 resize-none focus:outline-none focus:border-green-500"
+                  className="w-full h-48 bg-[#090d14] border border-[rgba(30,50,70,0.35)] rounded-lg p-3 text-xs font-mono text-green-300 resize-none focus:outline-none focus:border-[#00C9A7]"
                   spellCheck={false}
                 />
                 <div className="flex items-center gap-2 mt-2">
@@ -607,7 +607,7 @@ plot(s1, "S1", color.red)`);
                         setPineScriptOutput('✓ Script compiled successfully!\n\nIndicators added:\n- EMA 20 with dynamic color\n- Pivot Points (R1, S1)\n- Custom support/resistance levels');
                       }, 1000);
                     }}
-                    className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm flex items-center gap-1"
+                    className="px-3 py-1.5 bg-[#00A88A] hover:bg-green-700 rounded text-sm flex items-center gap-1"
                   >
                     <Play size={14} />
                     Compile & Run
@@ -619,7 +619,7 @@ plot(s1, "S1", color.red)`);
                       setPineScriptError(null);
                       setPineScriptOutput(null);
                     }}
-                    className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded text-sm"
+                    className="px-3 py-1.5 bg-[#151d28] hover:bg-[#1a2332] rounded text-sm"
                   >
                     Reset
                   </button>
@@ -632,17 +632,17 @@ plot(s1, "S1", color.red)`);
               </div>
               
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Output / Log</label>
-                <div className="w-full h-48 bg-dark-900 border border-dark-600 rounded-lg p-3 text-xs font-mono overflow-auto">
+                <label className="block text-xs text-[#5a6a7e] mb-1">Output / Log</label>
+                <div className="w-full h-48 bg-[#090d14] border border-[rgba(30,50,70,0.35)] rounded-lg p-3 text-xs font-mono overflow-auto">
                   {pineScriptOutput ? (
                     <pre className="text-green-300 whitespace-pre-wrap">{pineScriptOutput}</pre>
                   ) : (
-                    <span className="text-gray-500">// Click "Compile & Run" to execute script</span>
+                    <span className="text-[#3d4d60]">// Click "Compile & Run" to execute script</span>
                   )}
                 </div>
-                <div className="mt-2 text-xs text-gray-500">
+                <div className="mt-2 text-xs text-[#3d4d60]">
                   <p>Pine Script v5 syntax supported. Common functions:</p>
-                  <code className="text-gray-400">ta.ema, ta.sma, ta.rsi, ta.atr, ta.bb, plot, plotshape</code>
+                  <code className="text-[#5a6a7e]">ta.ema, ta.sma, ta.rsi, ta.atr, ta.bb, plot, plotshape</code>
                 </div>
               </div>
             </div>
@@ -652,7 +652,7 @@ plot(s1, "S1", color.red)`);
         {/* Main Chart */}
         <div 
           ref={chartContainerRef}
-          className="bg-dark-800 rounded-xl p-2 sm:p-4 border border-dark-700 touch-pan-y"
+          className="glass-card rounded-xl p-2 sm:p-4 border border-[rgba(30,50,70,0.3)] touch-pan-y"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
@@ -660,14 +660,14 @@ plot(s1, "S1", color.red)`);
           <div className="flex items-center justify-between mb-2">
             <div>
               <div className="text-lg sm:text-2xl font-bold">${currentPrice.toLocaleString()}</div>
-              <div className={`text-xs sm:text-sm ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <div className={`text-xs sm:text-sm ${priceChange >= 0 ? 'text-[#00C9A7]' : 'text-[#EF476F]'}`}>
                 {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}% (24h)
               </div>
             </div>
             {stopLoss && takeProfit && (
               <div className="text-right">
-                <div className="text-xs text-gray-400">Risk:Reward</div>
-                <div className={`text-lg font-bold ${riskReward >= 2 ? 'text-green-400' : 'text-yellow-400'}`}>
+                <div className="text-xs text-[#5a6a7e]">Risk:Reward</div>
+                <div className={`text-lg font-bold ${riskReward >= 2 ? 'text-[#00C9A7]' : 'text-[#D4AF37]'}`}>
                   1:{riskReward.toFixed(1)}
                 </div>
               </div>
@@ -694,7 +694,7 @@ plot(s1, "S1", color.red)`);
 
           {/* Mobile Swipe Hint */}
           {isMobile && (
-            <div className="flex items-center justify-center gap-1 mt-2 text-xs text-gray-500">
+            <div className="flex items-center justify-center gap-1 mt-2 text-xs text-[#3d4d60]">
               <span>← Swipe chart to change timeframe →</span>
             </div>
           )}
@@ -702,17 +702,17 @@ plot(s1, "S1", color.red)`);
 
         {/* AI Suggestions Panel */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="bg-dark-800 rounded-xl p-3 sm:p-4 border border-dark-700">
+          <div className="glass-card rounded-xl p-3 sm:p-4 border border-[rgba(30,50,70,0.3)]">
             <div className="flex items-center gap-2 mb-3 sm:mb-4">
-              <Brain size={18} className="text-purple-400" />
+              <Brain size={18} className="text-[#D4AF37]" />
               <h3 className="font-semibold text-sm sm:text-base">AI Strategy Suggestions</h3>
-              <span className="hidden sm:inline text-xs text-gray-400 ml-auto">Based on ATR, S/R & trend analysis</span>
+              <span className="hidden sm:inline text-xs text-[#5a6a7e] ml-auto">Based on ATR, S/R & trend analysis</span>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Stop Loss Suggestions */}
               <div>
-                <div className="text-xs sm:text-sm text-orange-400 mb-2 flex items-center gap-2">
+                <div className="text-xs sm:text-sm text-[#FF6B35] mb-2 flex items-center gap-2">
                   <Shield size={14} />
                   Stop Loss
                 </div>
@@ -723,18 +723,18 @@ plot(s1, "S1", color.red)`);
                       onClick={() => applySuggestion(suggestion)}
                       className={`w-full p-2 sm:p-3 rounded-lg border text-left transition-all ${
                         stopLoss === suggestion.price
-                          ? 'bg-orange-500/20 border-orange-500'
-                          : 'bg-dark-900 border-dark-700'
+                          ? 'bg-[#FF6B35]/20 border-[#FF6B35]'
+                          : 'bg-[#090d14] border-[rgba(30,50,70,0.3)]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="min-w-0">
                           <div className="font-mono font-bold text-sm">${suggestion.price.toFixed(2)}</div>
-                          <div className="text-xs text-gray-400 truncate">{suggestion.reason}</div>
+                          <div className="text-xs text-[#5a6a7e] truncate">{suggestion.reason}</div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <div className="text-xs text-orange-400">{suggestion.confidence}%</div>
-                          <div className="text-[10px] text-gray-500 uppercase">{suggestion.source.replace('_', ' ')}</div>
+                          <div className="text-xs text-[#FF6B35]">{suggestion.confidence}%</div>
+                          <div className="text-[10px] text-[#3d4d60] uppercase">{suggestion.source.replace('_', ' ')}</div>
                         </div>
                       </div>
                     </button>
@@ -744,7 +744,7 @@ plot(s1, "S1", color.red)`);
 
               {/* Take Profit Suggestions */}
               <div>
-                <div className="text-xs sm:text-sm text-green-400 mb-2 flex items-center gap-2">
+                <div className="text-xs sm:text-sm text-[#00C9A7] mb-2 flex items-center gap-2">
                   <Target size={14} />
                   Take Profit
                 </div>
@@ -755,18 +755,18 @@ plot(s1, "S1", color.red)`);
                       onClick={() => applySuggestion(suggestion)}
                       className={`w-full p-2 sm:p-3 rounded-lg border text-left transition-all ${
                         takeProfit === suggestion.price
-                          ? 'bg-green-500/20 border-green-500'
-                          : 'bg-dark-900 border-dark-700'
+                          ? 'bg-[#00C9A7]/20 border-[#00C9A7]'
+                          : 'bg-[#090d14] border-[rgba(30,50,70,0.3)]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="min-w-0">
                           <div className="font-mono font-bold text-sm">${suggestion.price.toFixed(2)}</div>
-                          <div className="text-xs text-gray-400 truncate">{suggestion.reason}</div>
+                          <div className="text-xs text-[#5a6a7e] truncate">{suggestion.reason}</div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <div className="text-xs text-green-400">{suggestion.confidence}%</div>
-                          <div className="text-[10px] text-gray-500 uppercase">{suggestion.source.replace('_', ' ')}</div>
+                          <div className="text-xs text-[#00C9A7]">{suggestion.confidence}%</div>
+                          <div className="text-[10px] text-[#3d4d60] uppercase">{suggestion.source.replace('_', ' ')}</div>
                         </div>
                       </div>
                     </button>
@@ -779,34 +779,34 @@ plot(s1, "S1", color.red)`);
 
         {/* FIXED: Trade Analysis with Correct Logic */}
         {(stopLoss || takeProfit) && (
-          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl p-3 sm:p-4 border border-blue-500/30">
+          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl p-3 sm:p-4 border border-[#0F4C75]/30">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <BarChart4 size={18} className="text-blue-400" />
+              <BarChart4 size={18} className="text-[#3B82F6]" />
               Trade Calculator
             </h3>
             
             {/* Input Summary */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4">
-              <div className="p-2 sm:p-3 bg-dark-900 rounded-lg">
-                <div className="text-xs text-gray-400">Entry Price</div>
+              <div className="p-2 sm:p-3 bg-[#090d14] rounded-lg">
+                <div className="text-xs text-[#5a6a7e]">Entry Price</div>
                 <div className="text-base sm:text-lg font-mono font-bold">${currentPrice.toFixed(2)}</div>
               </div>
               
               {stopLoss && (
-                <div className="p-2 sm:p-3 bg-dark-900 rounded-lg">
-                  <div className="text-xs text-orange-400">Stop Loss</div>
-                  <div className="text-base sm:text-lg font-mono font-bold text-orange-400">${stopLoss.toFixed(2)}</div>
-                  <div className="text-[10px] sm:text-xs text-gray-500">
+                <div className="p-2 sm:p-3 bg-[#090d14] rounded-lg">
+                  <div className="text-xs text-[#FF6B35]">Stop Loss</div>
+                  <div className="text-base sm:text-lg font-mono font-bold text-[#FF6B35]">${stopLoss.toFixed(2)}</div>
+                  <div className="text-[10px] sm:text-xs text-[#3d4d60]">
                     Risk: ${riskPerUnit.toFixed(2)}/unit
                   </div>
                 </div>
               )}
               
               {takeProfit && (
-                <div className="p-2 sm:p-3 bg-dark-900 rounded-lg">
-                  <div className="text-xs text-green-400">Take Profit</div>
-                  <div className="text-base sm:text-lg font-mono font-bold text-green-400">${takeProfit.toFixed(2)}</div>
-                  <div className="text-[10px] sm:text-xs text-gray-500">
+                <div className="p-2 sm:p-3 bg-[#090d14] rounded-lg">
+                  <div className="text-xs text-[#00C9A7]">Take Profit</div>
+                  <div className="text-base sm:text-lg font-mono font-bold text-[#00C9A7]">${takeProfit.toFixed(2)}</div>
+                  <div className="text-[10px] sm:text-xs text-[#3d4d60]">
                     Reward: ${(takeProfit - currentPrice).toFixed(2)}/unit
                   </div>
                 </div>
@@ -814,8 +814,8 @@ plot(s1, "S1", color.red)`);
               
               {riskReward > 0 && (
                 <div className={`p-2 sm:p-3 rounded-lg ${riskReward >= 2 ? 'bg-green-900/30' : 'bg-yellow-900/30'}`}>
-                  <div className="text-xs text-gray-400">R:R Ratio</div>
-                  <div className={`text-base sm:text-lg font-mono font-bold ${riskReward >= 2 ? 'text-green-400' : 'text-yellow-400'}`}>
+                  <div className="text-xs text-[#5a6a7e]">R:R Ratio</div>
+                  <div className={`text-base sm:text-lg font-mono font-bold ${riskReward >= 2 ? 'text-[#00C9A7]' : 'text-[#D4AF37]'}`}>
                     1:{riskReward.toFixed(1)}
                   </div>
                 </div>
@@ -825,36 +825,36 @@ plot(s1, "S1", color.red)`);
             {/* Position Sizing - FIXED LOGIC */}
             {positionSizeUnits > 0 && (
               <div className="space-y-3">
-                <div className="p-3 bg-dark-900 rounded-lg border border-blue-500/30">
+                <div className="p-3 bg-[#090d14] rounded-lg border border-[#0F4C75]/30">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-xs text-gray-400">Risk Amount ({riskPercent}% of ${accountSize.toLocaleString()})</div>
-                      <div className="text-xl font-mono font-bold text-orange-400">${riskAmountValue.toFixed(2)}</div>
+                      <div className="text-xs text-[#5a6a7e]">Risk Amount ({riskPercent}% of ${accountSize.toLocaleString()})</div>
+                      <div className="text-xl font-mono font-bold text-[#FF6B35]">${riskAmountValue.toFixed(2)}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-gray-400">Position Size</div>
-                      <div className="text-xl font-mono font-bold text-blue-400">{positionSizeUnits.toFixed(4)} units</div>
-                      <div className="text-xs text-gray-500">≈ ${positionValue.toFixed(2)} value</div>
+                      <div className="text-xs text-[#5a6a7e]">Position Size</div>
+                      <div className="text-xl font-mono font-bold text-[#3B82F6]">{positionSizeUnits.toFixed(4)} units</div>
+                      <div className="text-xs text-[#3d4d60]">≈ ${positionValue.toFixed(2)} value</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Profit/Loss Projection */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-green-900/20 rounded-lg border border-green-500/30">
-                    <div className="text-xs text-green-400 mb-1">Potential Profit (if TP hit)</div>
-                    <div className="text-lg font-mono font-bold text-green-400">+${potentialProfit.toFixed(2)}</div>
-                    <div className="text-xs text-gray-500">{((potentialProfit / accountSize) * 100).toFixed(2)}% of account</div>
+                  <div className="p-3 bg-green-900/20 rounded-lg border border-[#00C9A7]/30">
+                    <div className="text-xs text-[#00C9A7] mb-1">Potential Profit (if TP hit)</div>
+                    <div className="text-lg font-mono font-bold text-[#00C9A7]">+${potentialProfit.toFixed(2)}</div>
+                    <div className="text-xs text-[#3d4d60]">{((potentialProfit / accountSize) * 100).toFixed(2)}% of account</div>
                   </div>
-                  <div className="p-3 bg-red-900/20 rounded-lg border border-red-500/30">
-                    <div className="text-xs text-red-400 mb-1">Potential Loss (if SL hit)</div>
-                    <div className="text-lg font-mono font-bold text-red-400">-${potentialLoss.toFixed(2)}</div>
-                    <div className="text-xs text-gray-500">{((potentialLoss / accountSize) * 100).toFixed(2)}% of account</div>
+                  <div className="p-3 bg-red-900/20 rounded-lg border border-[#EF476F]/30">
+                    <div className="text-xs text-[#EF476F] mb-1">Potential Loss (if SL hit)</div>
+                    <div className="text-lg font-mono font-bold text-[#EF476F]">-${potentialLoss.toFixed(2)}</div>
+                    <div className="text-xs text-[#3d4d60]">{((potentialLoss / accountSize) * 100).toFixed(2)}% of account</div>
                   </div>
                 </div>
 
                 {/* Explanation */}
-                <div className="text-xs text-gray-400 bg-dark-900/50 p-2 rounded">
+                <div className="text-xs text-[#5a6a7e] bg-[#090d14]/50 p-2 rounded">
                   <strong>How it works:</strong> With ${riskAmountValue.toFixed(2)} risk allowance and ${riskPerUnit.toFixed(2)} risk per unit, 
                   you can buy {positionSizeUnits.toFixed(4)} units at ${currentPrice.toFixed(2)} each for a total position value of ${positionValue.toFixed(2)}.
                 </div>

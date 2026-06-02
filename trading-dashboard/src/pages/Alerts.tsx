@@ -61,7 +61,7 @@ export function Alerts() {
             className={[
               'px-4 py-2 rounded-xl text-sm font-medium transition-colors',
               filter === 'all'
-                ? 'bg-[#0F4C75]/15 text-blue-400'
+                ? 'bg-[#0F4C75]/15 text-[#3B82F6]'
                 : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
             ].join(' ')}
           >
@@ -72,7 +72,7 @@ export function Alerts() {
             className={[
               'px-4 py-2 rounded-xl text-sm font-medium transition-colors',
               filter === 'unread'
-                ? 'bg-[#0F4C75]/15 text-blue-400'
+                ? 'bg-[#0F4C75]/15 text-[#3B82F6]'
                 : 'text-[#5a6a7e] hover:text-[#e8ecf1]',
             ].join(' ')}
           >

@@ -19,7 +19,8 @@ import { UserPreferencesProvider } from './context/UserPreferencesContext';
 function App() {
   return (
     <UserPreferencesProvider>
-      <div className="min-h-screen bg-dark-900 text-white">
+      <div className="min-h-screen text-[#e8ecf1]"
+ style={{ background: 'linear-gradient(180deg, #0f1620 0%, #090d14 100%)' }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/prices" element={<Prices />} />

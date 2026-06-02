@@ -97,15 +97,15 @@ export function ML() {
   }
 
   const getSignalColor = (signal: string) => {
-    if (signal === 'BUY') return 'text-green-400 bg-green-500/20 border-green-500/30';
-    if (signal === 'SELL') return 'text-red-400 bg-red-500/20 border-red-500/30';
-    return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30';
+    if (signal === 'BUY') return 'text-[#00C9A7] bg-[#00C9A7]/20 border-[#00C9A7]/30';
+    if (signal === 'SELL') return 'text-[#EF476F] bg-[#EF476F]/20 border-[#EF476F]/30';
+    return 'text-[#D4AF37] bg-[#D4AF37]/20 border-[#D4AF37]/30';
   };
 
   const getConfidenceColor = (conf: number) => {
-    if (conf >= 75) return 'text-green-400';
-    if (conf >= 60) return 'text-yellow-400';
-    return 'text-red-400';
+    if (conf >= 75) return 'text-[#00C9A7]';
+    if (conf >= 60) return 'text-[#D4AF37]';
+    return 'text-[#EF476F]';
   };
 
   return (
@@ -115,12 +115,12 @@ export function ML() {
       <div className="p-4 space-y-4">
         {/* Education Panel */}
         {showEducation && (
-          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl border border-blue-500/30 p-4">
+          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl border border-[#0F4C75]/30 p-4">
             <div className="flex items-start gap-3">
-              <BookOpen size={24} className="text-blue-400 flex-shrink-0 mt-1" />
+              <BookOpen size={24} className="text-[#3B82F6] flex-shrink-0 mt-1" />
               <div>
-                <h3 className="font-bold text-blue-400 mb-2">How AI Predictions Work</h3>
-                <div className="text-sm text-gray-300 space-y-1">
+                <h3 className="font-bold text-[#3B82F6] mb-2">How AI Predictions Work</h3>
+                <div className="text-sm text-[#e8ecf1] space-y-1">
                   <p>• <strong>Technical Analysis:</strong> RSI, moving averages, momentum indicators</p>
                   <p>• <strong>Market Sentiment:</strong> Price trends, volatility, volume analysis</p>
                   <p>• <strong>Risk Management:</strong> Position sizing based on your investment amount</p>
@@ -129,7 +129,7 @@ export function ML() {
               </div>
               <button 
                 onClick={() => setShowEducation(false)}
-                className="ml-auto text-gray-400 hover:text-white"
+                className="ml-auto text-[#5a6a7e] hover:text-[#e8ecf1]"
               >
                 ×
               </button>
@@ -140,55 +140,55 @@ export function ML() {
         {/* Market Overview */}
         {marketSummary && (
           <div className="grid grid-cols-4 gap-2">
-            <div className="bg-dark-800 rounded-xl p-3 text-center border border-green-500/30">
-              <div className="text-2xl font-bold text-green-400">{marketSummary.bullish_signals}</div>
-              <div className="text-xs text-gray-400">Buy Signals</div>
+            <div className="glass-card rounded-xl p-3 text-center border border-[#00C9A7]/30">
+              <div className="text-2xl font-bold text-[#00C9A7]">{marketSummary.bullish_signals}</div>
+              <div className="text-xs text-[#5a6a7e]">Buy Signals</div>
             </div>
-            <div className="bg-dark-800 rounded-xl p-3 text-center border border-red-500/30">
-              <div className="text-2xl font-bold text-red-400">{marketSummary.bearish_signals}</div>
-              <div className="text-xs text-gray-400">Sell Signals</div>
+            <div className="glass-card rounded-xl p-3 text-center border border-[#EF476F]/30">
+              <div className="text-2xl font-bold text-[#EF476F]">{marketSummary.bearish_signals}</div>
+              <div className="text-xs text-[#5a6a7e]">Sell Signals</div>
             </div>
-            <div className="bg-dark-800 rounded-xl p-3 text-center border border-purple-500/30">
-              <div className="text-2xl font-bold text-purple-400">{marketSummary.avg_confidence}%</div>
-              <div className="text-xs text-gray-400">Avg Confidence</div>
+            <div className="glass-card rounded-xl p-3 text-center border border-[#D4AF37]/30">
+              <div className="text-2xl font-bold text-[#D4AF37]">{marketSummary.avg_confidence}%</div>
+              <div className="text-xs text-[#5a6a7e]">Avg Confidence</div>
             </div>
-            <div className="bg-dark-800 rounded-xl p-3 text-center border border-blue-500/30">
-              <div className="text-2xl font-bold text-blue-400">{predictions.length}</div>
-              <div className="text-xs text-gray-400">Assets Analyzed</div>
+            <div className="glass-card rounded-xl p-3 text-center border border-[#0F4C75]/30">
+              <div className="text-2xl font-bold text-[#3B82F6]">{predictions.length}</div>
+              <div className="text-xs text-[#5a6a7e]">Assets Analyzed</div>
             </div>
           </div>
         )}
 
         {/* Calculator */}
-        <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+        <div className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Calculator size={20} className="text-blue-400" />
+            <Calculator size={20} className="text-[#3B82F6]" />
             <span className="font-bold">Your Investment Plan</span>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">How much do you want to invest? ($)</label>
+              <label className="block text-xs text-[#5a6a7e] mb-1">How much do you want to invest? ($)</label>
               <div className="relative">
-                <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#3d4d60]" />
                 <input
                   type="number"
                   value={calculator.investmentAmount}
                   onChange={(e) => setCalculator({...calculator, investmentAmount: Number(e.target.value)})}
-                  className="w-full bg-dark-900 border border-dark-700 rounded-lg pl-8 pr-3 py-2"
+                  className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg pl-8 pr-3 py-2"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Risk per trade (%)</label>
+              <label className="block text-xs text-[#5a6a7e] mb-1">Risk per trade (%)</label>
               <input
                 type="number"
                 step="0.5"
                 value={calculator.riskPercent}
                 onChange={(e) => setCalculator({...calculator, riskPercent: Number(e.target.value)})}
-                className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2"
+                className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.3)] rounded-lg px-3 py-2"
               />
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-[#3d4d60] mt-1">
                 You're risking ${(calculator.investmentAmount * calculator.riskPercent / 100).toFixed(2)} per trade
               </div>
             </div>
@@ -198,18 +198,18 @@ export function ML() {
         {/* Loading/Error States */}
         {loading && predictions.length === 0 && (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-            <span className="ml-3 text-gray-400">Analyzing market data...</span>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
+            <span className="ml-3 text-[#5a6a7e]">Analyzing market data...</span>
           </div>
         )}
         
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
-            <AlertTriangle size={24} className="mx-auto mb-2 text-red-400" />
-            <p className="text-red-400">{error}</p>
+          <div className="bg-[#EF476F]/10 border border-[#EF476F]/30 rounded-xl p-4 text-center">
+            <AlertTriangle size={24} className="mx-auto mb-2 text-[#EF476F]" />
+            <p className="text-[#EF476F]">{error}</p>
             <button 
               onClick={loadPredictions}
-              className="mt-2 px-4 py-2 bg-red-600 rounded-lg text-sm"
+              className="mt-2 px-4 py-2 bg-[#D63D5E] rounded-lg text-sm"
             >
               Try Again
             </button>
@@ -223,19 +223,19 @@ export function ML() {
             const isExpanded = expandedId === pred.symbol;
             
             return (
-              <div key={pred.symbol} className={`bg-dark-800 rounded-xl border overflow-hidden ${getSignalColor(pred.signal)}`}>
+              <div key={pred.symbol} className={`glass-card rounded-xl border overflow-hidden ${getSignalColor(pred.signal)}`}>
                 {/* Main Info */}
                 <div className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${pred.signal === 'BUY' ? 'bg-green-500/20' : pred.signal === 'SELL' ? 'bg-red-500/20' : 'bg-yellow-500/20'}`}>
-                        {pred.signal === 'BUY' ? <TrendingUp size={20} className="text-green-400" /> : 
-                         pred.signal === 'SELL' ? <TrendingDown size={20} className="text-red-400" /> : 
-                         <Minus size={20} className="text-yellow-400" />}
+                      <div className={`p-2 rounded-lg ${pred.signal === 'BUY' ? 'bg-[#00C9A7]/20' : pred.signal === 'SELL' ? 'bg-[#EF476F]/20' : 'bg-[#D4AF37]/20'}`}>
+                        {pred.signal === 'BUY' ? <TrendingUp size={20} className="text-[#00C9A7]" /> : 
+                         pred.signal === 'SELL' ? <TrendingDown size={20} className="text-[#EF476F]" /> : 
+                         <Minus size={20} className="text-[#D4AF37]" />}
                       </div>
                       <div>
                         <div className="font-bold text-lg">{pred.symbol}</div>
-                        <div className="text-xs text-gray-400">Based on {pred.timeframe} analysis</div>
+                        <div className="text-xs text-[#5a6a7e]">Based on {pred.timeframe} analysis</div>
                       </div>
                     </div>
                     <div className="text-right">
@@ -248,59 +248,59 @@ export function ML() {
 
                   {/* Prices */}
                   <div className="grid grid-cols-3 gap-2 mt-3">
-                    <div className="bg-dark-900/50 rounded-lg p-2 text-center">
-                      <div className="text-xs text-gray-500">Current Price</div>
+                    <div className="bg-[#090d14]/50 rounded-lg p-2 text-center">
+                      <div className="text-xs text-[#3d4d60]">Current Price</div>
                       <div className="font-mono font-medium">{formatUSD(pred.current_price)}</div>
                     </div>
-                    <div className="bg-green-500/10 rounded-lg p-2 text-center">
-                      <div className="text-xs text-green-500">Target</div>
-                      <div className="font-mono font-medium text-green-400">{formatUSD(pred.target_price)}</div>
+                    <div className="bg-[#00C9A7]/10 rounded-lg p-2 text-center">
+                      <div className="text-xs text-[#00C9A7]">Target</div>
+                      <div className="font-mono font-medium text-[#00C9A7]">{formatUSD(pred.target_price)}</div>
                     </div>
-                    <div className="bg-red-500/10 rounded-lg p-2 text-center">
-                      <div className="text-xs text-red-500">Stop Loss</div>
-                      <div className="font-mono font-medium text-red-400">{formatUSD(pred.stop_loss)}</div>
+                    <div className="bg-[#EF476F]/10 rounded-lg p-2 text-center">
+                      <div className="text-xs text-[#EF476F]">Stop Loss</div>
+                      <div className="font-mono font-medium text-[#EF476F]">{formatUSD(pred.stop_loss)}</div>
                     </div>
                   </div>
 
                   {/* Your Position Analysis */}
-                  <div className="mt-3 p-3 bg-dark-900 rounded-lg">
+                  <div className="mt-3 p-3 bg-[#090d14] rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
-                      <Target size={16} className="text-blue-400" />
+                      <Target size={16} className="text-[#3B82F6]" />
                       <span className="font-medium text-sm">Your Position Analysis</span>
                       {calc.isViable ? (
-                        <span className="ml-auto px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">Viable Trade</span>
+                        <span className="ml-auto px-2 py-0.5 bg-[#00C9A7] text-[#090d14] text-xs rounded-full">Viable Trade</span>
                       ) : (
-                        <span className="ml-auto px-2 py-0.5 bg-yellow-500/50 text-white text-xs rounded-full">High Risk</span>
+                        <span className="ml-auto px-2 py-0.5 bg-[#D4AF37]/50 text-[#e8ecf1] text-xs rounded-full">High Risk</span>
                       )}
                     </div>
                     
                     <div className="grid grid-cols-3 gap-2 text-center mb-2">
                       <div>
-                        <div className="text-xs text-gray-500">Position Size</div>
+                        <div className="text-xs text-[#3d4d60]">Position Size</div>
                         <div className="font-mono">{calc.positionSize} units</div>
                       </div>
                       <div>
-                        <div className="text-xs text-green-500">Potential Profit</div>
-                        <div className="font-mono text-green-400">+${calc.potentialProfit}</div>
+                        <div className="text-xs text-[#00C9A7]">Potential Profit</div>
+                        <div className="font-mono text-[#00C9A7]">+${calc.potentialProfit}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-red-500">Max Loss</div>
-                        <div className="font-mono text-red-400">-${calc.potentialLoss}</div>
+                        <div className="text-xs text-[#EF476F]">Max Loss</div>
+                        <div className="font-mono text-[#EF476F]">-${calc.potentialLoss}</div>
                       </div>
                     </div>
                     
-                    <div className="text-xs text-gray-400">
-                      Risk/Reward Ratio: <span className={Number(calc.riskReward) >= 2 ? 'text-green-400' : 'text-yellow-400'}>1:{calc.riskReward}</span>
-                      <span className="ml-2 text-gray-500">(Recommended: 1:2 or higher)</span>
+                    <div className="text-xs text-[#5a6a7e]">
+                      Risk/Reward Ratio: <span className={Number(calc.riskReward) >= 2 ? 'text-[#00C9A7]' : 'text-[#D4AF37]'}>1:{calc.riskReward}</span>
+                      <span className="ml-2 text-[#3d4d60]">(Recommended: 1:2 or higher)</span>
                     </div>
                   </div>
 
                   {/* Why This Signal? */}
-                  <div className="mt-3 p-3 bg-blue-500/10 rounded-lg">
+                  <div className="mt-3 p-3 bg-[#0F4C75]/10 rounded-lg">
                     <div className="flex items-start gap-2">
-                      <Lightbulb size={16} className="text-yellow-400 mt-0.5" />
+                      <Lightbulb size={16} className="text-[#D4AF37] mt-0.5" />
                       <div>
-                        <div className="text-xs text-blue-400 mb-1">Why this signal?</div>
+                        <div className="text-xs text-[#3B82F6] mb-1">Why this signal?</div>
                         <div className="text-sm">{pred.reasoning}</div>
                       </div>
                     </div>
@@ -309,7 +309,7 @@ export function ML() {
                   {/* Expand Button */}
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : pred.symbol)}
-                    className="w-full mt-3 flex items-center justify-center gap-1 text-sm text-blue-400 hover:text-blue-300"
+                    className="w-full mt-3 flex items-center justify-center gap-1 text-sm text-[#3B82F6] hover:text-[#3B82F6]/80"
                   >
                     {isExpanded ? 'Hide' : 'View'} Technical Details
                     {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -318,48 +318,48 @@ export function ML() {
 
                 {/* Technical Details */}
                 {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-dark-700/50">
+                  <div className="px-4 pb-4 border-t border-[rgba(30,50,70,0.3)]/50">
                     <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
-                      <div className="p-2 bg-dark-900 rounded text-center">
-                        <div className="text-xs text-gray-500">RSI</div>
-                        <div className={`font-mono ${pred.indicators.rsi < 30 ? 'text-green-400' : pred.indicators.rsi > 70 ? 'text-red-400' : ''}`}>
+                      <div className="p-2 bg-[#090d14] rounded text-center">
+                        <div className="text-xs text-[#3d4d60]">RSI</div>
+                        <div className={`font-mono ${pred.indicators.rsi < 30 ? 'text-[#00C9A7]' : pred.indicators.rsi > 70 ? 'text-[#EF476F]' : ''}`}>
                           {pred.indicators.rsi}
                         </div>
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-[#3d4d60]">
                           {pred.indicators.rsi < 30 ? 'Oversold' : pred.indicators.rsi > 70 ? 'Overbought' : 'Neutral'}
                         </div>
                       </div>
-                      <div className="p-2 bg-dark-900 rounded text-center">
-                        <div className="text-xs text-gray-500">Trend</div>
-                        <div className={`capitalize ${pred.indicators.trend === 'bullish' ? 'text-green-400' : pred.indicators.trend === 'bearish' ? 'text-red-400' : ''}`}>
+                      <div className="p-2 bg-[#090d14] rounded text-center">
+                        <div className="text-xs text-[#3d4d60]">Trend</div>
+                        <div className={`capitalize ${pred.indicators.trend === 'bullish' ? 'text-[#00C9A7]' : pred.indicators.trend === 'bearish' ? 'text-[#EF476F]' : ''}`}>
                           {pred.indicators.trend}
                         </div>
                       </div>
-                      <div className="p-2 bg-dark-900 rounded text-center">
-                        <div className="text-xs text-gray-500">Support</div>
-                        <div className="font-mono text-green-400">{formatUSD(pred.indicators.support)}</div>
+                      <div className="p-2 bg-[#090d14] rounded text-center">
+                        <div className="text-xs text-[#3d4d60]">Support</div>
+                        <div className="font-mono text-[#00C9A7]">{formatUSD(pred.indicators.support)}</div>
                       </div>
-                      <div className="p-2 bg-dark-900 rounded text-center">
-                        <div className="text-xs text-gray-500">Resistance</div>
-                        <div className="font-mono text-red-400">{formatUSD(pred.indicators.resistance)}</div>
+                      <div className="p-2 bg-[#090d14] rounded text-center">
+                        <div className="text-xs text-[#3d4d60]">Resistance</div>
+                        <div className="font-mono text-[#EF476F]">{formatUSD(pred.indicators.resistance)}</div>
                       </div>
                     </div>
                     
                     <div className="mt-2 grid grid-cols-2 gap-2">
-                      <div className="p-2 bg-dark-900 rounded text-center">
-                        <div className="text-xs text-gray-500">Momentum</div>
-                        <div className={`font-mono ${pred.indicators.momentum > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <div className="p-2 bg-[#090d14] rounded text-center">
+                        <div className="text-xs text-[#3d4d60]">Momentum</div>
+                        <div className={`font-mono ${pred.indicators.momentum > 0 ? 'text-[#00C9A7]' : 'text-[#EF476F]'}`}>
                           {pred.indicators.momentum > 0 ? '+' : ''}{pred.indicators.momentum.toFixed(2)}%
                         </div>
                       </div>
-                      <div className="p-2 bg-dark-900 rounded text-center">
-                        <div className="text-xs text-gray-500">Volatility</div>
+                      <div className="p-2 bg-[#090d14] rounded text-center">
+                        <div className="text-xs text-[#3d4d60]">Volatility</div>
                         <div className="font-mono">{pred.indicators.volatility.toFixed(2)}%</div>
                       </div>
                     </div>
 
                     {/* Educational Tooltips */}
-                    <div className="mt-3 text-xs text-gray-500 space-y-1">
+                    <div className="mt-3 text-xs text-[#3d4d60] space-y-1">
                       <p><strong>RSI (Relative Strength Index):</strong> Measures speed/change of price movements. Below 30 = oversold (potential buy), above 70 = overbought (potential sell).</p>
                       <p><strong>Support/Resistance:</strong> Price levels where the asset tends to stop falling (support) or rising (resistance).</p>
                       <p><strong>Momentum:</strong> Rate of price change. Positive = uptrend, negative = downtrend.</p>
@@ -375,7 +375,7 @@ export function ML() {
         <button 
           onClick={loadPredictions}
           disabled={loading}
-          className="w-full py-3 bg-dark-800 rounded-xl border border-dark-700 flex items-center justify-center gap-2 text-gray-400 hover:text-white disabled:opacity-50"
+          className="w-full py-3 glass-card rounded-xl border border-[rgba(30,50,70,0.3)] flex items-center justify-center gap-2 text-[#5a6a7e] hover:text-[#e8ecf1] disabled:opacity-50"
         >
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           {loading ? 'Analyzing...' : 'Refresh Analysis'}

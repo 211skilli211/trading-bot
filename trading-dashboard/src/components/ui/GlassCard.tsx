@@ -167,7 +167,7 @@ interface StatusBadgeProps {
 }
 
 const badgeConfig = {
-  live: { cls: 'badge-live text-white', defaultLabel: 'LIVE' },
+  live: { cls: 'badge-live text-[#e8ecf1]', defaultLabel: 'LIVE' },
   paper: { cls: 'badge-paper', defaultLabel: 'PAPER' },
   strategy: { cls: 'badge-strategy', defaultLabel: 'ACTIVE' },
   success: { cls: 'badge-success', defaultLabel: 'SUCCESS' },

@@ -147,5 +147,14 @@ Noise grain overlay via SVG turbulence filter at 2.5% opacity. Applied to `body:
 
 ---
 
-*Version: 2.0 — Enhanced with Impeccable, Taste Skill, Perception-First Design*
+*Version: 2.1 — Complete token migration (all Tailwind classes → Caribbean design tokens)*
 *Last updated: 2026-06-01*
+
+### Token Migration Log
+- Migrated 100+ Tailwind classes across 14 pages + 10 components
+- All `bg-dark-*` → design token hex values (#090d14, #0f1620, #151d28)
+- All `text-gray-*` → tinted neutrals (#e8ecf1, #5a6a7e, #3d4d60)
+- All semantic colors → Caribbean palette (seafoam, coral, gold, tropical orange)
+- All `bg-blue-*` → Caribbean blue (#0F4C75, #3B82F6)
+- `bg-dark-800` → `glass-card` className for consistent glassmorphism
+- App.tsx root: `bg-dark-900` → gradient `linear-gradient(180deg, #0f1620, #090d14)`

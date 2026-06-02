@@ -134,9 +134,9 @@ export function getChangeColor(value: number): string {
 }
 
 export function getChangeBg(value: number): string {
-  if (value > 0) return 'bg-green-500/10';
-  if (value < 0) return 'bg-red-500/10';
-  return 'bg-gray-500/10';
+  if (value > 0) return 'bg-[#00C9A7]/10';
+  if (value < 0) return 'bg-[#EF476F]/10';
+  return 'bg-[#3d4d60]/10';
 }
 
 // Format multi-currency balance display
@@ -161,14 +161,14 @@ export function formatMultiCurrencyBalance(
 // Get currency icon/name for UI
 export function getCurrencyDisplay(currency: Currency): { name: string; icon: string; color: string } {
   const displays: Record<Currency, { name: string; icon: string; color: string }> = {
-    USD: { name: 'US Dollar', icon: '$', color: 'text-green-400' },
-    USDT: { name: 'Tether', icon: '₮', color: 'text-green-400' },
-    USDC: { name: 'USD Coin', icon: '$', color: 'text-blue-400' },
-    BTC: { name: 'Bitcoin', icon: '₿', color: 'text-orange-400' },
-    ETH: { name: 'Ethereum', icon: 'Ξ', color: 'text-purple-400' },
+    USD: { name: 'US Dollar', icon: '$', color: 'text-[#00C9A7]' },
+    USDT: { name: 'Tether', icon: '₮', color: 'text-[#00C9A7]' },
+    USDC: { name: 'USD Coin', icon: '$', color: 'text-[#3B82F6]' },
+    BTC: { name: 'Bitcoin', icon: '₿', color: 'text-[#FF6B35]' },
+    ETH: { name: 'Ethereum', icon: 'Ξ', color: 'text-[#D4AF37]' },
     SOL: { name: 'Solana', icon: '◎', color: 'text-teal-400' },
-    EUR: { name: 'Euro', icon: '€', color: 'text-blue-400' },
-    GBP: { name: 'British Pound', icon: '£', color: 'text-purple-400' },
+    EUR: { name: 'Euro', icon: '€', color: 'text-[#3B82F6]' },
+    GBP: { name: 'British Pound', icon: '£', color: 'text-[#D4AF37]' },
   };
   return displays[currency] || displays.USD;
 }

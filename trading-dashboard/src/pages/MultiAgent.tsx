@@ -284,7 +284,7 @@ export function MultiAgent() {
       <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Multi-Agent Command Center" />
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
         </div>
       </div>
     );
@@ -296,7 +296,7 @@ export function MultiAgent() {
       
       <div className="p-4 space-y-6">
         {/* System Overview */}
-        <div className={`rounded-2xl p-5 text-white transition-all duration-500 ${
+        <div className={`rounded-2xl p-5 text-[#e8ecf1] transition-all duration-500 ${
           activeCount > 0 
             ? 'bg-gradient-to-r from-green-600 via-blue-600 to-purple-600' 
             : 'bg-gradient-to-r from-blue-600 to-purple-600'
@@ -307,9 +307,9 @@ export function MultiAgent() {
               <span className="text-xl font-bold">Agent Swarm Control</span>
             </div>
             <div className={`px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2 ${
-              activeCount > 0 ? 'bg-green-400/30 text-green-100' : 'bg-red-400/30 text-red-100'
+              activeCount > 0 ? 'bg-[#00C9A7]/30 text-green-100' : 'bg-[#EF476F]/30 text-red-100'
             }`}>
-              {activeCount > 0 && <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />}
+              {activeCount > 0 && <span className="w-2 h-2 bg-[#00C9A7] rounded-full animate-pulse" />}
               {activeCount > 0 ? `${activeCount} Agents Active` : '🔴 System Stopped'}
             </div>
           </div>
@@ -335,9 +335,9 @@ export function MultiAgent() {
         </div>
 
         {/* Global Controls */}
-        <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+        <div className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] p-4">
           <div className="flex items-center gap-2 mb-4">
-            <Settings className="text-blue-400" size={20} />
+            <Settings className="text-[#3B82F6]" size={20} />
             <span className="font-semibold">Global Controls</span>
           </div>
 
@@ -345,10 +345,10 @@ export function MultiAgent() {
             <button 
               onClick={() => controlAll('activate')}
               disabled={actionLoading === 'activate'}
-              className="flex items-center justify-center gap-2 p-3 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 p-3 bg-[#00C9A7]/20 text-[#00C9A7] rounded-lg hover:bg-[#00C9A7]/30 transition-colors disabled:opacity-50"
             >
               {actionLoading === 'activate' ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-400"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#00C9A7]"></div>
               ) : (
                 <Play size={18} />
               )}
@@ -358,10 +358,10 @@ export function MultiAgent() {
             <button 
               onClick={() => controlAll('pause')}
               disabled={actionLoading === 'pause'}
-              className="flex items-center justify-center gap-2 p-3 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 p-3 bg-[#D4AF37]/20 text-[#D4AF37] rounded-lg hover:bg-[#D4AF37]/30 transition-colors disabled:opacity-50"
             >
               {actionLoading === 'pause' ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D4AF37]"></div>
               ) : (
                 <Pause size={18} />
               )}
@@ -371,10 +371,10 @@ export function MultiAgent() {
             <button 
               onClick={confirmStopAll}
               disabled={actionLoading === 'stop'}
-              className="flex items-center justify-center gap-2 p-3 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 p-3 bg-[#EF476F]/20 text-[#EF476F] rounded-lg hover:bg-[#EF476F]/30 transition-colors disabled:opacity-50"
             >
               {actionLoading === 'stop' ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#EF476F]"></div>
               ) : (
                 <Square size={18} />
               )}
@@ -383,7 +383,7 @@ export function MultiAgent() {
 
             <button 
               onClick={() => loadData()}
-              className="flex items-center justify-center gap-2 p-3 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
+              className="flex items-center justify-center gap-2 p-3 bg-[#0F4C75]/20 text-[#3B82F6] rounded-lg hover:bg-[#0F4C75]/30 transition-colors"
             >
               <RefreshCw size={18} />
               <span>Refresh</span>
@@ -394,7 +394,7 @@ export function MultiAgent() {
             <button 
               onClick={rebalance}
               disabled={actionLoading === 'rebalance'}
-              className="flex items-center justify-center gap-2 p-3 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 p-3 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors disabled:opacity-50"
             >
               {actionLoading === 'rebalance' ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -407,7 +407,7 @@ export function MultiAgent() {
             <button 
               onClick={runEvaluation}
               disabled={actionLoading === 'evaluate'}
-              className="flex items-center justify-center gap-2 p-3 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 p-3 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors disabled:opacity-50"
             >
               {actionLoading === 'evaluate' ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -421,22 +421,22 @@ export function MultiAgent() {
 
         {/* Live Activity Feed - Only show when agents are active */}
         {activeCount > 0 && (
-          <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+          <div className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Activity className="text-green-400 animate-pulse" size={20} />
+                <Activity className="text-[#00C9A7] animate-pulse" size={20} />
                 <span className="font-semibold">Live Agent Activity</span>
-                <span className="text-xs text-gray-400">({activityFeed.length} recent actions)</span>
+                <span className="text-xs text-[#5a6a7e]">({activityFeed.length} recent actions)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                <span className="text-xs text-green-400">Live</span>
+                <span className="w-2 h-2 bg-[#00C9A7] rounded-full animate-pulse"></span>
+                <span className="text-xs text-[#00C9A7]">Live</span>
               </div>
             </div>
             
             <div className="space-y-2 max-h-64 overflow-auto">
               {activityFeed.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-[#5a6a7e]">
                   <Activity size={32} className="mx-auto mb-2 opacity-50" />
                   <p className="text-sm">Agents are initializing...</p>
                   <p className="text-xs">Activity will appear shortly</p>
@@ -446,35 +446,35 @@ export function MultiAgent() {
                   <div 
                     key={activity.id} 
                     className={`flex items-center gap-3 p-3 rounded-lg ${
-                      idx === 0 ? 'bg-green-500/10 border border-green-500/30' : 'bg-dark-900'
+                      idx === 0 ? 'bg-[#00C9A7]/10 border border-[#00C9A7]/30' : 'bg-[#090d14]'
                     }`}
                   >
                     <div className={`w-2 h-2 rounded-full ${
-                      activity.type === 'trade' ? 'bg-blue-400' :
-                      activity.type === 'scan' ? 'bg-purple-400' :
-                      activity.type === 'alert' ? 'bg-red-400' :
-                      'bg-yellow-400'
+                      activity.type === 'trade' ? 'bg-[#3B82F6]' :
+                      activity.type === 'scan' ? 'bg-[#D4AF37]' :
+                      activity.type === 'alert' ? 'bg-[#EF476F]' :
+                      'bg-[#D4AF37]'
                     }`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm">{activity.agent}</span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-[#3d4d60]">
                           {activity.timestamp.toLocaleTimeString()}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <span className={`
-                          ${activity.action === 'Position Opened' ? 'text-green-400' : ''}
-                          ${activity.action === 'Signal Detected' ? 'text-yellow-400' : ''}
-                          ${activity.action === 'Market Alert' ? 'text-red-400' : ''}
+                          ${activity.action === 'Position Opened' ? 'text-[#00C9A7]' : ''}
+                          ${activity.action === 'Signal Detected' ? 'text-[#D4AF37]' : ''}
+                          ${activity.action === 'Market Alert' ? 'text-[#EF476F]' : ''}
                         `}>
                           {activity.action}
                         </span>
                         {activity.symbol && (
-                          <span className="text-blue-400">{activity.symbol}</span>
+                          <span className="text-[#3B82F6]">{activity.symbol}</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 truncate">{activity.details}</p>
+                      <p className="text-xs text-[#5a6a7e] truncate">{activity.details}</p>
                     </div>
                   </div>
                 ))
@@ -482,24 +482,24 @@ export function MultiAgent() {
             </div>
             
             {/* Quick Stats */}
-            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-dark-700">
+            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[rgba(30,50,70,0.3)]">
               <div className="text-center">
-                <div className="text-lg font-bold text-blue-400">
+                <div className="text-lg font-bold text-[#3B82F6]">
                   {activityFeed.filter(a => a.type === 'trade').length}
                 </div>
-                <div className="text-xs text-gray-400">Trades</div>
+                <div className="text-xs text-[#5a6a7e]">Trades</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-purple-400">
+                <div className="text-lg font-bold text-[#D4AF37]">
                   {activityFeed.filter(a => a.type === 'scan').length}
                 </div>
-                <div className="text-xs text-gray-400">Scans</div>
+                <div className="text-xs text-[#5a6a7e]">Scans</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-yellow-400">
+                <div className="text-lg font-bold text-[#D4AF37]">
                   {activityFeed.filter(a => a.type === 'decision').length}
                 </div>
-                <div className="text-xs text-gray-400">Decisions</div>
+                <div className="text-xs text-[#5a6a7e]">Decisions</div>
               </div>
             </div>
           </div>
@@ -507,34 +507,34 @@ export function MultiAgent() {
 
         {/* Consensus Panel */}
         {consensusData && (
-          <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+          <div className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Target className="text-purple-400" size={20} />
+              <Target className="text-[#D4AF37]" size={20} />
               <span className="font-semibold">Multi-Agent Consensus</span>
             </div>
             
             <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-dark-900 rounded-lg">
-                <span className="text-gray-400">Overall Signal</span>
+              <div className="flex justify-between items-center p-3 bg-[#090d14] rounded-lg">
+                <span className="text-[#5a6a7e]">Overall Signal</span>
                 <span className={`font-bold ${
-                  consensusData.overall === 'buy' ? 'text-green-400' :
-                  consensusData.overall === 'sell' ? 'text-red-400' : 'text-yellow-400'
+                  consensusData.overall === 'buy' ? 'text-[#00C9A7]' :
+                  consensusData.overall === 'sell' ? 'text-[#EF476F]' : 'text-[#D4AF37]'
                 }`}>
                   {(consensusData.overall || 'neutral').toUpperCase()}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center p-3 bg-dark-900 rounded-lg">
-                <span className="text-gray-400">Confidence</span>
-                <span className="font-bold text-blue-400">
+              <div className="flex justify-between items-center p-3 bg-[#090d14] rounded-lg">
+                <span className="text-[#5a6a7e]">Confidence</span>
+                <span className="font-bold text-[#3B82F6]">
                   {consensusData.confidence || 0}%
                 </span>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 {['bullish', 'bearish', 'neutral'].map((sentiment) => (
-                  <div key={sentiment} className="text-center p-2 bg-dark-900 rounded-lg">
-                    <div className="text-xs text-gray-400 capitalize">{sentiment}</div>
+                  <div key={sentiment} className="text-center p-2 bg-[#090d14] rounded-lg">
+                    <div className="text-xs text-[#5a6a7e] capitalize">{sentiment}</div>
                     <div className="font-bold">
                       {consensusData.breakdown?.[sentiment] || 0}
                     </div>
@@ -548,7 +548,7 @@ export function MultiAgent() {
         {/* Agent Cards */}
         <div>
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <Users size={20} className="text-blue-400" />
+            <Users size={20} className="text-[#3B82F6]" />
             Agent Swarm ({agents.length} agents)
           </h2>
           
@@ -562,52 +562,52 @@ export function MultiAgent() {
               const trades = agent.total_trades || agent.trades24h || 0;
               
               return (
-                <div key={idx} className="bg-dark-800 rounded-xl border border-dark-700 p-4">
+                <div key={idx} className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center relative ${
-                        agent.status === 'active' ? 'bg-green-500/20 text-green-400' :
-                        agent.status === 'paused' ? 'bg-yellow-500/20 text-yellow-400' :
-                        'bg-red-500/20 text-red-400'
+                        agent.status === 'active' ? 'bg-[#00C9A7]/20 text-[#00C9A7]' :
+                        agent.status === 'paused' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' :
+                        'bg-[#EF476F]/20 text-[#EF476F]'
                       }`}>
                         <Icon size={24} />
                         {agent.status === 'active' && (
-                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
+                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#00C9A7] rounded-full animate-pulse" />
                         )}
                       </div>
                       <div>
                         <div className="font-bold text-lg">{agent.name}</div>
-                        <div className="text-sm text-gray-400">{description}</div>
+                        <div className="text-sm text-[#5a6a7e]">{description}</div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`px-2 py-0.5 rounded text-xs ${
-                            risk === 'low' ? 'bg-green-500/20 text-green-400' :
-                            risk === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                            'bg-red-500/20 text-red-400'
+                            risk === 'low' ? 'bg-[#00C9A7]/20 text-[#00C9A7]' :
+                            risk === 'medium' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' :
+                            'bg-[#EF476F]/20 text-[#EF476F]'
                           }`}>
                             {risk} risk
                           </span>
                           {agent.model && agent.model !== 'default' && (
-                            <span className="px-2 py-0.5 rounded text-xs bg-purple-500/20 text-purple-400">
+                            <span className="px-2 py-0.5 rounded text-xs bg-[#D4AF37]/20 text-[#D4AF37]">
                               {agent.model}
                             </span>
                           )}
                           {agent.role && agent.role !== 'executor' && (
-                            <span className="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400">
+                            <span className="px-2 py-0.5 rounded text-xs bg-[#0F4C75]/20 text-[#3B82F6]">
                               {agent.role}
                             </span>
                           )}
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-[#3d4d60]">
                             {agent.consecutive_losses || 0}/{agent.kill_threshold || 3} losses
                           </span>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <div className={`font-mono font-bold ${pnl >= 0 ? 'text-[#00C9A7]' : 'text-[#EF476F]'}`}>
                         {formatCurrency(pnl)}
                       </div>
-                      <div className="text-xs text-gray-400">{trades} trades</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-[#5a6a7e]">{trades} trades</div>
+                      <div className="text-xs text-[#3d4d60]">
                         {agent.winning_trades || 0} wins
                       </div>
                     </div>
@@ -615,20 +615,20 @@ export function MultiAgent() {
 
                   {/* Agent Stats */}
                   <div className="grid grid-cols-3 gap-2 mb-3">
-                    <div className="p-2 bg-dark-900 rounded-lg text-center">
-                      <div className="text-xs text-gray-400">Capital</div>
+                    <div className="p-2 bg-[#090d14] rounded-lg text-center">
+                      <div className="text-xs text-[#5a6a7e]">Capital</div>
                       <div className="font-mono text-sm">${agent.capital}</div>
                     </div>
-                    <div className="p-2 bg-dark-900 rounded-lg text-center">
-                      <div className="text-xs text-gray-400">Max Position</div>
+                    <div className="p-2 bg-[#090d14] rounded-lg text-center">
+                      <div className="text-xs text-[#5a6a7e]">Max Position</div>
                       <div className="font-mono text-sm">{((agent.max_position_pct || 0.1) * 100).toFixed(0)}%</div>
                     </div>
-                    <div className="p-2 bg-dark-900 rounded-lg text-center">
-                      <div className="text-xs text-gray-400">Status</div>
+                    <div className="p-2 bg-[#090d14] rounded-lg text-center">
+                      <div className="text-xs text-[#5a6a7e]">Status</div>
                       <div className={`text-sm font-medium ${
-                        agent.status === 'active' ? 'text-green-400' :
-                        agent.status === 'paused' ? 'text-yellow-400' :
-                        'text-red-400'
+                        agent.status === 'active' ? 'text-[#00C9A7]' :
+                        agent.status === 'paused' ? 'text-[#D4AF37]' :
+                        'text-[#EF476F]'
                       }`}>
                         {(agent.status || 'stopped').toUpperCase()}
                       </div>
@@ -641,10 +641,10 @@ export function MultiAgent() {
                       <button
                         onClick={() => controlAgent(agent.name, 'activate')}
                         disabled={actionLoading === `activate-${agent.name}`}
-                        className="flex-1 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50 text-sm"
+                        className="flex-1 py-2 bg-[#00C9A7]/20 text-[#00C9A7] rounded-lg hover:bg-[#00C9A7]/30 transition-colors disabled:opacity-50 text-sm"
                       >
                         {actionLoading === `activate-${agent.name}` ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-400 mx-auto"></div>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#00C9A7] mx-auto"></div>
                         ) : (
                           'Activate'
                         )}
@@ -654,10 +654,10 @@ export function MultiAgent() {
                       <button
                         onClick={() => controlAgent(agent.name, 'pause')}
                         disabled={actionLoading === `pause-${agent.name}`}
-                        className="flex-1 py-2 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-colors disabled:opacity-50 text-sm"
+                        className="flex-1 py-2 bg-[#D4AF37]/20 text-[#D4AF37] rounded-lg hover:bg-[#D4AF37]/30 transition-colors disabled:opacity-50 text-sm"
                       >
                         {actionLoading === `pause-${agent.name}` ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400 mx-auto"></div>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D4AF37] mx-auto"></div>
                         ) : (
                           'Pause'
                         )}
@@ -665,17 +665,17 @@ export function MultiAgent() {
                     )}
                     <button
                       onClick={() => openAgentConfig(agent)}
-                      className="flex-1 py-2 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors text-sm"
+                      className="flex-1 py-2 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors text-sm"
                     >
                       Configure
                     </button>
                     <button
                       onClick={() => confirmStopAgent(agent.name)}
                       disabled={actionLoading === `stop-${agent.name}`}
-                      className="px-3 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                      className="px-3 py-2 bg-[#EF476F]/20 text-[#EF476F] rounded-lg hover:bg-[#EF476F]/30 transition-colors disabled:opacity-50"
                     >
                       {actionLoading === `stop-${agent.name}` ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#EF476F]"></div>
                       ) : (
                         <Square size={16} />
                       )}
@@ -684,7 +684,7 @@ export function MultiAgent() {
                 </div>
               );
             }) : (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-[#5a6a7e]">
                 <Brain size={48} className="mx-auto mb-3 opacity-50" />
                 <p>No agents configured yet.</p>
                 <p className="text-sm mt-1">Start the system to initialize agents.</p>
@@ -695,56 +695,56 @@ export function MultiAgent() {
 
         {/* Agent Config Modal */}
         {selectedAgent && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-dark-800 rounded-xl border border-dark-700 p-6 max-w-md w-full">
+          <div className="fixed inset-0 bg-[#090d14]/50 flex items-center justify-center p-4 z-50">
+            <div className="glass-card rounded-xl border border-[rgba(30,50,70,0.3)] p-6 max-w-md w-full">
               <h3 className="text-lg font-bold mb-4">
                 Configure {selectedAgent.name}
               </h3>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Capital Allocation ($)</label>
+                  <label className="block text-sm text-[#5a6a7e] mb-1">Capital Allocation ($)</label>
                   <input
                     type="number"
                     value={agentConfig?.capital || 0}
                     onChange={(e) => setAgentConfig({...agentConfig, capital: parseInt(e.target.value)})}
-                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2"
+                    className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.35)] rounded-lg px-3 py-2"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Max Position (%)</label>
+                  <label className="block text-sm text-[#5a6a7e] mb-1">Max Position (%)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={((agentConfig?.max_position_pct || 0.1) * 100).toFixed(0)}
                     onChange={(e) => setAgentConfig({...agentConfig, max_position_pct: parseInt(e.target.value) / 100})}
-                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2"
+                    className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.35)] rounded-lg px-3 py-2"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Kill Threshold (losses)</label>
+                  <label className="block text-sm text-[#5a6a7e] mb-1">Kill Threshold (losses)</label>
                   <input
                     type="number"
                     value={agentConfig?.kill_threshold || 3}
                     onChange={(e) => setAgentConfig({...agentConfig, kill_threshold: parseInt(e.target.value)})}
-                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2"
+                    className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.35)] rounded-lg px-3 py-2"
                   />
                 </div>
 
                 {/* Model Assignment */}
-                <div className="border-t border-dark-700 pt-4">
+                <div className="border-t border-[rgba(30,50,70,0.3)] pt-4">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <Brain size={16} className="text-purple-400" />
+                    <Brain size={16} className="text-[#D4AF37]" />
                     AI Model Assignment
                   </h4>
                   
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm text-gray-400 mb-1">Model</label>
+                      <label className="block text-sm text-[#5a6a7e] mb-1">Model</label>
                       <select
                         value={agentConfig?.model || 'default'}
                         onChange={(e) => setAgentConfig({...agentConfig, model: e.target.value})}
-                        className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2"
+                        className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.35)] rounded-lg px-3 py-2"
                       >
                         <option value="default">Default (System)</option>
                         <option value="claude-sonnet">Claude 3.5 Sonnet</option>
@@ -755,11 +755,11 @@ export function MultiAgent() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm text-gray-400 mb-1">Agent Role</label>
+                      <label className="block text-sm text-[#5a6a7e] mb-1">Agent Role</label>
                       <select
                         value={agentConfig?.role || 'executor'}
                         onChange={(e) => setAgentConfig({...agentConfig, role: e.target.value})}
-                        className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2"
+                        className="w-full bg-[#090d14] border border-[rgba(30,50,70,0.35)] rounded-lg px-3 py-2"
                       >
                         <option value="executor">Executor (Handles trades)</option>
                         <option value="analyst">Analyst (Reviews & advises)</option>
@@ -773,7 +773,7 @@ export function MultiAgent() {
               <div className="flex gap-3 mt-6">
                 <button 
                   onClick={() => setSelectedAgent(null)}
-                  className="flex-1 py-2 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors"
+                  className="flex-1 py-2 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors"
                 >
                   Cancel
                 </button>
@@ -782,7 +782,7 @@ export function MultiAgent() {
                     // TODO: Save agent config
                     setSelectedAgent(null);
                   }}
-                  className="flex-1 py-2 bg-blue-600 rounded-lg hover:bg-blue-700"
+                  className="flex-1 py-2 bg-[#0F4C75] rounded-lg hover:bg-[#1A5F8A]"
                 >
                   Save Config
                 </button>
@@ -793,12 +793,12 @@ export function MultiAgent() {
 
         {/* Welcome Experience Modal */}
         {showWelcome && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="bg-dark-800 rounded-2xl border border-dark-600 max-w-2xl w-full max-h-[90vh] overflow-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/70 backdrop-blur-sm p-4">
+            <div className="glass-card rounded-2xl border border-[rgba(30,50,70,0.35)] max-w-2xl w-full max-h-[90vh] overflow-auto">
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-dark-700">
+              <div className="flex items-center justify-between p-4 border-b border-[rgba(30,50,70,0.3)]">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="text-yellow-400" size={24} />
+                  <Sparkles className="text-[#D4AF37]" size={24} />
                   <span className="text-xl font-bold">
                     {welcomeStep === 'intro' && "Agent Swarm Activated! 🚀"}
                     {welcomeStep === 'research' && "Market Research Data 📊"}
@@ -808,9 +808,9 @@ export function MultiAgent() {
                 </div>
                 <button 
                   onClick={() => setShowWelcome(false)}
-                  className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                  className="p-2 hover:bg-[#151d28] rounded-lg transition-colors"
                 >
-                  <X size={20} className="text-gray-400" />
+                  <X size={20} className="text-[#5a6a7e]" />
                 </button>
               </div>
 
@@ -819,58 +819,58 @@ export function MultiAgent() {
                 {/* Step 1: Introduction */}
                 {welcomeStep === 'intro' && (
                   <div className="space-y-4">
-                    <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-xl p-4 border border-green-500/30">
-                      <h3 className="font-semibold text-green-400 mb-2 flex items-center gap-2">
+                    <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-xl p-4 border border-[#00C9A7]/30">
+                      <h3 className="font-semibold text-[#00C9A7] mb-2 flex items-center gap-2">
                         <Brain size={18} />
                         Your AI Trading Agents Are Now Active
                       </h3>
-                      <p className="text-sm text-gray-300">
+                      <p className="text-sm text-[#e8ecf1]">
                         {activeCount} specialized agents are now scanning the markets 24/7, 
                         analyzing price action, and executing trades based on your configured strategies.
                       </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-dark-900 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-blue-400 mb-1">
+                      <div className="bg-[#090d14] rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-[#3B82F6] mb-1">
                           <Search size={16} />
                           <span className="font-medium text-sm">Market Scanning</span>
                         </div>
-                        <p className="text-xs text-gray-400">Agents monitor 50+ markets across multiple exchanges</p>
+                        <p className="text-xs text-[#5a6a7e]">Agents monitor 50+ markets across multiple exchanges</p>
                       </div>
-                      <div className="bg-dark-900 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-purple-400 mb-1">
+                      <div className="bg-[#090d14] rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-[#D4AF37] mb-1">
                           <Zap size={16} />
                           <span className="font-medium text-sm">Instant Execution</span>
                         </div>
-                        <p className="text-xs text-gray-400">Trades executed in &lt;100ms when signals trigger</p>
+                        <p className="text-xs text-[#5a6a7e]">Trades executed in &lt;100ms when signals trigger</p>
                       </div>
-                      <div className="bg-dark-900 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-green-400 mb-1">
+                      <div className="bg-[#090d14] rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-[#00C9A7] mb-1">
                           <Shield size={16} />
                           <span className="font-medium text-sm">Risk Management</span>
                         </div>
-                        <p className="text-xs text-gray-400">Auto stop-losses and position sizing protect capital</p>
+                        <p className="text-xs text-[#5a6a7e]">Auto stop-losses and position sizing protect capital</p>
                       </div>
-                      <div className="bg-dark-900 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-orange-400 mb-1">
+                      <div className="bg-[#090d14] rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-[#FF6B35] mb-1">
                           <Activity size={16} />
                           <span className="font-medium text-sm">Self-Healing</span>
                         </div>
-                        <p className="text-xs text-gray-400">Agents auto-pause if performance degrades</p>
+                        <p className="text-xs text-[#5a6a7e]">Agents auto-pause if performance degrades</p>
                       </div>
                     </div>
 
                     <div className="flex gap-3 pt-2">
                       <button 
                         onClick={() => setShowWelcome(false)}
-                        className="flex-1 py-2.5 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors text-sm"
+                        className="flex-1 py-2.5 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors text-sm"
                       >
                         Skip Introduction
                       </button>
                       <button 
                         onClick={() => setWelcomeStep('research')}
-                        className="flex-1 py-2.5 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center justify-center gap-2"
+                        className="flex-1 py-2.5 bg-[#0F4C75] rounded-lg hover:bg-[#1A5F8A] transition-colors text-sm flex items-center justify-center gap-2"
                       >
                         View Market Research
                         <ArrowRight size={16} />
@@ -882,45 +882,45 @@ export function MultiAgent() {
                 {/* Step 2: Market Research */}
                 {welcomeStep === 'research' && marketData && (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between text-sm text-gray-400">
+                    <div className="flex items-center justify-between text-sm text-[#5a6a7e]">
                       <span>Live Market Data</span>
                       <span>{new Date(marketData.timestamp).toLocaleTimeString()}</span>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-dark-900 rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-blue-400">{marketData.totalMarkets}</div>
-                        <div className="text-xs text-gray-400">Markets Monitored</div>
+                      <div className="bg-[#090d14] rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-[#3B82F6]">{marketData.totalMarkets}</div>
+                        <div className="text-xs text-[#5a6a7e]">Markets Monitored</div>
                       </div>
-                      <div className="bg-dark-900 rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-green-400">{marketData.activeOpportunities}</div>
-                        <div className="text-xs text-gray-400">Active Opportunities</div>
+                      <div className="bg-[#090d14] rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-[#00C9A7]">{marketData.activeOpportunities}</div>
+                        <div className="text-xs text-[#5a6a7e]">Active Opportunities</div>
                       </div>
-                      <div className="bg-dark-900 rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-purple-400">{marketData.volatilityIndex}</div>
-                        <div className="text-xs text-gray-400">Volatility Index</div>
+                      <div className="bg-[#090d14] rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-[#D4AF37]">{marketData.volatilityIndex}</div>
+                        <div className="text-xs text-[#5a6a7e]">Volatility Index</div>
                       </div>
                     </div>
 
-                    <div className="bg-dark-900 rounded-xl p-4">
+                    <div className="bg-[#090d14] rounded-xl p-4">
                       <h4 className="font-medium mb-3 flex items-center gap-2">
-                        <TrendingUp size={16} className="text-blue-400" />
+                        <TrendingUp size={16} className="text-[#3B82F6]" />
                         Market Trends Detected
                       </h4>
                       <div className="space-y-2">
                         {marketData.trends?.map((trend: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between p-2 bg-dark-800 rounded-lg">
+                          <div key={idx} className="flex items-center justify-between p-2 glass-card rounded-lg">
                             <div className="flex items-center gap-2">
                               <span className={`w-2 h-2 rounded-full ${
-                                trend.direction === 'bullish' ? 'bg-green-400' : 
-                                trend.direction === 'bearish' ? 'bg-red-400' : 'bg-yellow-400'
+                                trend.direction === 'bullish' ? 'bg-[#00C9A7]' : 
+                                trend.direction === 'bearish' ? 'bg-[#EF476F]' : 'bg-[#D4AF37]'
                               }`} />
                               <span className="font-medium">{trend.symbol}</span>
                             </div>
                             <div className="flex items-center gap-3">
                               <span className={`text-xs ${
-                                trend.direction === 'bullish' ? 'text-green-400' : 
-                                trend.direction === 'bearish' ? 'text-red-400' : 'text-yellow-400'
+                                trend.direction === 'bullish' ? 'text-[#00C9A7]' : 
+                                trend.direction === 'bearish' ? 'text-[#EF476F]' : 'text-[#D4AF37]'
                               }`}>
                                 {trend.direction.toUpperCase()} ({trend.strength}%)
                               </span>
@@ -933,13 +933,13 @@ export function MultiAgent() {
                     <div className="flex gap-3 pt-2">
                       <button 
                         onClick={() => setWelcomeStep('intro')}
-                        className="flex-1 py-2.5 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors text-sm"
+                        className="flex-1 py-2.5 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors text-sm"
                       >
                         Back
                       </button>
                       <button 
                         onClick={() => setWelcomeStep('opportunities')}
-                        className="flex-1 py-2.5 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center justify-center gap-2"
+                        className="flex-1 py-2.5 bg-[#0F4C75] rounded-lg hover:bg-[#1A5F8A] transition-colors text-sm flex items-center justify-center gap-2"
                       >
                         View Opportunities
                         <ArrowRight size={16} />
@@ -951,12 +951,12 @@ export function MultiAgent() {
                 {/* Step 3: Opportunities */}
                 {welcomeStep === 'opportunities' && (
                   <div className="space-y-4">
-                    <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-xl p-4 border border-yellow-500/20">
-                      <h4 className="font-medium text-yellow-400 mb-2 flex items-center gap-2">
+                    <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-xl p-4 border border-[#D4AF37]/20">
+                      <h4 className="font-medium text-[#D4AF37] mb-2 flex items-center gap-2">
                         <Lightbulb size={18} />
                         Current Trading Opportunities
                       </h4>
-                      <p className="text-sm text-gray-300">
+                      <p className="text-sm text-[#e8ecf1]">
                         Based on real-time market analysis, here are the top opportunities your agents are monitoring:
                       </p>
                     </div>
@@ -964,27 +964,27 @@ export function MultiAgent() {
                     <div className="space-y-2 max-h-64 overflow-auto">
                       {opportunities.map((opp, idx) => (
                         <div key={idx} className={`p-3 rounded-lg border ${
-                          opp.urgency === 'high' ? 'bg-red-500/10 border-red-500/30' :
-                          opp.urgency === 'medium' ? 'bg-yellow-500/10 border-yellow-500/30' :
-                          'bg-blue-500/10 border-blue-500/30'
+                          opp.urgency === 'high' ? 'bg-[#EF476F]/10 border-[#EF476F]/30' :
+                          opp.urgency === 'medium' ? 'bg-[#D4AF37]/10 border-[#D4AF37]/30' :
+                          'bg-[#0F4C75]/10 border-[#0F4C75]/30'
                         }`}>
                           <div className="flex items-start justify-between">
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className={`text-xs px-2 py-0.5 rounded ${
-                                  opp.urgency === 'high' ? 'bg-red-500/20 text-red-400' :
-                                  opp.urgency === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                  'bg-blue-500/20 text-blue-400'
+                                  opp.urgency === 'high' ? 'bg-[#EF476F]/20 text-[#EF476F]' :
+                                  opp.urgency === 'medium' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' :
+                                  'bg-[#0F4C75]/20 text-[#3B82F6]'
                                 }`}>
                                   {opp.urgency.toUpperCase()}
                                 </span>
                                 <span className="font-medium">{opp.title}</span>
                               </div>
-                              <p className="text-sm text-gray-400 mt-1">{opp.description}</p>
+                              <p className="text-sm text-[#5a6a7e] mt-1">{opp.description}</p>
                             </div>
                             {opp.profit && (
                               <div className="text-right">
-                                <div className="text-green-400 font-mono font-medium">{opp.profit}</div>
+                                <div className="text-[#00C9A7] font-mono font-medium">{opp.profit}</div>
                               </div>
                             )}
                           </div>
@@ -995,13 +995,13 @@ export function MultiAgent() {
                     <div className="flex gap-3 pt-2">
                       <button 
                         onClick={() => setWelcomeStep('research')}
-                        className="flex-1 py-2.5 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors text-sm"
+                        className="flex-1 py-2.5 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors text-sm"
                       >
                         Back
                       </button>
                       <button 
                         onClick={() => setWelcomeStep('next')}
-                        className="flex-1 py-2.5 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center justify-center gap-2"
+                        className="flex-1 py-2.5 bg-[#0F4C75] rounded-lg hover:bg-[#1A5F8A] transition-colors text-sm flex items-center justify-center gap-2"
                       >
                         What's Next?
                         <ArrowRight size={16} />
@@ -1014,40 +1014,40 @@ export function MultiAgent() {
                 {welcomeStep === 'next' && (
                   <div className="space-y-4">
                     <div className="text-center mb-4">
-                      <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <CheckCircle className="text-green-400" size={32} />
+                      <div className="w-16 h-16 bg-[#00C9A7]/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <CheckCircle className="text-[#00C9A7]" size={32} />
                       </div>
                       <h3 className="text-xl font-bold">You're All Set!</h3>
-                      <p className="text-sm text-gray-400">Your agents are actively trading. Here's what to expect:</p>
+                      <p className="text-sm text-[#5a6a7e]">Your agents are actively trading. Here's what to expect:</p>
                     </div>
 
                     <div className="space-y-3">
-                      <div className="flex items-start gap-3 p-3 bg-dark-900 rounded-lg">
-                        <Clock className="text-blue-400 mt-0.5" size={18} />
+                      <div className="flex items-start gap-3 p-3 bg-[#090d14] rounded-lg">
+                        <Clock className="text-[#3B82F6] mt-0.5" size={18} />
                         <div>
                           <div className="font-medium">Real-time Updates</div>
-                          <div className="text-sm text-gray-400">Watch the 24h P&L and agent status update every 10 seconds</div>
+                          <div className="text-sm text-[#5a6a7e]">Watch the 24h P&L and agent status update every 10 seconds</div>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3 p-3 bg-dark-900 rounded-lg">
-                        <MessageSquare className="text-purple-400 mt-0.5" size={18} />
+                      <div className="flex items-start gap-3 p-3 bg-[#090d14] rounded-lg">
+                        <MessageSquare className="text-[#D4AF37] mt-0.5" size={18} />
                         <div>
                           <div className="font-medium">Chat with ZeroClaw</div>
-                          <div className="text-sm text-gray-400">Ask questions, get insights, or manually trigger trades via the chat</div>
+                          <div className="text-sm text-[#5a6a7e]">Ask questions, get insights, or manually trigger trades via the chat</div>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3 p-3 bg-dark-900 rounded-lg">
-                        <Globe className="text-green-400 mt-0.5" size={18} />
+                      <div className="flex items-start gap-3 p-3 bg-[#090d14] rounded-lg">
+                        <Globe className="text-[#00C9A7] mt-0.5" size={18} />
                         <div>
                           <div className="font-medium">Consensus Signals</div>
-                          <div className="text-sm text-gray-400">When 4+ agents agree on a direction, high-confidence trades execute</div>
+                          <div className="text-sm text-[#5a6a7e]">When 4+ agents agree on a direction, high-confidence trades execute</div>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3 p-3 bg-dark-900 rounded-lg">
-                        <AlertTriangle className="text-orange-400 mt-0.5" size={18} />
+                      <div className="flex items-start gap-3 p-3 bg-[#090d14] rounded-lg">
+                        <AlertTriangle className="text-[#FF6B35] mt-0.5" size={18} />
                         <div>
                           <div className="font-medium">Auto Risk Management</div>
-                          <div className="text-sm text-gray-400">Agents auto-pause after 3 consecutive losses to protect capital</div>
+                          <div className="text-sm text-[#5a6a7e]">Agents auto-pause after 3 consecutive losses to protect capital</div>
                         </div>
                       </div>
                     </div>
@@ -1055,13 +1055,13 @@ export function MultiAgent() {
                     <div className="flex gap-3 pt-2">
                       <button 
                         onClick={() => setWelcomeStep('opportunities')}
-                        className="flex-1 py-2.5 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors text-sm"
+                        className="flex-1 py-2.5 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors text-sm"
                       >
                         Back
                       </button>
                       <button 
                         onClick={() => setShowWelcome(false)}
-                        className="flex-1 py-2.5 bg-green-600 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                        className="flex-1 py-2.5 bg-[#00A88A] rounded-lg hover:bg-green-700 transition-colors text-sm"
                       >
                         Start Trading
                       </button>
@@ -1077,7 +1077,7 @@ export function MultiAgent() {
                     key={step}
                     onClick={() => setWelcomeStep(step as any)}
                     className={`w-2 h-2 rounded-full transition-colors ${
-                      welcomeStep === step ? 'bg-blue-400' : 'bg-dark-600 hover:bg-dark-500'
+                      welcomeStep === step ? 'bg-[#3B82F6]' : 'bg-[#1a2332] hover:bg-[#3d4d60]'
                     }`}
                   />
                 ))}
@@ -1088,32 +1088,32 @@ export function MultiAgent() {
 
         {/* Stop Agent Confirmation Modal */}
         {showStopConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="bg-dark-800 rounded-2xl border border-dark-600 max-w-md w-full p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/70 backdrop-blur-sm p-4">
+            <div className="glass-card rounded-2xl border border-[rgba(30,50,70,0.35)] max-w-md w-full p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
-                  <AlertTriangle className="text-red-400" size={24} />
+                <div className="w-12 h-12 bg-[#EF476F]/20 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="text-[#EF476F]" size={24} />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold">Stop Agent?</h3>
-                  <p className="text-sm text-gray-400">This will immediately halt {agentToStop}</p>
+                  <p className="text-sm text-[#5a6a7e]">This will immediately halt {agentToStop}</p>
                 </div>
               </div>
               
-              <p className="text-sm text-gray-300 mb-6">
+              <p className="text-sm text-[#e8ecf1] mb-6">
                 Any open positions will remain active. The agent will stop scanning for new opportunities.
               </p>
 
               <div className="flex gap-3">
                 <button 
                   onClick={() => setShowStopConfirm(false)}
-                  className="flex-1 py-2.5 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors"
+                  className="flex-1 py-2.5 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={executeStopAgent}
-                  className="flex-1 py-2.5 bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-[#D63D5E] rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
                 >
                   <Square size={16} />
                   Stop Agent
@@ -1125,20 +1125,20 @@ export function MultiAgent() {
 
         {/* Stop All Confirmation Modal */}
         {showStopAllConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="bg-dark-800 rounded-2xl border border-red-500/30 max-w-md w-full p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/70 backdrop-blur-sm p-4">
+            <div className="glass-card rounded-2xl border border-[#EF476F]/30 max-w-md w-full p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center animate-pulse">
-                  <AlertTriangle className="text-red-400" size={24} />
+                <div className="w-12 h-12 bg-[#EF476F]/20 rounded-full flex items-center justify-center animate-pulse">
+                  <AlertTriangle className="text-[#EF476F]" size={24} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-red-400">Stop All Agents?</h3>
-                  <p className="text-sm text-gray-400">This will halt the entire swarm</p>
+                  <h3 className="text-lg font-bold text-[#EF476F]">Stop All Agents?</h3>
+                  <p className="text-sm text-[#5a6a7e]">This will halt the entire swarm</p>
                 </div>
               </div>
               
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-6">
-                <p className="text-sm text-gray-300">
+              <div className="bg-[#EF476F]/10 border border-[#EF476F]/20 rounded-lg p-3 mb-6">
+                <p className="text-sm text-[#e8ecf1]">
                   <strong>Warning:</strong> All {activeCount} active agents will be stopped immediately. 
                   Open positions will remain but no new trades will be executed.
                 </p>
@@ -1147,13 +1147,13 @@ export function MultiAgent() {
               <div className="flex gap-3">
                 <button 
                   onClick={() => setShowStopAllConfirm(false)}
-                  className="flex-1 py-2.5 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors"
+                  className="flex-1 py-2.5 bg-[#151d28] rounded-lg hover:bg-[#1a2332] transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={executeStopAll}
-                  className="flex-1 py-2.5 bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-[#D63D5E] rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
                 >
                   <Square size={16} />
                   Stop All Agents
