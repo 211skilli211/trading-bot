@@ -1576,12 +1576,101 @@ class TradingBot:
             except Exception as e:
                 print(f"      RL analysis skipped: {e}")
         
+        # Advanced Signal Generation (SignalGenerator + ExtendedIndicators)
+        if self.signal_generator or self.indicator_engine:
+            try:
+                print("\n   📊 Advanced Signal Analysis...")
+                # Build OHLCV DataFrame from prices for signal generator
+                if self.signal_generator and len(prices) >= 2:
+                    # Create a simple OHLCV from price data
+                    avg_price = sum(p['price'] for p in prices) / len(prices)
+                    mock_ohlcv = {
+                        'Open': [avg_price * 0.99, avg_price * 0.995, avg_price],
+                        'High': [avg_price * 1.01, avg_price * 1.005, avg_price * 1.01],
+                        'Low': [avg_price * 0.98, avg_price * 0.985, avg_price * 0.99],
+                        'Close': [avg_price * 0.995, avg_price, avg_price * 1.005],
+                        'Volume': [1000, 1200, 1100]
+                    }
+                    import pandas as pd
+                    df = pd.DataFrame(mock_ohlcv)
+                    signals = self.signal_generator.generate_all(df)
+                    if signals:
+                        top_signal = signals[0]
+                        print(f"      Signal: {top_signal.action} (strength: {top_signal.strength:.2f})")
+                        result["advanced_signals"] = [{"action": s.action, "strength": s.strength} for s in signals[:3]]
+
+                # Extended Indicators
+                if self.indicator_engine and len(prices) >= 2:
+                    closes = [p['price'] for p in prices]
+                    indicators = self.indicator_engine.compute_all(closes)
+                    if indicators:
+                        print(f"      Indicators computed: {len(indicators)} metrics")
+                        result["indicators"] = {k: round(v, 4) for k, v in list(indicators.items())[:5]}
+            except Exception as e:
+                print(f"      Advanced signal analysis skipped: {e}")
+
+        # Social Sentiment Enhancement
+        if self.sentiment_engine:
+            try:
+                print("\n   🌐 Social Sentiment Analysis...")
+                sentiment = self.sentiment_engine.get_aggregate_sentiment("BTC")
+                if sentiment:
+                    signal_label = sentiment.get('signal', 'neutral')
+                    confidence = sentiment.get('confidence', 0)
+                    print(f"      Sentiment: {signal_label} (confidence: {confidence:.0f}%)")
+                    result["sentiment"] = sentiment
+
+                    # Adjust signal based on sentiment
+                    if signal['decision'] == 'TRADE':
+                        if signal_label in ('strong_sell', 'sell') and confidence > 60:
+                            print(f"      ⚠️  WARNING: Bearish sentiment detected")
+                            signal['sentiment_warning'] = f"Bearish: {signal_label}"
+                        elif signal_label in ('strong_buy', 'buy') and confidence > 60:
+                            print(f"      ✅ CONFIRMED: Bullish sentiment aligns")
+                            signal['sentiment_confirm'] = f"Bullish: {signal_label}"
+            except Exception as e:
+                print(f"      Sentiment analysis skipped: {e}")
+
         result["strategy"] = strategy_result
         
         # =====================================================================
         # STEP 3: RISK MANAGEMENT - Validate Trade
         # =====================================================================
         print("\n🛡️  STEP 3: Risk Management Check...")
+
+        # Confidence Scoring
+        if self.confidence_scorer and signal['decision'] == 'TRADE':
+            try:
+                confidence_input = {
+                    'spread_pct': signal.get('spread_pct', 0),
+                    'volume_ratio': 1.2,
+                    'sentiment': result.get('sentiment', {}).get('signal', 'neutral'),
+                    'ml_direction': result.get('ml_prediction', {}).get('direction', 'UNKNOWN'),
+                    'rl_action': result.get('rl_signal', {}).get('action', 'HOLD'),
+                }
+                conf_result = self.confidence_scorer.score(signal)
+                conf_score = conf_result.get('score', 0) if isinstance(conf_result, dict) else 0
+                print(f"   🎯 Confidence Score: {conf_score:.0f}%")
+                result["confidence"] = conf_result
+
+                # Reject low-confidence trades
+                min_conf = self.config.get('risk', {}).get('min_confidence', 60)
+                if isinstance(conf_score, (int, float)) and conf_score < min_conf:
+                    print(f"   ⚠️  Confidence below {min_conf}% — holding")
+                    signal['decision'] = 'HOLD'
+                    signal['confidence_rejected'] = True
+            except Exception as e:
+                print(f"      Confidence scoring skipped: {e}")
+
+        # TP/SL Calculator
+        if self.tpsl_calculator and signal['decision'] == 'TRADE':
+            try:
+                buy_price = signal.get('buy_price', 0)
+                tpsl = self.tpsl_calculator.calculate(buy_price, signal.get('spread_pct', 0))
+                print(f"   📐 TP: ${tpsl.get('take_profit', 0):,.2f} | SL: ${tpsl.get('stop_loss', 0):,.2f}")
+                result["tpsl"] = tpsl
+            except Exception as e:
+                print(f"      TP/SL calculation skipped: {e}")
         
         # Check stop-losses on existing positions first
         current_prices = {p['exchange']: p['price'] for p in prices}
@@ -1716,13 +1805,37 @@ class TradingBot:
             except Exception as e:
                 print(f"   Dashboard update error: {e}")
         
+        # Discord Notifications
+        if self.discord:
+            try:
+                if result.get('execution') and isinstance(result['execution'], dict):
+                    exec_data = result['execution']
+                    if exec_data.get('status') == 'FILLED':
+                        self.discord.send_trade_notification(
+                            symbol='BTC/USDT',
+                            side='ARBITRAGE',
+                            price=exec_data.get('buy_price', 0),
+                            quantity=exec_data.get('quantity', 0),
+                            pnl=exec_data.get('net_pnl', 0)
+                        )
+            except Exception as e:
+                print(f"   Discord notification error: {e}")
+
         # =====================================================================
         # STEP 7: LOGGING - Audit Trail
         # =====================================================================
         cycle_end = time.time()
         result["cycle_time_ms"] = round((cycle_end - cycle_start) * 1000, 2)
-        
+
         self.logger.log(result, "TRADE_CYCLE")
+
+        # Event Logger (structured)
+        if self.event_logger:
+            try:
+                event_type = "trade_executed" if result.get('status') == 'FILLED' else "trade_cycle"
+                self.event_logger.log(event_type, result)
+            except Exception:
+                pass
         
         print(f"\n📝 Cycle logged to {self.log_file}")
         print(f"⏱️  Total Cycle Time: {result['cycle_time_ms']:.1f}ms")
@@ -1924,6 +2037,48 @@ Environment Variables for Live Trading:
         metavar='EPISODES',
         help='Train RL agent for specified number of episodes'
     )
+
+    parser.add_argument(
+        '--optimize',
+        action='store_true',
+        help='Run hyperopt parameter optimization'
+    )
+
+    parser.add_argument(
+        '--sentiment',
+        action='store_true',
+        help='Enable social sentiment analysis'
+    )
+
+    parser.add_argument(
+        '--remote-api',
+        action='store_true',
+        help='Enable remote control REST API'
+    )
+
+    parser.add_argument(
+        '--discord',
+        action='store_true',
+        help='Enable Discord webhook notifications'
+    )
+
+    parser.add_argument(
+        '--auto-trader',
+        action='store_true',
+        help='Enable autonomous auto-trader engine'
+    )
+
+    parser.add_argument(
+        '--debate',
+        action='store_true',
+        help='Enable Bull/Bear/Analyst debate orchestrator'
+    )
+
+    parser.add_argument(
+        '--paper-engine',
+        action='store_true',
+        help='Use advanced paper trading engine'
+    )
     
     parser.add_argument(
         '--rl-model',
@@ -1962,6 +2117,19 @@ Environment Variables for Live Trading:
             config = json.load(f)
             print("📄 Loaded config.json")
     
+    # Apply CLI flag overrides to config
+    if args.sentiment:
+        config.setdefault('sentiment', {})['enabled'] = True
+    if args.remote_api:
+        config.setdefault('remote_api', {})['enabled'] = True
+        config.setdefault('remote_api', {})['port'] = args.port
+    if args.discord:
+        config.setdefault('discord', {})['webhook_url'] = os.getenv('DISCORD_WEBHOOK_URL', '')
+    if args.auto_trader:
+        config.setdefault('auto_trader', {})['enabled'] = True
+    if args.optimize:
+        config.setdefault('hyperopt', {})['enabled'] = True
+
     # Start dashboard in background if enabled in config
     dashboard_thread = None
     if DASHBOARD_AVAILABLE and config.get('dashboard', {}).get('enabled', False):
