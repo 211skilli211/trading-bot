@@ -11,6 +11,7 @@ import { Header } from '../components/Header';
 import { api } from '../api/client';
 import { MultiAgentStatus, Agent } from '../types';
 import { formatCurrency, formatPercent } from '../utils/format';
+import { ShimmerCard } from '../components/ui/GlassCard';
 
 const agentIcons: Record<string, any> = {
   'ArbBot': GitBranch,
@@ -283,9 +284,7 @@ export function MultiAgent() {
     return (
       <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Multi-Agent Command Center" />
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
-        </div>
+        <ShimmerCard height="h-64" />
       </div>
     );
   }
@@ -298,8 +297,8 @@ export function MultiAgent() {
         {/* System Overview */}
         <div className={`rounded-2xl p-5 text-[#e8ecf1] transition-all duration-500 ${
           activeCount > 0 
-            ? 'bg-gradient-to-r from-green-600 via-blue-600 to-purple-600' 
-            : 'bg-gradient-to-r from-blue-600 to-purple-600'
+            ? 'bg-gradient-to-r from-green-600 via-teal-600 to-[#D4AF37]' 
+            : 'bg-gradient-to-r from-teal-600 to-[#D4AF37]'
         }`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -793,7 +792,7 @@ export function MultiAgent() {
 
         {/* Welcome Experience Modal */}
         {showWelcome && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/70 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/80 p-4">
             <div className="glass-card rounded-2xl border border-[rgba(30,50,70,0.35)] max-w-2xl w-full max-h-[90vh] overflow-auto">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-[rgba(30,50,70,0.3)]">
@@ -1088,7 +1087,7 @@ export function MultiAgent() {
 
         {/* Stop Agent Confirmation Modal */}
         {showStopConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/70 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/80 p-4">
             <div className="glass-card rounded-2xl border border-[rgba(30,50,70,0.35)] max-w-md w-full p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-[#EF476F]/20 rounded-full flex items-center justify-center">
@@ -1125,7 +1124,7 @@ export function MultiAgent() {
 
         {/* Stop All Confirmation Modal */}
         {showStopAllConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/70 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/80 p-4">
             <div className="glass-card rounded-2xl border border-[#EF476F]/30 max-w-md w-full p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-[#EF476F]/20 rounded-full flex items-center justify-center animate-pulse">

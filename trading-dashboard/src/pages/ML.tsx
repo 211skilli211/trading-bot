@@ -5,6 +5,7 @@ import {
   Target, Shield, AlertTriangle, BookOpen, BarChart3, Clock
 } from 'lucide-react';
 import { Header } from '../components/Header';
+import { ShimmerCard } from '../components/ui/GlassCard';
 import { api } from '../api/client';
 import { formatUSD } from '../utils/format';
 
@@ -115,7 +116,7 @@ export function ML() {
       <div className="p-4 space-y-4">
         {/* Education Panel */}
         {showEducation && (
-          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl border border-[#0F4C75]/30 p-4">
+          <div className="bg-gradient-to-r from-teal-600/20 to-[#D4AF37]/20 rounded-xl border border-[#0F4C75]/30 p-4">
             <div className="flex items-start gap-3">
               <BookOpen size={24} className="text-[#3B82F6] flex-shrink-0 mt-1" />
               <div>
@@ -197,10 +198,7 @@ export function ML() {
 
         {/* Loading/Error States */}
         {loading && predictions.length === 0 && (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
-            <span className="ml-3 text-[#5a6a7e]">Analyzing market data...</span>
-          </div>
+          <ShimmerCard />
         )}
         
         {error && (

@@ -103,7 +103,7 @@ export function Navigation() {
       <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden"
            style={{
              background: 'rgba(9, 13, 20, 0.92)',
-             backdropFilter: 'blur(20px)',
+             backdropFilter: 'blur(10px)',
              borderTop: '1px solid rgba(30, 50, 70, 0.3)',
            }}>
         <div className="flex justify-around items-center h-14">
@@ -121,7 +121,7 @@ export function Navigation() {
       </nav>
 
       {/* ========== Desktop Sidebar ========== */}
-      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-[220px] z-40 flex-col"
+      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-[224px] z-40 flex-col"
              style={{
                background: 'rgba(9, 13, 20, 0.95)',
                borderRight: '1px solid rgba(30, 50, 70, 0.25)',

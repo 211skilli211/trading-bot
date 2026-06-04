@@ -7,6 +7,7 @@ import {
   DollarSign, Clock, BarChart3, Sliders
 } from 'lucide-react';
 import { Header } from '../components/Header';
+import { ShimmerCard } from '../components/ui/GlassCard';
 import { api } from '../api/client';
 
 interface Strategy {
@@ -134,8 +135,8 @@ export function Strategies() {
     return (
       <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Strategy Management" />
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
+        <div className="p-4">
+          <ShimmerCard />
         </div>
       </div>
     );

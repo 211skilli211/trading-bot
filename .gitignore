@@ -79,3 +79,5 @@ Cargo.lock
 # Bot PID files
 bot.pid
 dash.pid
+node_modules/
+trading-dashboard/node_modules/

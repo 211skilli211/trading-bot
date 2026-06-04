@@ -9,6 +9,7 @@ import { GlassCard, EmptyState } from '../components/ui/GlassCard';
 import { api } from '../api/client';
 import { BacktestResult } from '../types';
 import { formatCurrency, formatPercent } from '../utils/format';
+import { ShimmerCard } from '../components/ui/GlassCard';
 
 export function Backtest() {
   const [loading, setLoading] = useState(false);

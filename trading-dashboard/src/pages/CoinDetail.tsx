@@ -11,6 +11,7 @@ import { api } from '../api/client';
 import { Price } from '../types';
 import { formatCurrency, formatPercent, formatNumber } from '../utils/format';
 import { 
+import { ShimmerCard } from '../components/ui/GlassCard';
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
@@ -112,9 +113,7 @@ export function CoinDetail() {
     return (
       <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Coin Details" />
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
-        </div>
+        <ShimmerCard height="h-64" />
       </div>
     );
   }
@@ -143,7 +142,7 @@ export function CoinDetail() {
 
   return (
     <div className="pb-20 lg:pb-8 lg:pl-[224px]">
-      <div className="sticky top-0 z-40 bg-[#090d14]/95 backdrop-blur border-b border-[rgba(30,50,70,0.3)]">
+      <div className="sticky top-0 z-40 bg-[#090d14]/98 border-b border-[rgba(30,50,70,0.3)]">
         <div className="flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-3">
             <button 

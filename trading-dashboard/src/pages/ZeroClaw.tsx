@@ -7,6 +7,7 @@ import {
   MessageSquare, Send, User, Loader2, Sparkle, X
 } from 'lucide-react';
 import { Header } from '../components/Header';
+import { ShimmerCard } from '../components/ui/GlassCard';
 import { api } from '../api/client';
 
 interface AutonomousStatus {
@@ -204,8 +205,8 @@ export function ZeroClaw() {
     return (
       <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="24/7 Autonomous Agent" />
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
+        <div className="p-4">
+          <ShimmerCard />
         </div>
       </div>
     );
@@ -636,7 +637,7 @@ export function ZeroClaw() {
 
         {/* Settings Modal */}
         {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/70 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d14]/80 p-4">
             <div className="glass-card rounded-2xl border border-[rgba(30,50,70,0.35)] max-w-2xl w-full max-h-[90vh] overflow-auto">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-[rgba(30,50,70,0.3)]">

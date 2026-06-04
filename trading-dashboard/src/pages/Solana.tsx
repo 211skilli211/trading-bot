@@ -7,6 +7,7 @@ import {
 import { Header } from '../components/Header';
 import { api } from '../api/client';
 import { formatCurrency, formatTime } from '../utils/format';
+import { ShimmerCard } from '../components/ui/GlassCard';
 
 interface SolanaToken {
   symbol: string;
@@ -143,9 +144,7 @@ export function Solana() {
     return (
       <div className="pb-20 lg:pb-8 lg:pl-[224px]">
         <Header title="Solana DEX Sniper" />
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D4AF37]"></div>
-        </div>
+        <ShimmerCard height="h-64" />
       </div>
     );
   }

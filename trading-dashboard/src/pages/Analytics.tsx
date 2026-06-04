@@ -9,6 +9,7 @@ import { Header } from '../components/Header';
 import { AdvancedTradingView, calculateSLTPSuggestions, type Suggestion, type TradingData } from '../components/AdvancedTradingView';
 import { useUserPreferences } from '../context/UserPreferencesContext';
 import { formatUSD, formatPercent } from '../utils/format';
+import { ShimmerCard } from '../components/ui/GlassCard';
 
 interface CoinOption {
   symbol: string;
@@ -437,7 +438,7 @@ plot(s1, "S1", color.red)`);
             <button
               onClick={() => setShowSuggestions(!showSuggestions)}
               className={`p-2 rounded-lg transition-colors ${
-                showSuggestions ? 'bg-purple-600 text-[#e8ecf1] : 'glass-card border border-[rgba(30,50,70,0.3)]'
+                showSuggestions ? 'bg-teal-600 text-[#e8ecf1] : 'glass-card border border-[rgba(30,50,70,0.3)]'
               }`}
             >
               <Brain size={18} />
@@ -779,7 +780,7 @@ plot(s1, "S1", color.red)`);
 
         {/* FIXED: Trade Analysis with Correct Logic */}
         {(stopLoss || takeProfit) && (
-          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl p-3 sm:p-4 border border-[#0F4C75]/30">
+          <div className="bg-gradient-to-r from-teal-600/20 to-[#D4AF37]/20 rounded-xl p-3 sm:p-4 border border-[#0F4C75]/30">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <BarChart4 size={18} className="text-[#3B82F6]" />
               Trade Calculator
