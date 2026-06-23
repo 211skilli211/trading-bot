@@ -81,3 +81,5 @@ bot.pid
 dash.pid
 node_modules/
 trading-dashboard/node_modules/
+trading-dashboard/node_modules/
+node_modules/
