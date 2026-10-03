@@ -44,6 +44,7 @@ config_backup_*.json
 dashboard_patch.py
 
 # Runtime data
+data/nautilus_cache/
 storage/
 Desktop/
 models/*.pkl

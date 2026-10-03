@@ -15,6 +15,8 @@ Signals:
 - Macro Event Calendar (volatility avoidance)
 """
 
+from __future__ import annotations  # PEP 563: allow py3.8-incompatible annotations
+
 import requests
 import logging
 from datetime import datetime, timezone

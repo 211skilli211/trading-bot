@@ -53,32 +53,60 @@ Designed for multi-venue trading: crypto, equities, forex, derivatives, options.
 | Connectors | Use Nautilus CCXT adapter |
 | Risk | Native risk manager |
 
-## Integration Plan
+## Platform Constraint (verified 2026-10-03)
 
-### Phase 1: Install & Explore
+`nautilus_trader` wheels require **Python 3.11+** (PyPI publishes cp311/cp312
+wheels only; latest line targets 3.12–3.14). This phone runs **Python 3.8.10**,
+so the Rust core can only be installed on the **server (Render)**.
+
+The integration is designed around this:
+
+| Runs where | What runs | How |
+|------------|-----------|-----|
+| Phone (py3.8) | Strategy logic + event-driven backtest | pure Python, `nautilus_strategies.py` + `nautilus_integration.py` simulator |
+| Server (py3.11+) | Full Rust engine | `pip install nautilus_trader`, same strategy classes via `NautilusStrategyAdapter.build_nautilus_strategy()` |
+
+Backtest-to-live parity is preserved by construction: the strategies are
+engine-agnostic, deterministic classes fed bar-by-bar; the Rust engine only
+adds venue adapters and the matching core.
+
+## Integration Plan (with status)
+
+### Phase 1: Install & Explore — ✅ DONE (phone side)
+- `pip install numpy ccxt pandas pytest requests` works on-device (aarch64 wheels)
+- `pip install nautilus_trader` → **server only** (py3.11+)
+
+### Phase 2: Port Strategy Logic — ✅ DONE
+Implemented as engine-agnostic classes in `nautilus_strategies.py`:
+- `RegimeMomentumStrategy` — momentum over rolling window + EMA trend filter,
+  regime-gated (DEFENSIVE blocks entries, sizes from regime table)
+- `MinerviniSeaStrategy` — full 6-condition stage-2 template on a 252-bar window,
+  SMA50 break exit
+- `SniperStrategy` — rapid-move entries on tick/bar deltas
+- `BinaryArbitrageStrategy` — cross-venue spread detection
+
+### Phase 3: Replace Execution Layer — ⏳ server
+- Wire Nautilus `CCXTExecutionAdapter` on Render
+- `NautilusStrategyAdapter.build_nautilus_strategy()` returns a real
+  `Strategy` subclass when installed (callback signatures to verify against
+  the installed version)
+
+### Phase 4: Backtesting — ✅ DONE (simulator) / ⏳ (Rust engine)
+`NautilusBacktestRunner` runs a deterministic event-driven simulator:
+long/short, regime-gated sizing, commission, slippage, stop-loss,
+take-profit. Data via `NautilusDataAdapter` (ccxt with
+binance→kraken→coinbase fallback + USDT→USD quote fallback, JSON cache,
+seeded synthetic generator for offline tests).
+
+Run:
 ```bash
-pip install nautilus_trader
-# or for latest dev:
-pip install git+https://github.com/nautechsystems/nautilus_trader.git
+python3 nautilus_integration.py                  # status + offline demo
+python3 nautilus_integration.py --real-data      # real exchange data
+python3 trading_bot.py --nautilus-backtest --nautilus-strategy regime_momentum
+python3 trading_bot.py --nautilus-status         # integration status
 ```
 
-### Phase 2: Port Strategy Logic
-Convert `autonomous_controller.py` and `core/regime.py` into Nautilus `Strategy` class:
-- `on_tick()` → entry signals from `regime.py` market regime detection
-- `on_bar()` → moving average crossovers, momentum signals
-- `on_order_filled()` → position management
-
-### Phase 3: Replace Execution Layer
-- Replace `ccxt_connector.py` with Nautilus `CCXTExecutionAdapter`
-- Replace `jupiter_orders.py` with custom adapter if needed
-- Use Nautilus `OrderMatchingEngine` for simulation
-
-### Phase 4: Backtesting
-- Use Nautilus `BacktestEngine` with historical data
-- Parquet data format for market data
-- Identical code path for backtest → live (key advantage)
-
-### Phase 5: Live Trading
+### Phase 5: Live Trading — ⏳ server
 - Same strategy code, different execution adapter
 - Paper trading first via Nautilus `PaperExchange`
 - Risk management via Nautilus `RiskEngine`
@@ -97,6 +125,19 @@ Convert `autonomous_controller.py` and `core/regime.py` into Nautilus `Strategy`
 **Proceed with Phase 1-2** as a parallel implementation. Keep current bot running while
 developing the Nautilus version. The key benefit is deterministic backtesting — our current
 `backtester.py` doesn't guarantee the same behavior in live trading.
+
+## Current Status (2026-10-03)
+
+| Item | Status |
+|------|--------|
+| Strategy classes (4) | ✅ Real, deterministic, engine-agnostic |
+| Event-driven backtest simulator | ✅ Working (fees, slippage, SL/TP, reverse, sizing) |
+| Data adapter (ccxt + cache + synthetic) | ✅ Working — verified on real Binance 1h data |
+| CLI wiring (`trading_bot.py`) | ✅ `--nautilus-backtest`, `--nautilus-status`, `--nautilus-*` |
+| Tests | ✅ `tests/test_nautilus.py` — 31 tests, full suite 63 passed |
+| P0 fixes found along the way | ✅ `core/regime.py` py3.8 annotation crash; `ccxt_connector.py` `ccxt.gateio` import crash |
+| Rust engine on phone | ❌ Impossible (py3.8 < 3.11) — server only |
+| Rust engine on server | ⏳ Phase 3/5 |
 
 ## Alternatives Considered
 - **Freqtrade**: Crypto-only, simpler, 380+ contributors → good for crypto-only

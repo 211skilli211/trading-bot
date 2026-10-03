@@ -11,23 +11,40 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 
 
+def _ccxt_class(name: str):
+    """
+    Resolve a ccxt exchange class by id, tolerating ids that are renamed or
+    missing in the installed ccxt version (returns None when unavailable).
+
+    Known aliases across ccxt versions: 'gateio' <-> 'gate'.
+    """
+    aliases = {'gateio': 'gate', 'gate': 'gateio'}
+    for candidate in (name, aliases.get(name)):
+        if candidate:
+            cls = getattr(ccxt, candidate, None)
+            if cls is not None:
+                return cls
+    return None
+
+
+# Exchanges we advertise support for. Ids missing from the installed ccxt
+# version are dropped so a single renamed exchange can't crash the import.
+_EXCHANGE_IDS = [
+    'binance', 'coinbase', 'kraken', 'bybit', 'kucoin', 'okx', 'gate', 'gateio', 'bitget',
+]
+EXCHANGE_MAP = {
+    nid: _ccxt_class(nid) for nid in _EXCHANGE_IDS if _ccxt_class(nid) is not None
+}
+
+
 class CCXTConnector:
     """
     Unified exchange connector using CCXT.
     Supports Binance, Coinbase, Kraken, Bybit, KuCoin, and 100+ more.
     """
-    
-    EXCHANGE_MAP = {
-        'binance': ccxt.binance,
-        'coinbase': ccxt.coinbase,
-        'kraken': ccxt.kraken,
-        'bybit': ccxt.bybit,
-        'kucoin': ccxt.kucoin,
-        'okx': ccxt.okx,
-        'gateio': ccxt.gateio,
-        'bitget': ccxt.bitget,
-    }
-    
+
+    EXCHANGE_MAP = EXCHANGE_MAP
+
     def __init__(self, exchange_id: str, api_key: Optional[str] = None, 
                  secret: Optional[str] = None, sandbox: bool = True):
         """

@@ -2090,7 +2090,53 @@ Environment Variables for Live Trading:
         action='store_true',
         help='Use advanced paper trading engine'
     )
-    
+
+    parser.add_argument(
+        '--nautilus-status',
+        action='store_true',
+        help='Show Nautilus Trader integration status'
+    )
+
+    parser.add_argument(
+        '--nautilus-backtest',
+        action='store_true',
+        help='Run a Nautilus backtest (simulator on phone / engine on server)'
+    )
+
+    parser.add_argument(
+        '--nautilus-strategy',
+        type=str,
+        default='regime_momentum',
+        help='Nautilus strategy: regime_momentum | minervini_sea | sniper | binary_arbitrage'
+    )
+
+    parser.add_argument(
+        '--nautilus-symbol',
+        type=str,
+        default='BTC/USDT',
+        help='Nautilus backtest symbol (default: BTC/USDT)'
+    )
+
+    parser.add_argument(
+        '--nautilus-days',
+        type=int,
+        default=30,
+        help='Nautilus backtest lookback in days (default: 30)'
+    )
+
+    parser.add_argument(
+        '--nautilus-interval',
+        type=str,
+        default='1h',
+        help='Nautilus backtest bar interval (default: 1h)'
+    )
+
+    parser.add_argument(
+        '--nautilus-synthetic',
+        action='store_true',
+        help='Force synthetic bars for Nautilus backtest (offline, no exchange calls)'
+    )
+
     parser.add_argument(
         '--rl-model',
         type=str,
@@ -2117,6 +2163,39 @@ Environment Variables for Live Trading:
             sys.exit(1)
         return
     
+    # Nautilus integration: status and/or backtest
+    if args.nautilus_status or args.nautilus_backtest:
+        try:
+            import nautilus_integration as nautilus
+        except ImportError as e:
+            print(f"❌ Nautilus integration unavailable: {e}")
+            sys.exit(1)
+
+        if args.nautilus_status:
+            status = nautilus.get_integration_status()
+            print(json.dumps(status, indent=2))
+            if not args.nautilus_backtest:
+                return
+
+        n_config = nautilus.NautilusConfig(
+            mode="BACKTEST",
+            symbol=args.nautilus_symbol,
+            days=args.nautilus_days,
+            interval=args.nautilus_interval,
+            strategy_name=args.nautilus_strategy,
+        )
+        runner = nautilus.NautilusBacktestRunner(n_config)
+        bars = None
+        if args.nautilus_synthetic:
+            n_bars = int(args.nautilus_days * nautilus.bars_per_day(args.nautilus_interval))
+            bars = runner.data_adapter.generate_synthetic_bars(n_bars=n_bars)
+        result = runner.run_backtest(bars=bars)
+        if 'error' in result:
+            print(f"❌ Nautilus backtest failed: {result['message']}")
+            sys.exit(1)
+        nautilus.print_report(result)
+        return
+
     # Load config if provided
     config = {}
     if args.config and os.path.exists(args.config):

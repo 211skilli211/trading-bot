@@ -9,7 +9,9 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from strategy_engine import StrategyEngine, SpreadCalculator
+from strategy_engine import StrategyEngine
+# NB: SpreadCalculator lives in crypto_price_fetcher (not strategy_engine);
+# it was not actually used by these tests.
 
 
 class TestStrategyEngine:
