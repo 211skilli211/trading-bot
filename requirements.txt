@@ -26,6 +26,12 @@ pytest>=7.0.0
 # nautilus_trader>=1.200.0  # Uncomment on Render (py3.11+); phone runs the
 #                           # pure-Python simulator in nautilus_integration.py
 
+# cTrader Open API (QCG broker) — phone + server, py3.8 compatible.
+# ctrader-open-api pins pyOpenSSL==24.1.0/protobuf==3.20.1 -> cryptography 42.x,
+# so service-identity must stay on the 24.2.0 line (26.x needs cryptography>=47).
+ctrader-open-api==0.9.2
+service-identity==24.2.0
+
 # Solana (optional, for DEX trading)
 # solathon>=0.3.0  # Uncomment for Solana support
 

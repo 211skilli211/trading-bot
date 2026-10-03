@@ -1970,6 +1970,347 @@ def run_tests():
     print("=" * 70)
 
 
+# ---------------------------------------------------------------------------
+# cTrader Open API (QCG) — direct phone-side control
+# ---------------------------------------------------------------------------
+def _ctrader_do_auth(args, ct):
+    """Handle --ctrader-auth: print OAuth URL or exchange a code."""
+    creds, store = ct.resolve_credentials()
+    if not (creds.get("client_id") and creds.get("client_secret")):
+        print("❌ CTRADER_CLIENT_ID / CTRADER_CLIENT_SECRET are not set.")
+        print("   Create your API app first — see CTRADER_SETUP.md:")
+        print("   1. Log in at my.ctrader.com (QCG) → Settings → Apps & API")
+        print("   2. Create an API app, scope: 'Account info and trading'")
+        print("   3. Put these in .env:")
+        print("      CTRADER_CLIENT_ID=<client id>")
+        print("      CTRADER_CLIENT_SECRET=<client secret>")
+        print("      CTRADER_REDIRECT_URI=https://my.ctrader.com")
+        sys.exit(1)
+    if args.ctrader_auth_code:
+        auth = ct.CTraderAuth(creds["client_id"], creds["client_secret"],
+                              creds["redirect_uri"])
+        try:
+            token = auth.exchange_code(args.ctrader_auth_code.strip())
+        except ct.CTraderError as e:
+            print(f"❌ code exchange failed: {e}")
+            sys.exit(1)
+        store.store_tokens(creds["client_id"], creds["client_secret"],
+                           creds["redirect_uri"], token,
+                           account_id=creds.get("account_id"),
+                           is_live=(creds.get("host") == "live"))
+        print(f"✅ access token saved to data/ctrader_credentials.json")
+        print(f"   scope={token.get('scope')}  expires_in={token.get('expiresIn')}s")
+        print("   next: python3 trading_bot.py --ctrader-accounts")
+    else:
+        url = ct.CTraderAuth.auth_url(creds["client_id"], creds["client_secret"],
+                                      creds["redirect_uri"])
+        print("🔐 cTrader OAuth — open this URL on your phone and authorize:")
+        print("   " + url)
+        print("   You will be redirected to a URL ending in ?code=<AUTH_CODE>")
+        print("   (even if the redirect page errors, the code is in the address bar)")
+        print("   Then run:")
+        print("   python3 trading_bot.py --ctrader-auth --ctrader-auth-code <AUTH_CODE>")
+
+
+def handle_ctrader(args):
+    """Run all requested --ctrader-* actions, in order."""
+    import ctrader_connector as ct
+
+    def session_for(account_id=None, need_account=True):
+        creds, store = ct.resolve_credentials()
+        ct.ensure_fresh_token(creds, store)
+        acc = account_id if account_id is not None else creds.get("account_id")
+        if need_account and not acc:
+            print("❌ no trading account selected.")
+            print("   run: python3 trading_bot.py --ctrader-accounts")
+            print("   then: python3 trading_bot.py --ctrader-account <id>")
+            sys.exit(1)
+        return ct.CTraderSession(creds, account_id=acc, demo=args.ctrader_demo)
+
+    def resolve_symbols_step(s, r):
+        """Dynamic step: fetch full symbols for ids referenced in r[-1]."""
+        refs = r[-1]
+        ids = set()
+        for pos in getattr(refs, "position", ()):
+            ids.add(int(pos.tradeData.symbolId))
+        for o in getattr(refs, "order", ()):
+            ids.add(int(o.tradeData.symbolId))
+        for d in getattr(refs, "deal", ()):
+            ids.add(int(d.symbolId))
+        if not ids:
+            return None
+        return s.symbols_by_id(sorted(ids))
+
+    def symbols_from(res, idx):
+        obj = res[idx]
+        if not obj:
+            return {}
+        return {int(x.symbolId): x for x in obj.symbol}
+
+    def fmt_ts(ms):
+        try:
+            return datetime.fromtimestamp(int(ms) / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            return str(ms)
+
+    if args.ctrader_status:
+        print(json.dumps(ct.status_report(), indent=2))
+
+    if args.ctrader_auth:
+        _ctrader_do_auth(args, ct)
+
+    if args.ctrader_refresh:
+        creds, store = ct.resolve_credentials()
+        if not creds.get("refresh_token"):
+            print("❌ no refresh_token stored — run --ctrader-auth first")
+        else:
+            ct.ensure_fresh_token(creds, store, force=True)
+            print(f"✅ token refreshed (host={creds.get('host')}, "
+                  f"account={creds.get('account_id')})")
+
+    if args.ctrader_account:
+        _, store = ct.resolve_credentials()
+        data = store.load()
+        data["account_id"] = str(args.ctrader_account)
+        if args.ctrader_demo:
+            data["host"] = "demo"
+        store.save(data)
+        print(f"✅ default account set: {args.ctrader_account} "
+              f"({'demo' if args.ctrader_demo else data.get('host', 'live')})")
+
+    if args.ctrader_accounts:
+        s = session_for(account_id=None, need_account=False)
+        res = s.execute([lambda s, r: s.account_list()])
+        rows = ct.summarize_account_list(res[1])
+        if not rows:
+            print("📭 no trading accounts linked to this API app")
+        for a in rows:
+            print(f"  {a['account_id']}  "
+                  f"{'LIVE' if a['is_live'] else 'DEMO':<4}  "
+                  f"login={a['trader_login']}  "
+                  f"last_update={fmt_ts(a['last_balance_update_ms'])} UTC")
+        if rows:
+            print("pick one: python3 trading_bot.py --ctrader-account <id>")
+
+    if args.ctrader_info:
+        s = session_for()
+        res = s.execute([lambda s, r: s.trader_info(),
+                         lambda s, r: s.open_positions(),
+                         lambda s, r: s.unrealized_pnl()])
+        trader = ct.summarize_trader(res[1])
+        recon, upnl = res[2], res[3]
+        md = int(getattr(upnl, "moneyDigits", 2) or 2)
+        upnl_sum = sum(p.grossUnrealizedPnL for p in upnl.positionUnrealizedPnL)
+        equity = trader["balance"] + ct.money_float(upnl_sum, md)
+        print(f"🏦 {trader['broker']}  account {trader['account_id']}  "
+              f"type={trader['account_type']}  leverage={trader['leverage']}")
+        print(f"   balance: ${trader['balance']:,.2f}   "
+              f"equity: ${equity:,.2f}   "
+              f"unrealized PnL: ${ct.money_float(upnl_sum, md):,.2f}")
+        positions = [ct.summarize_position(p) for p in recon.position]
+        if positions:
+            for p in positions:
+                print(f"   📌 {p['symbol']} {p['side']} {p['volume_lots']} lots "
+                      f"@ {p['price']}  SL={p['stop_loss']} TP={p['take_profit']}")
+        else:
+            print("   no open positions")
+
+    if args.ctrader_positions:
+        s = session_for()
+        res = s.execute([lambda s, r: s.open_positions(),
+                         lambda s, r: resolve_symbols_step(s, r)])
+        symbols = symbols_from(res, 2)
+        recon = res[1]
+        positions = [ct.summarize_position(p, symbols) for p in recon.position]
+        orders = [ct.summarize_order(o, symbols) for o in recon.order]
+        if not positions and not orders:
+            print("📭 no open positions or pending orders")
+        for p in positions:
+            print(f"  📌 {p['position_id']}  {p['symbol']} {p['side']} "
+                  f"{p['volume_lots']} lots @ {p['price']}  "
+                  f"SL={p['stop_loss']} TP={p['take_profit']}  "
+                  f"opened {fmt_ts(p['opened_ms'])} UTC")
+        for o in orders:
+            px = o["limit_price"] if o["limit_price"] else o["stop_price"]
+            print(f"  ⏳ {o['order_id']}  {o['symbol']} {o['side']} "
+                  f"{o['type']} {o['volume_lots']} lots @ {px}  [{o['status']}]")
+
+    if args.ctrader_orders:
+        s = session_for()
+        res = s.execute([lambda s, r: s.open_orders(),
+                         lambda s, r: resolve_symbols_step(s, r)])
+        symbols = symbols_from(res, 2)
+        orders = [ct.summarize_order(o, symbols) for o in res[1].order]
+        if not orders:
+            print("📭 no pending orders")
+        for o in orders:
+            px = o["limit_price"] if o["limit_price"] else o["stop_price"]
+            print(f"  ⏳ {o['order_id']}  {o['symbol']} {o['side']} "
+                  f"{o['type']} {o['volume_lots']} lots @ {px}  "
+                  f"SL={o['stop_loss']} TP={o['take_profit']}  [{o['status']}]")
+
+    if args.ctrader_deals:
+        n = args.ctrader_deals or 20
+        s = session_for()
+        res = s.execute([lambda s, r: s.deal_list(max_rows=n),
+                         lambda s, r: resolve_symbols_step(s, r)])
+        symbols = symbols_from(res, 2)
+        deals = [ct.summarize_deal(d, symbols) for d in res[1].deal]
+        deals.sort(key=lambda d: d["executed_ms"], reverse=True)
+        if not deals:
+            print(f"📭 no deals in the last 30 days")
+        for d in deals[:n]:
+            print(f"  {fmt_ts(d['executed_ms'])} UTC  {d['symbol']} {d['side']} "
+                  f"{d['volume_lots']} lots @ {d['price']}  [{d['status']}]  "
+                  f"deal={d['deal_id']}")
+
+    if args.ctrader_symbols:
+        s = session_for()
+        res = s.execute([lambda s, r: s.symbol_list()])
+        enabled = [x for x in res[1].symbol if x.enabled]
+        print(f"📇 {len(enabled)} enabled symbols "
+              f"({len(res[1].symbol) - len(enabled)} archived)")
+        for x in sorted(enabled, key=lambda y: y.symbolName)[:60]:
+            print(f"  {x.symbolId:>10}  {x.symbolName}")
+        if len(enabled) > 60:
+            print(f"  … and {len(enabled) - 60} more")
+
+    if args.ctrader_quote:
+        names = [x.strip() for x in args.ctrader_quote.split(",") if x.strip()]
+        s = session_for()
+        steps, box = s.symbol_steps(names)
+
+        def spot_step(s, r):
+            ids = sorted({int(v.symbolId) for v in box["matched"].values()})
+            return s.spot_snapshot(ids, wait_seconds=args.ctrader_wait)
+
+        res = s.execute(steps + [spot_step], hard_timeout=90)
+        for q in ct.summarize_quotes(res[3], box["full"]):
+            print(f"  {q['symbol']:<12} bid={q['bid']}  ask={q['ask']}  "
+                  f"spread={q['spread']}  ({fmt_ts(q['ts_ms'])} UTC)")
+        got = set(q["symbol"] for q in ct.summarize_quotes(res[3], box["full"]))
+        want = {ct.normalize_name(n) for n in names}
+        for w in sorted(want - got):
+            print(f"  ⚠️  no quote received for {w} (symbol inactive or market closed)")
+
+    if args.ctrader_bars:
+        s = session_for()
+        steps, box = s.symbol_steps([args.ctrader_bars])
+
+        def bars_step(s, r):
+            sym = next(iter(box["full"].values()))
+            return s.historical_bars(sym.symbolId, period=args.ctrader_period,
+                                     count=args.ctrader_count)
+
+        res = s.execute(steps + [bars_step], hard_timeout=120)
+        sym = next(iter(box["full"].values()))
+        bars = ct.summarize_bars(res[3], int(sym.digits))
+        print(f"📈 {sym.symbolName} {args.ctrader_period.upper()} — "
+              f"{len(bars)} bars (most recent last)")
+        for b in bars[-20:]:
+            print(f"  {fmt_ts(b['ts_ms'])} UTC  O={b['open']} H={b['high']} "
+                  f"L={b['low']} C={b['close']}  vol={b['volume_units']}")
+
+    if args.ctrader_buy or args.ctrader_sell:
+        symbol = args.ctrader_buy or args.ctrader_sell
+        side = ct.SIDE_BUY if args.ctrader_buy else ct.SIDE_SELL
+        lots = args.ctrader_lots
+        if lots <= 0:
+            print("❌ --ctrader-lots must be > 0")
+            sys.exit(1)
+        creds, _ = ct.resolve_credentials()
+        host = "demo" if args.ctrader_demo else creds.get("host", "live")
+        if host == "live" and not args.yes:
+            print("🛑 LIVE ORDER — refusing without explicit --yes:")
+            print(f"   would send: {'BUY' if side == ct.SIDE_BUY else 'SELL'} "
+                  f"{lots} lots {symbol} (market) "
+                  f"SL={args.ctrader_sl} TP={args.ctrader_tp} on {host}")
+            print("   confirm with:  python3 trading_bot.py "
+                  f"--ctrader-{'buy' if side == ct.SIDE_BUY else 'sell'} "
+                  f"{symbol} --ctrader-lots {lots} "
+                  + (f"--ctrader-sl {args.ctrader_sl} " if args.ctrader_sl else "")
+                  + (f"--ctrader-tp {args.ctrader_tp} " if args.ctrader_tp else "")
+                  + "--yes")
+            sys.exit(0)
+        s = session_for()
+        steps, box = s.symbol_steps([symbol])
+
+        def order_step(s, r):
+            sym = next(iter(box["full"].values()))
+            return s.place_order(
+                sym.symbolId, side, lots,
+                stop_loss=args.ctrader_sl, take_profit=args.ctrader_tp,
+                comment=args.ctrader_comment or "clever-curie",
+                client_order_id="cli-%d" % int(time.time()))
+
+        res = s.execute(steps + [order_step], hard_timeout=90)
+        execs = ct.summarize_executions(res[3])
+        print(f"✅ order sent on {host}: {'BUY' if side == ct.SIDE_BUY else 'SELL'} "
+              f"{lots} lots {symbol} (market)")
+        if execs:
+            for e in execs:
+                extra = ""
+                if e.get("order_id"):
+                    extra += f" order={e['order_id']}"
+                if e.get("deal_id"):
+                    extra += f" deal={e['deal_id']} @ {e.get('deal_price')}"
+                if e.get("error_code"):
+                    extra += f" ERROR={e['error_code']}"
+                print(f"   {e['type']}{extra}")
+        else:
+            print("   (no execution confirmation within watch window — "
+                  "verify with --ctrader-orders / --ctrader-positions)")
+
+    if args.ctrader_cancel:
+        s = session_for()
+        res = s.execute([lambda s, r: s.cancel_order(args.ctrader_cancel)],
+                        hard_timeout=60)
+        execs = ct.summarize_executions(res[1])
+        if execs:
+            for e in execs:
+                print(f"   {e['type']} order={args.ctrader_cancel}"
+                      + (f" ERROR={e['error_code']}" if e.get("error_code") else ""))
+        else:
+            print(f"✅ cancel request sent for order {args.ctrader_cancel} "
+                  f"(no confirmation event in watch window)")
+
+    if args.ctrader_close:
+        s = session_for()
+
+        def close_step(s, r):
+            recon = s.open_positions()
+            d = recon
+            def pick(res_):
+                target = None
+                for p in res_.position:
+                    if int(p.positionId) == int(args.ctrader_close):
+                        target = p
+                        break
+                if target is None:
+                    raise ct.CTraderError(
+                        "POSITION_NOT_FOUND",
+                        f"no open position with id {args.ctrader_close}")
+                lots = args.close_lots if args.close_lots is not None \
+                    else ct.lots_from_raw(target.tradeData.volume)
+                return s.close_position(target.positionId, lots=lots)
+            return d.addCallback(pick)
+
+        res = s.execute([close_step], hard_timeout=90)
+        execs = ct.summarize_executions(res[1])
+        print(f"✅ close request sent for position {args.ctrader_close}")
+        if execs:
+            for e in execs:
+                extra = ""
+                if e.get("deal_id"):
+                    extra += f" deal={e['deal_id']} @ {e.get('deal_price')}"
+                if e.get("error_code"):
+                    extra += f" ERROR={e['error_code']}"
+                print(f"   {e['type']}{extra}")
+        else:
+            print("   (no confirmation event in watch window — "
+                  "verify with --ctrader-positions)")
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -2137,6 +2478,170 @@ Environment Variables for Live Trading:
         help='Force synthetic bars for Nautilus backtest (offline, no exchange calls)'
     )
 
+    # cTrader Open API (QCG broker) — direct phone-side control
+    parser.add_argument(
+        '--ctrader-status',
+        action='store_true',
+        help='Show cTrader connector status (SDK, endpoints, credentials, next steps)'
+    )
+    parser.add_argument(
+        '--ctrader-auth',
+        action='store_true',
+        help='Print cTrader OAuth URL (or exchange a code with --ctrader-auth-code)'
+    )
+    parser.add_argument(
+        '--ctrader-auth-code',
+        type=str,
+        default=None,
+        help='OAuth ?code= to exchange for access/refresh tokens'
+    )
+    parser.add_argument(
+        '--ctrader-refresh',
+        action='store_true',
+        help='Force-refresh the stored cTrader access token'
+    )
+    parser.add_argument(
+        '--ctrader-accounts',
+        action='store_true',
+        help='List trading accounts linked to the API app'
+    )
+    parser.add_argument(
+        '--ctrader-account',
+        type=str,
+        default=None,
+        metavar='ID',
+        help='Set the default trading account id'
+    )
+    parser.add_argument(
+        '--ctrader-info',
+        action='store_true',
+        help='Show account balance / equity / open positions'
+    )
+    parser.add_argument(
+        '--ctrader-positions',
+        action='store_true',
+        help='List open positions and pending orders'
+    )
+    parser.add_argument(
+        '--ctrader-orders',
+        action='store_true',
+        help='List pending orders'
+    )
+    parser.add_argument(
+        '--ctrader-deals',
+        type=int,
+        nargs='?',
+        const=20,
+        default=None,
+        metavar='N',
+        help='List the last N deals (default: 20)'
+    )
+    parser.add_argument(
+        '--ctrader-symbols',
+        action='store_true',
+        help='List enabled trading symbols'
+    )
+    parser.add_argument(
+        '--ctrader-quote',
+        type=str,
+        default=None,
+        metavar='SYMBOLS',
+        help='Live spot quotes, comma-separated (e.g. EURUSD,GBPUSD,XAUUSD)'
+    )
+    parser.add_argument(
+        '--ctrader-wait',
+        type=float,
+        default=6.0,
+        help='Seconds to listen for spot quotes (default: 6)'
+    )
+    parser.add_argument(
+        '--ctrader-bars',
+        type=str,
+        default=None,
+        metavar='SYMBOL',
+        help='Fetch historical trendbars (e.g. EURUSD)'
+    )
+    parser.add_argument(
+        '--ctrader-period',
+        type=str,
+        default='H1',
+        help='Bar period for --ctrader-bars: M1 M5 M15 M30 H1 H4 D1 W1 (default: H1)'
+    )
+    parser.add_argument(
+        '--ctrader-count',
+        type=int,
+        default=100,
+        help='Number of bars for --ctrader-bars (default: 100)'
+    )
+    parser.add_argument(
+        '--ctrader-buy',
+        type=str,
+        default=None,
+        metavar='SYMBOL',
+        help='Place a LIVE/Demo MARKET BUY (needs --ctrader-lots; live needs --yes)'
+    )
+    parser.add_argument(
+        '--ctrader-sell',
+        type=str,
+        default=None,
+        metavar='SYMBOL',
+        help='Place a LIVE/Demo MARKET SELL (needs --ctrader-lots; live needs --yes)'
+    )
+    parser.add_argument(
+        '--ctrader-lots',
+        type=float,
+        default=0.01,
+        help='Order size in lots for --ctrader-buy/--ctrader-sell (default: 0.01)'
+    )
+    parser.add_argument(
+        '--ctrader-sl',
+        type=float,
+        default=None,
+        help='Stop-loss price for orders'
+    )
+    parser.add_argument(
+        '--ctrader-tp',
+        type=float,
+        default=None,
+        help='Take-profit price for orders'
+    )
+    parser.add_argument(
+        '--ctrader-comment',
+        type=str,
+        default=None,
+        help='Order comment/label'
+    )
+    parser.add_argument(
+        '--ctrader-cancel',
+        type=str,
+        default=None,
+        metavar='ORDER_ID',
+        help='Cancel a pending order'
+    )
+    parser.add_argument(
+        '--ctrader-close',
+        type=str,
+        default=None,
+        metavar='POSITION_ID',
+        help='Close a position (all volume unless --close-lots given)'
+    )
+    parser.add_argument(
+        '--close-lots',
+        type=float,
+        default=None,
+        help='Partial-close volume in lots for --ctrader-close'
+    )
+    parser.add_argument(
+        '--ctrader-demo',
+        action='store_true',
+        help='Force the cTrader demo host (demo.ctraderapi.com) for all commands'
+    )
+    parser.add_argument(
+        '--yes',
+        action='store_true',
+        help='Explicitly confirm LIVE order placement (required for live orders)'
+    )
+
     parser.add_argument(
         '--rl-model',
         type=str,
@@ -2194,6 +2699,27 @@ Environment Variables for Live Trading:
             print(f"❌ Nautilus backtest failed: {result['message']}")
             sys.exit(1)
         nautilus.print_report(result)
+        return
+
+    # cTrader Open API (QCG): status / auth / account / data / trading
+    ctrader_requested = any([
+        args.ctrader_status, args.ctrader_auth, args.ctrader_refresh,
+        args.ctrader_account, args.ctrader_accounts, args.ctrader_info,
+        args.ctrader_positions, args.ctrader_orders, args.ctrader_deals,
+        args.ctrader_symbols, args.ctrader_quote, args.ctrader_bars,
+        args.ctrader_buy, args.ctrader_sell, args.ctrader_cancel,
+        args.ctrader_close,
+    ])
+    if ctrader_requested:
+        try:
+            handle_ctrader(args)
+        except Exception as e:
+            import ctrader_connector as ct
+            if isinstance(e, ct.CTraderError):
+                print(f"❌ cTrader: {e.code}: {e.description}")
+            else:
+                print(f"❌ cTrader error: {e}")
+            sys.exit(1)
         return
 
     # Load config if provided
