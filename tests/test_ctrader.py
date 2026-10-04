@@ -28,6 +28,19 @@ SKIP_NO_SDK = pytest.mark.skipif(
     not ct.CT_SDK_AVAILABLE, reason="ctrader_open_api SDK not installed")
 
 
+@pytest.fixture(autouse=True)
+def _strip_ctrader_env(monkeypatch):
+    """Keep credential tests hermetic.
+
+    resolve_credentials() reads os.environ, and the surrounding shell (or a
+    loaded .env) may export CTRADER_* values.  Remove them so tests observe
+    only what they set explicitly.
+    """
+    for key in list(os.environ):
+        if key.startswith("CTRADER_"):
+            monkeypatch.delenv(key, raising=False)
+
+
 # ---------------------------------------------------------------------------
 # Unit conventions
 # ---------------------------------------------------------------------------
@@ -144,10 +157,14 @@ def test_host_for():
 @SKIP_NO_SDK
 def test_auth_url():
     url = ct.CTraderAuth.auth_url("cid123", "sec456", "https://my.ctrader.com")
-    assert url.startswith("https://openapi.ctrader.com/apps/auth?")
+    # Docs-canonical consent endpoint (help.ctrader.com/open-api/
+    # account-authentication/), mobile-friendly via product=web.
+    assert url.startswith("https://id.ctrader.com/my/settings/openapi/grantingaccess?")
     assert "client_id=cid123" in url
     assert "scope=trading" in url
-    assert "redirect_uri=" in url
+    # redirect_uri is URL-encoded
+    assert "redirect_uri=https%3A%2F%2Fmy.ctrader.com" in url
+    assert "product=web" in url
 
 
 @SKIP_NO_SDK

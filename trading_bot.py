@@ -1979,9 +1979,9 @@ def _ctrader_do_auth(args, ct):
     if not (creds.get("client_id") and creds.get("client_secret")):
         print("❌ CTRADER_CLIENT_ID / CTRADER_CLIENT_SECRET are not set.")
         print("   Create your API app first — see CTRADER_SETUP.md:")
-        print("   1. Log in at my.ctrader.com (QCG) → Settings → Apps & API")
-        print("   2. Create an API app, scope: 'Account info and trading'")
-        print("   3. Put these in .env:")
+        print("   1. Open the cTrader Open API portal: https://openapi.ctrader.com/apps")
+        print("   2. Add your app + a redirect URI (https://my.ctrader.com)")
+        print("   3. Put the credentials in .env:")
         print("      CTRADER_CLIENT_ID=<client id>")
         print("      CTRADER_CLIENT_SECRET=<client secret>")
         print("      CTRADER_REDIRECT_URI=https://my.ctrader.com")
@@ -2006,6 +2006,8 @@ def _ctrader_do_auth(args, ct):
                                       creds["redirect_uri"])
         print("🔐 cTrader OAuth — open this URL on your phone and authorize:")
         print("   " + url)
+        print(f"   (redirect_uri={creds['redirect_uri']} must be registered on your app:")
+        print("    openapi.ctrader.com/apps → your app → Edit → Redirect URIs → Save)")
         print("   You will be redirected to a URL ending in ?code=<AUTH_CODE>")
         print("   (even if the redirect page errors, the code is in the address bar)")
         print("   Then run:")
@@ -2058,6 +2060,27 @@ def handle_ctrader(args):
 
     if args.ctrader_auth:
         _ctrader_do_auth(args, ct)
+
+    if args.ctrader_import:
+        creds, store = ct.resolve_credentials()
+        if not (creds.get("client_id") and creds.get("client_secret")):
+            print("❌ CTRADER_CLIENT_ID / CTRADER_CLIENT_SECRET are not set in .env")
+            sys.exit(1)
+        access, refresh = (t.strip() for t in args.ctrader_import)
+        if not access or not refresh:
+            print("❌ both access and refresh tokens are required:")
+            print("   python3 trading_bot.py --ctrader-import <ACCESS> <REFRESH>")
+            sys.exit(1)
+        # Mirror the OAuth token response shape; docs default expiry is 30 days.
+        token = {"accessToken": access, "refreshToken": refresh,
+                 "tokenType": "bearer", "expiresIn": 2628000}
+        store.store_tokens(creds["client_id"], creds["client_secret"],
+                           creds["redirect_uri"], token,
+                           account_id=creds.get("account_id"),
+                           is_live=(creds.get("host") == "live"))
+        print("✅ tokens imported to data/ctrader_credentials.json "
+              f"(host={creds.get('host')})")
+        print("   next: python3 trading_bot.py --ctrader-accounts")
 
     if args.ctrader_refresh:
         creds, store = ct.resolve_credentials()
@@ -2313,6 +2336,12 @@ def handle_ctrader(args):
 
 def main():
     """Main entry point."""
+    # Load .env (cTrader, exchange keys) into os.environ before anything reads them.
+    try:
+        from secure_env_loader import load_env as _load_env
+        _load_env(verbose=False)
+    except Exception:
+        pass
     parser = argparse.ArgumentParser(
         description='Trading Bot - End-to-End Orchestrator with Solana DEX',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -2494,6 +2523,15 @@ Environment Variables for Live Trading:
         type=str,
         default=None,
         help='OAuth ?code= to exchange for access/refresh tokens'
+    )
+    parser.add_argument(
+        '--ctrader-import',
+        type=str,
+        nargs=2,
+        default=None,
+        metavar=('ACCESS_TOKEN', 'REFRESH_TOKEN'),
+        help='Import cTrader tokens obtained manually (e.g. from the Open API '
+             'portal Playground at openapi.ctrader.com/apps) into the token store'
     )
     parser.add_argument(
         '--ctrader-refresh',
@@ -2703,7 +2741,8 @@ Environment Variables for Live Trading:
 
     # cTrader Open API (QCG): status / auth / account / data / trading
     ctrader_requested = any([
-        args.ctrader_status, args.ctrader_auth, args.ctrader_refresh,
+        args.ctrader_status, args.ctrader_auth, args.ctrader_import,
+        args.ctrader_refresh,
         args.ctrader_account, args.ctrader_accounts, args.ctrader_info,
         args.ctrader_positions, args.ctrader_orders, args.ctrader_deals,
         args.ctrader_symbols, args.ctrader_quote, args.ctrader_bars,

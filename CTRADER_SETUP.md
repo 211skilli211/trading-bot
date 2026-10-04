@@ -4,7 +4,9 @@ Direct control of your cTrader account (broker: **QCG**) from this phone —
 no server hop. The connector speaks the official cTrader Open API:
 
 ```
-OAuth:      https://openapi.ctrader.com/apps/{auth,token}
+OAuth URL:  https://id.ctrader.com/my/settings/openapi/grantingaccess  (?client_id&redirect_uri&scope&product=web)
+Token:      https://openapi.ctrader.com/apps/token
+Portal:     https://openapi.ctrader.com/apps   (app CRUD + redirect URIs + Playground)
 Protobuf:   live.ctraderapi.com:5035   (or demo.ctraderapi.com:5035)  [TLS]
 ```
 
@@ -30,18 +32,24 @@ not 26.1.0.)
 
 ## 2. Create the API app (one-time, ~5 minutes)
 
-1. Log in at **my.ctrader.com** with your QCG account (webtrader).
-2. Open **Settings → Apps & API** (or the developer portal at
-   api.ctrader.com) → **API Apps** → create a new app.
-3. Name it e.g. `clever-curie`, set the redirect URI to
-   `https://my.ctrader.com`, and grant the scope
-   **“Account info and trading”** (you need both: read *and* trade).
-4. Copy the **Client ID** and **Client Secret**.
+The app portal is **openapi.ctrader.com** (a separate site from
+my.ctrader.com — log in with the same cTrader ID):
 
-> Note: newly created apps requesting the *trading* scope may go through a
-> short cTrader review (up to 1–3 business days) before they can authorize.
-> If QCG already provides API-app credentials for their clients, use those
-> instead and skip creation.
+1. Open **https://openapi.ctrader.com/apps** and log in with your cTrader ID.
+2. **Add new app** → name it (e.g. `IBT`) → give a detailed description
+   (improves approval speed) → **Save**.
+3. Wait for the app status to become **active** (new apps with the trading
+   scope can take up to 1–3 days to clear cTrader's review; often faster).
+4. **Add a redirect URI** — a *separate step* (this is the one everyone
+   misses, including us at first): app row → **Edit** → scroll to
+   **Redirect URIs** → add `https://my.ctrader.com` → **Save**.
+   (The first/default URI is a pre-filled *playground* placeholder and does
+   **not** work for real authorisation.)
+5. Copy the **Client ID** and **Client Secret** (row → **Credentials** →
+   **View**).
+
+> Note: if QCG already provides API-app credentials for their clients, use
+> those instead and skip creation.
 
 ## 3. Store the app credentials
 
@@ -63,21 +71,43 @@ python3 trading_bot.py --ctrader-status
 It reports SDK health, endpoint reachability, what's missing, and the next
 step.
 
-## 4. Authenticate (OAuth, on the phone)
+## 4. Authenticate (on the phone)
+
+Two paths — pick one:
+
+**Path A — standard OAuth (recommended, uses the registered redirect URI)**
 
 ```bash
 # a) print the authorization URL
 python3 trading_bot.py --ctrader-auth
-# b) open that URL in your phone's browser, log in, authorize
-# c) you land on a URL ending in ?code=<AUTH_CODE>  (even if the page 404s,
-#    the code is in the address bar)
-# d) exchange it:
+# b) open that URL in your phone's browser, log in, tap Allow access
+# c) you land on a URL ending in ?code=<AUTH_CODE>  (even if the page
+#    errors, the code is in the address bar)
+# d) exchange it — the code expires after ~1 minute, paste it quickly:
 python3 trading_bot.py --ctrader-auth --ctrader-auth-code <AUTH_CODE>
+```
+
+If the consent page says *"Provided application does not contain provided
+URI"*, the app has no matching redirect URI registered — go back to
+§2 step 4 (Edit → Redirect URIs → add `https://my.ctrader.com` → Save),
+then re-run `--ctrader-auth`.
+
+**Path B — Playground (no redirect URI needed, tokens on one screen)**
+
+1. **https://openapi.ctrader.com/apps** → your app row → **Playground** button.
+2. Scope: **trading** → **Get token**.
+3. The page shows `accessToken` + `refreshToken` for your cTID — copy both:
+
+```bash
+python3 trading_bot.py --ctrader-import <ACCESS_TOKEN> <REFRESH_TOKEN>
 ```
 
 Tokens are saved to `data/ctrader_credentials.json` (chmod 600, git-ignored):
 `access_token`, `refresh_token`, expiry. The connector auto-refreshes the
-access token before each session; force it anytime with `--ctrader-refresh`.
+access token before each session (refresh works with client credentials
+only — no redirect URI involved); force it anytime with `--ctrader-refresh`.
+Access tokens live ~30 days; refresh tokens are valid indefinitely until you
+re-authorise.
 
 ## 5. Select your account
 
@@ -137,6 +167,7 @@ account's symbol table — check `--ctrader-symbols` if a size is rejected.
 |------|--------|
 | `--ctrader-status` | SDK / endpoints / credentials / next steps |
 | `--ctrader-auth [--ctrader-auth-code CODE]` | OAuth URL or code exchange |
+| `--ctrader-import ACCESS REFRESH` | Import tokens from the portal Playground |
 | `--ctrader-refresh` | Force access-token refresh |
 | `--ctrader-accounts` | List linked trading accounts |
 | `--ctrader-account ID` | Set default account |
@@ -156,7 +187,8 @@ account's symbol table — check `--ctrader-symbols` if a size is rejected.
 
 | Error | Meaning / fix |
 |-------|---------------|
-| `CH_CLIENT_AUTH_FAILURE` | Wrong/rotated Client ID or Secret — re-copy from Apps & API |
+| *"application does not contain provided URI"* | The requested redirect URI isn't registered on the app — app Edit → Redirect URIs → add it → Save (or use Path B, `--ctrader-import`) |
+| `CH_CLIENT_AUTH_FAILURE` | Wrong/rotated Client ID or Secret — re-copy from the Open API portal |
 | `CH_ACCESS_TOKEN_EXPIRED` / auth errors | Run `--ctrader-refresh`; if no refresh token, redo `--ctrader-auth` |
 | `CH_ACCOUNT_NOT_FOUND` / account errors | Wrong account id — `--ctrader-accounts` |
 | `SYMBOL_NOT_FOUND` | Symbol name differs on this broker (e.g. `EURUSD.c`) — `--ctrader-symbols` |

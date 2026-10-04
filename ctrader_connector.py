@@ -255,7 +255,17 @@ class CTraderAuth:
     def auth_url(client_id, client_secret, redirect_uri, scope="trading") -> str:
         if not CT_SDK_AVAILABLE or Auth is None:
             raise CTraderError("SDK_MISSING", CT_SDK_ERROR)
-        return Auth(client_id, client_secret, redirect_uri).getAuthUri(scope=scope)
+        # Canonical URL per cTrader Open API docs
+        # (help.ctrader.com/open-api/account-authentication/).
+        # `product=web` renders a header/footer-free consent screen, which is
+        # what we want on a phone.  Must equal a redirect URI registered on
+        # the app in the Open API portal (openapi.ctrader.com/apps).
+        from urllib.parse import quote
+        return ("https://id.ctrader.com/my/settings/openapi/grantingaccess"
+                f"?client_id={quote(client_id, safe='')}"
+                f"&redirect_uri={quote(redirect_uri, safe='')}"
+                f"&scope={scope}"
+                f"&product=web")
 
     def exchange_code(self, code: str) -> dict:
         token = self._auth.getToken(code)
