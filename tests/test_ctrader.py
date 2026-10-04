@@ -64,6 +64,32 @@ def test_volume_convention():
     assert ct.lots_from_raw(100) == 1.0
 
 
+def test_volume_convention_qcg_lot_size():
+    # QCG (verified live+demo 2026-10-05 via ExpectedMargin L_eff ==
+    # account leverage on every symbol): 1.0 lot == lotSize raw units.
+    # Live EURUSD lotSize=10,000,000 -> min 0.01 lot = 100,000 raw
+    eur = SimpleNamespace(lotSize=10_000_000)
+    assert ct.volume_for_symbol(0.01, eur) == 100_000
+    assert ct.lots_display(100_000, eur) == pytest.approx(0.01)
+    # Demo BTCUSD lotSize=100 -> min 0.01 lot = 1 raw (1 lot = 1 BTC)
+    btc_demo = SimpleNamespace(lotSize=100)
+    assert ct.volume_for_symbol(0.01, btc_demo) == 1
+    assert ct.lots_display(1, btc_demo) == pytest.approx(0.01)
+    # Without a spec the generic convention still applies
+    assert ct.lots_display(5) == pytest.approx(0.05)
+
+
+def test_summarize_trader_leverage_cents():
+    # leverageInCents = leverage x 100. QCG live: 2000 -> 1:20,
+    # demo: 20000 -> 1:200 (matches the QCG app display).
+    t20 = _mk_trader_res()
+    t20.trader.leverageInCents = 2000
+    assert ct.summarize_trader(t20)["leverage"] == 20.0
+    t200 = _mk_trader_res()
+    t200.trader.leverageInCents = 20000
+    assert ct.summarize_trader(t200)["leverage"] == 200.0
+
+
 def test_money_float():
     assert ct.money_float(1000000, 2) == 10000.0
     assert ct.money_float(12345, 0) == 12345.0

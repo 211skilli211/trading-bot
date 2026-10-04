@@ -2033,8 +2033,10 @@ def handle_ctrader(args):
             return
         _, store = ct.resolve_credentials()
         data = store.load()
-        if data.get("host", "live") == "live" and data.get("live_parked") \
-                and not args.yes:
+        # The --ctrader-demo flag (checked above) is the environment source
+        # of truth; the stored "host" is informational only and must never
+        # gate safety (a stale host=demo used to blind this lock).
+        if data.get("live_parked") and not args.yes:
             print(f"🔒 LIVE ACCOUNT PARKED — refusing {action}.")
             ts = data.get("live_parked_at")
             if ts:
@@ -2062,11 +2064,22 @@ def handle_ctrader(args):
     def session_for(account_id=None, need_account=True):
         creds, store = ct.resolve_credentials()
         ct.ensure_fresh_token(creds, store)
-        acc = account_id if account_id is not None else creds.get("account_id")
+        if account_id is None:
+            # Per-environment defaults: a LIVE account cannot be routed
+            # through the demo gateway (CANT_ROUTE) and vice versa, so
+            # NEVER cross-fall back between environments.
+            key = "account_id_demo" if args.ctrader_demo else "account_id"
+            acc = creds.get(key)
+        else:
+            acc = account_id
         if need_account and not acc:
-            print("❌ no trading account selected.")
-            print("   run: python3 trading_bot.py --ctrader-accounts")
-            print("   then: python3 trading_bot.py --ctrader-account <id>")
+            demo = args.ctrader_demo
+            print("❌ no trading account selected"
+                  + (" (demo)" if demo else "") + ".")
+            print("   run: python3 trading_bot.py --ctrader-accounts"
+                  + (" --ctrader-demo" if demo else ""))
+            print("   then: python3 trading_bot.py --ctrader-account <id>"
+                  + (" --ctrader-demo" if demo else ""))
             sys.exit(1)
         return ct.CTraderSession(creds, account_id=acc, demo=args.ctrader_demo)
 
@@ -2137,12 +2150,15 @@ def handle_ctrader(args):
     if args.ctrader_account:
         _, store = ct.resolve_credentials()
         data = store.load()
-        data["account_id"] = str(args.ctrader_account)
+        # Per-environment default accounts (a live id on the demo gateway
+        # → CANT_ROUTE, and vice versa).
         if args.ctrader_demo:
-            data["host"] = "demo"
+            data["account_id_demo"] = str(args.ctrader_account)
+        else:
+            data["account_id"] = str(args.ctrader_account)
         store.save(data)
         print(f"✅ default account set: {args.ctrader_account} "
-              f"({'demo' if args.ctrader_demo else data.get('host', 'live')})")
+              f"({'demo' if args.ctrader_demo else 'live'})")
 
     if args.ctrader_accounts:
         # App-level listing: authenticate the API app only, NOT the stored
@@ -2175,8 +2191,8 @@ def handle_ctrader(args):
         views = res[4] or {}
         _, _st = ct.resolve_credentials()
         _sd = _st.load()
-        if (not args.ctrader_demo) and _sd.get("live_parked") \
-                and _sd.get("host", "live") == "live":
+        # (stored "host" is informational only — never gates the banner)
+        if (not args.ctrader_demo) and _sd.get("live_parked"):
             print("🔒 NOTE: this LIVE account is PARKED — no orders will "
                   "go through until --ctrader-unpark")
         md = int(getattr(upnl, "moneyDigits", 2) or 2)
@@ -2301,8 +2317,9 @@ def handle_ctrader(args):
         if lots <= 0:
             print("❌ --ctrader-lots must be > 0")
             sys.exit(1)
-        creds, _ = ct.resolve_credentials()
-        host = "demo" if args.ctrader_demo else creds.get("host", "live")
+        # The --ctrader-demo flag is the environment source of truth; the
+        # stored "host" is informational only and must never gate safety.
+        host = "demo" if args.ctrader_demo else "live"
         if host == "live" and not args.yes:
             print("🛑 LIVE ORDER — refusing without explicit --yes:")
             print(f"   would send: {'BUY' if side == ct.SIDE_BUY else 'SELL'} "
@@ -2325,7 +2342,7 @@ def handle_ctrader(args):
             mn, st, mx = int(spec.minVolume), int(spec.stepVolume), int(spec.maxVolume)
             print(f"   volume: {lots} lots = {raw} raw units "
                   f"(min {mn} / step {st} / max {mx}; "
-                  f"1.0 lot = {int(spec.lotSize) // 100} units)")
+                  f"1.0 lot = {int(spec.lotSize)} units)")
 
             req = CTMSG.ProtoOAExpectedMarginReq(
                 ctidTraderAccountId=s._acct(), symbolId=int(spec.symbolId))
@@ -2908,9 +2925,10 @@ Environment Variables for Live Trading:
         default=0.01,
         help='Order size in lots for --ctrader-buy/--ctrader-sell. '
              'Lots are converted to raw volume via the symbol contract '
-             '(QCG: 1.0 lot = lotSize/100 raw units, e.g. EURUSD 1 lot = '
-             '10,000 EUR; BTCUSD 1 lot = 1 BTC). Must satisfy the symbol\'s '
-             'min/step/max volume.'
+             '(QCG: 1.0 lot = lotSize raw units, e.g. EURUSD 1 lot = '
+             '100,000 EUR, min order 0.01 lot; BTCUSD live 1 lot = 10 BTC, '
+             'demo 1 lot = 1 BTC). Must satisfy the symbol\'s min/step/max '
+             'volume.'
     )
     parser.add_argument(
         '--ctrader-sl',

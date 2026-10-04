@@ -139,9 +139,9 @@ def volume_raw(lots) -> int:
     """lots -> int64 volume (1 lot == 100, 0.01-lot granularity).
 
     This is the generic convention from the official Spotware sample
-    (`int(volume) * 100`).  Brokers with custom contract sizes (e.g. QCG)
-    define 1.0 lot = lotSize/100 raw units instead — use
-    volume_for_symbol() with the symbol's full spec there.
+    (`int(volume) * 100`).  Brokers with custom contract sizes (e.g. QCG:
+    1.0 lot == lotSize raw units) differ — use volume_for_symbol() with
+    the symbol's full spec there.
     """
     return int(round(float(lots) * 100))
 
@@ -153,29 +153,35 @@ def lots_from_raw(raw) -> float:
 def lots_display(raw, spec=None) -> float:
     """Raw volume -> lots for display, honoring the symbol's contract size.
 
-    With a full spec (or joined view) carrying `lotSize`: lots = raw*100/lotSize
-    (verified QCG convention: 1.0 lot == lotSize/100 raw units).  Without a
+    With a full spec (or joined view) carrying `lotSize`: lots = raw/lotSize
+    (verified QCG convention: 1.0 lot == lotSize raw units).  Without a
     spec, falls back to the generic 1 lot == 100 raw units.
     """
     if spec is not None:
         ls = int(getattr(spec, "lotSize", 0) or 0)
         if ls > 0:
-            return int(raw) * 100.0 / ls
+            return int(raw) / ls
     return int(raw) / 100.0
 
 
 def volume_for_symbol(lots, spec) -> int:
     """Raw int64 volume for `lots` on a symbol with the given full spec.
 
-    Verified on QCG (all 7 enabled symbols): the `lotSize` field equals
-    100 x (raw units per 1.0 lot), so 1.0 lot == lotSize/100 raw units:
-        EURUSD lotSize=10,000,000 -> 1 lot = 100,000 units = 10,000 EUR
-        BTCUSD lotSize=1,000      -> 1 lot = 10 units = 1 BTC
-        ETHUSD lotSize=100,000    -> 1 lot = 1,000 units = 100 ETH
+    Verified on QCG (all enabled symbols, live AND demo, re-verified
+    2026-10-05 via ExpectedMargin L_eff == account leverage on every
+    symbol): 1.0 lot == lotSize raw units, i.e. raw = lots * lotSize:
+        EURUSD lotSize=10,000,000 -> 1 lot = 100,000 EUR (std FX contract)
+        XAUUSD lotSize=10,000     -> 1 lot = 100 oz gold
+        BTCUSD live  lotSize=1,000 -> 1 lot = 10 BTC
+        BTCUSD demo  lotSize=100   -> 1 lot = 1 BTC (demo contracts differ!)
+        ETHUSD live  lotSize=100,000 -> 1 lot = 1,000 ETH
+        ETHUSD demo  lotSize=100     -> 1 lot = 1 ETH
+        US30   lotSize=10,000     -> 1 lot = 100 index points
+    minVolume therefore corresponds to 0.01 lot (0.10 lot for BCHUSD).
     Check the result against minVolume/stepVolume/maxVolume with
     check_volume() before sending.
     """
-    return int(round(float(lots) * int(spec.lotSize) / 100.0))
+    return int(round(float(lots) * int(spec.lotSize)))
 
 
 def check_volume(spec, raw) -> None:
@@ -267,8 +273,10 @@ def resolve_credentials(path: str = None) -> tuple:
     """Merge file store + environment into a credentials dict.
 
     Returns (creds, TokenStore).  creds keys: client_id, client_secret,
-    redirect_uri, access_token, refresh_token, account_id, host,
-    access_token_expires_at, missing (list of required-but-absent keys).
+    redirect_uri, access_token, refresh_token, account_id,
+    account_id_demo (per-environment defaults), host (informational
+    only), access_token_expires_at, missing (list of required-but-
+    absent keys).
     """
     store = TokenStore(path)
     data = store.load()
@@ -282,6 +290,8 @@ def resolve_credentials(path: str = None) -> tuple:
         "access_token": env.get("CTRADER_ACCESS_TOKEN") or data.get("access_token"),
         "refresh_token": env.get("CTRADER_REFRESH_TOKEN") or data.get("refresh_token"),
         "account_id": env.get("CTRADER_ACCOUNT_ID") or data.get("account_id"),
+        "account_id_demo": (env.get("CTRADER_ACCOUNT_ID_DEMO")
+                            or data.get("account_id_demo")),
         "host": (env.get("CTRADER_HOST") or data.get("host") or "live").lower(),
         "access_token_expires_at": int(data.get("access_token_expires_at") or 0),
     }
@@ -292,7 +302,11 @@ def resolve_credentials(path: str = None) -> tuple:
 
 
 def host_for(creds: dict, demo_flag: bool = False) -> tuple:
-    host_type = "demo" if demo_flag else creds.get("host", "live")
+    # The demo flag is the source of truth for the environment; the
+    # stored/env "host" is informational only and must never select a
+    # gateway (a stale host=demo used to route live commands to the
+    # demo host and blind the CLI's safety gates).
+    host_type = "demo" if demo_flag else "live"
     if host_type not in ("live", "demo"):
         host_type = "live"
     if not CT_SDK_AVAILABLE or EndPoints is None:
@@ -922,9 +936,11 @@ def summarize_trader(res) -> dict:
         "trader_login": t.traderLogin,
         "balance": round(money_float(t.balance, md), 2),
         "money_digits": md,
-        # leverageInCents: 2000 <-> 1:200 on QCG (verified against
-        # ExpectedMargin: notional == margin * 200).
-        "leverage": lev / 10 if lev else t.maxLeverage,
+        # leverageInCents: leverage x 100 ("cents").  Verified 2026-10-05:
+        # QCG live = 2000 -> 1:20, demo = 20000 -> 1:200 (matches the QCG
+        # app display), and ExpectedMargin L_eff == this leverage on every
+        # symbol of both accounts (margin engine = account leverage).
+        "leverage": lev / 100.0 if lev else t.maxLeverage,
         "account_type": _enum_name(t, "accountType"),
         "broker": t.brokerName,
         "swap_free": t.swapFree,

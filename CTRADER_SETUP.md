@@ -16,9 +16,16 @@ Verified on this phone:
   service-identity 24.2.0); fake credentials rejected cleanly with
   `CH_CLIENT_AUTH_FAILURE`.
 - **2026-10-04**: full pipeline wired to the **live QCG account 47848046**
-  ($10, 1:200, HEDGED): OAuth, account listing, balance, symbol specs, spot
+  ($10, 1:20, HEDGED): OAuth, account listing, balance, symbol specs, spot
   quotes, H1 bars, ExpectedMargin — all live-verified. Unit conventions and
   QCG contract sizes in §9/§10 below.
+- **2026-10-05**: **demo account 49028696** ($10,000, 1:200, HEDGED) wired
+  as the strategy lab. Leverage decoding corrected (`leverageInCents` ÷ 100,
+  not ÷ 10: live = 2000 → 1:20, demo = 20000 → 1:200, matching the QCG app)
+  and the QCG volume convention corrected (1.0 lot = `lotSize` raw units,
+  not `lotSize/100` — both were 10× off, self-masking). Environment
+  selection is flag-driven (`--ctrader-demo`) with per-environment default
+  accounts; the stored `host` is informational only.
 
 ## 1. Dependencies (already installed on this phone)
 
@@ -151,7 +158,8 @@ python3 trading_bot.py --ctrader-close <POSITION_ID> [--close-lots 0.5]
 ```
 
 (Lots are converted to raw volume via the symbol's contract — on QCG,
-`--ctrader-lots 1` for EURUSD = 100,000 raw units = 10,000 EUR. See §10.)
+`--ctrader-lots 1` for EURUSD = 10,000,000 raw units = 100,000 EUR;
+the minimum order is 0.01 lot = 1,000 EUR. See §10.)
 
 Every order runs a **local preflight before anything is sent**: volume is
 checked against the symbol's min/step/max, then ExpectedMargin + balance +
@@ -184,24 +192,33 @@ python3 trading_bot.py --ctrader-info --ctrader-demo # balance $10,000 virtual
 - **Never** mix environments: a LIVE account id on the demo host (or vice
   versa) fails with `CANT_ROUTE_REQUEST`.
 
-## 9. QCG account & symbol facts (verified live 2026-10-04)
+## 9. QCG account & symbol facts (verified live 2026-10-04/05)
 
-- Live account **47848046** (traderLogin 8008440), HEDGED, **1:200**
-  (`leverageInCents=2000` ÷ 10; confirmed by ExpectedMargin: notional =
-  margin × 200).
-- Reference prices that day: BTC $84.8k · ETH $2,693 · BCH $315.8 · EURUSD
-  1.1251 · XAU $4,142.7 · US30 51,163.
+- Live account **47848046** (traderLogin 8008440), HEDGED, **1:20**
+  (`leverageInCents=2000` ÷ 100; the margin engine applies the account
+  leverage exactly — ExpectedMargin L_eff ≈ 20 on every live symbol).
+- Demo account **49028696** (traderLogin 6004342), HEDGED, **1:200**,
+  $10,000 (`leverageInCents=20000` ÷ 100; L_eff ≈ 200 on every demo symbol).
+  Demo and live carry **different symbol contracts** (demo is fractional:
+  BTC 1 lot = 1 BTC vs live 10 BTC; ETH 1 lot = 1 ETH vs live 1,000 ETH;
+  US30 absent; demo stepVolume far finer).
+- Reference prices 2026-10-05: BTC $85.3k (live) · ETH $2,698 · EURUSD
+  1.1251 · XAU $4,142.7 · US30 51,163.6. Demo crypto quotes can differ
+  slightly (demo order book).
 - Forex (EURUSD/XAU/US30) is **closed weekends** — spot events return the
   last session quote (stale timestamp). Crypto (BTC/ETH/BCH) trades 24/7.
 
-| Symbol | 1.0 lot (raw units) | Min order | Min margin (USD) |
-|--------|--------------------:|----------:|-----------------:|
-| EURUSD / EURGBP | 100,000 u = 10,000 EUR | 1 lot | **$56.28** |
-| XAUUSD | 100 u = 10 oz | 1 lot | $207.21 |
-| BTCUSD | 10 u = **1 BTC** | 1 lot | $424.20 |
-| ETHUSD | 1,000 u = 100 ETH | 1 lot | $1,347.73 |
-| BCHUSD | 1,000 u = 100 BCH | 10 lots (=1,000 BCH) | $1,590.75 |
-| US30 | 100 u = 10 index u | 1 lot | $2,558.33 |
+| Symbol | 1.0 lot | Min order | Min margin live (1:20) |
+|--------|---------|----------:|-----------------------:|
+| EURUSD / EURGBP | 100,000 EUR | 0.01 lot (1,000 EUR) | **$56.28** |
+| XAUUSD | 100 oz | 0.01 lot (1 oz) | $207.21 |
+| BTCUSD | 10 BTC | 0.01 lot (0.1 BTC) | $426.50 |
+| ETHUSD | 1,000 ETH | 0.01 lot (10 ETH) | $1,350.19 |
+| BCHUSD | 1,000 BCH | 0.10 lot (100 BCH) | $1,595.35 |
+| US30 | 100 index pts | 0.01 lot (1 pt) | $2,558.33 |
+
+Demo min margins (1:200, fractional contracts): EURUSD $5.58 · XAUUSD
+$20.72 · BTCUSD $3.19 (0.01 BTC) · ETHUSD $0.13 (0.01 ETH).
 
 ## 10. Unit conventions (IMPORTANT — protocol constants, not per-symbol)
 
@@ -214,7 +231,7 @@ Getting these wrong produces silently-off prices or rejected orders.
 | bar deltas | `Trendbar.low` absolute; `open/high/close = low + delta{Open,High,Close}` (all 1e5) | float |
 | order/position/execution prices | **plain `double`** (NOT fixed-point): `limitPrice`, `stopLoss`, `takeProfit`, `executionPrice` | float price |
 | relative SL/TP | int64 in 1/100000 of a price (1e5 scale) | — |
-| volume | int64 raw units. **QCG: 1.0 lot = lotSize/100 raw units** (generic sample convention is 1 lot = 100). Must satisfy per-symbol `minVolume`/`stepVolume`/`maxVolume`. | lots (float) via `volume_for_symbol(lots, spec)` |
+| volume | int64 raw units. **QCG: 1.0 lot = `lotSize` raw units**, i.e. `raw = lots × lotSize` (generic sample convention is 1 lot = 100; QCG `minVolume` = 0.01 lot on most symbols, 0.10 live BCHUSD). Must satisfy per-symbol `minVolume`/`stepVolume`/`maxVolume`. | lots (float) via `volume_for_symbol(lots, spec)` |
 | money | int64, smallest currency unit (USD = cents) | dollars (`/10**moneyDigits`) |
 | time | int64 ms since epoch (bars: `utcTimestampInMinutes` = minutes) | UTC |
 
@@ -248,7 +265,7 @@ trades on the QCG demo account (§8) before funding live.
 | `--ctrader-import ACCESS REFRESH` | Import tokens from the portal Playground |
 | `--ctrader-refresh` | Force access-token refresh |
 | `--ctrader-accounts` | List linked trading accounts |
-| `--ctrader-account ID` | Set default account |
+| `--ctrader-account ID` | Set default account (live; add `--ctrader-demo` to set the demo default) |
 | `--ctrader-info` | Balance / equity / unrealized PnL / positions |
 | `--ctrader-positions` | Open positions + pending orders |
 | `--ctrader-orders` | Pending orders |
@@ -271,7 +288,7 @@ trades on the QCG demo account (§8) before funding live.
 | `CH_ACCOUNT_NOT_FOUND` / account errors | Wrong account id — `--ctrader-accounts` |
 | `SYMBOL_NOT_FOUND` | Symbol name differs on this broker (e.g. `EURUSD.c`) — `--ctrader-symbols` |
 | `CONNECT_TIMEOUT` | Network drop — check connectivity, retry |
-| `CANT_ROUTE_REQUEST` | Account-auth for an account that doesn't exist in this environment — usually a LIVE id on the demo host or vice-versa. List accounts on the matching host and set the right id (§8). |
+| `CANT_ROUTE_REQUEST` | Account-auth for an account that doesn't exist in this environment — usually a LIVE id on the demo host or vice-versa, or a missing per-environment default. List accounts (`--ctrader-accounts [--ctrader-demo]`) and set the right default for that environment (`--ctrader-account <id> [--ctrader-demo]`). |
 | `ACCESS_DENIED` on code exchange | Auth code expired (>~60 s) or already used — re-authorize and paste faster, or use Playground import (Path B) |
 | `TRADING_BAD_VOLUME` | Raw volume not a multiple of `stepVolume` / below `minVolume` — use the QCG contract size (§10); `--ctrader-lots` is converted via `volume_for_symbol` |
 | `INSUFFICIENT_MARGIN` (local preflight) | Order's expected margin exceeds free margin — add funds or reduce size (§11) |
