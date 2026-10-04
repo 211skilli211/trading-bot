@@ -189,6 +189,15 @@ python3 trading_bot.py --ctrader-account <DEMO_ID> --ctrader-demo
 python3 trading_bot.py --ctrader-info --ctrader-demo # balance $10,000 virtual
 ```
 
+- **⚠️ The QCG demo book is STATIC (verified 2026-10-05).** Demo spot and
+  bar data are frozen (newest demo quote timestamp 2024-09-26; demo BTC
+  ~$63.7k while live BTC was ~$85.3k the same day). Market and limit orders
+  are **accepted then CANCELLED by the engine with no fill** (market
+  1056040, limit at the frozen ask 1056041 — see
+  `research/probe_demo_matching.py`). So the demo is an account/margin
+  plumbing lab, **not** a live strategy-rehearsal venue: strategy testing
+  happens in the backtester (real/synthetic data) or the Polymarket live
+  loop; demo orders can at most exercise the accept/cancel pipeline.
 - **Never** mix environments: a LIVE account id on the demo host (or vice
   versa) fails with `CANT_ROUTE_REQUEST`.
 
