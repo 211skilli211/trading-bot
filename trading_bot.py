@@ -2017,6 +2017,10 @@ def _ctrader_do_auth(args, ct):
 def handle_ctrader(args):
     """Run all requested --ctrader-* actions, in order."""
     import ctrader_connector as ct
+    try:
+        from ctrader_open_api.messages import OpenApiMessages_pb2 as CTMSG
+    except Exception:  # pragma: no cover - SDK absent
+        CTMSG = None
 
     def session_for(account_id=None, need_account=True):
         creds, store = ct.resolve_credentials()
@@ -2029,25 +2033,27 @@ def handle_ctrader(args):
             sys.exit(1)
         return ct.CTraderSession(creds, account_id=acc, demo=args.ctrader_demo)
 
-    def resolve_symbols_step(s, r):
-        """Dynamic step: fetch full symbols for ids referenced in r[-1]."""
-        refs = r[-1]
+    def _collect_symbol_ids(results):
         ids = set()
-        for pos in getattr(refs, "position", ()):
-            ids.add(int(pos.tradeData.symbolId))
-        for o in getattr(refs, "order", ()):
-            ids.add(int(o.tradeData.symbolId))
-        for d in getattr(refs, "deal", ()):
-            ids.add(int(d.symbolId))
+        for r in results:
+            for pos in getattr(r, "position", ()):
+                ids.add(int(pos.tradeData.symbolId))
+            for o in getattr(r, "order", ()):
+                ids.add(int(o.tradeData.symbolId))
+            for d in getattr(r, "deal", ()):
+                ids.add(int(d.symbolId))
+        return sorted(ids)
+
+    def symbol_view_step(s, results):
+        """Dynamic step: full symbol specs + names for ids in prior results.
+
+        The full ProtoOASymbol model has no symbolName field, so fetch the
+        light list (names) and join — resolves to {symbolId: view}.
+        """
+        ids = _collect_symbol_ids(results)
         if not ids:
             return None
-        return s.symbols_by_id(sorted(ids))
-
-    def symbols_from(res, idx):
-        obj = res[idx]
-        if not obj:
-            return {}
-        return {int(x.symbolId): x for x in obj.symbol}
+        return s.joined_symbol_views(ids)
 
     def fmt_ts(ms):
         try:
@@ -2102,7 +2108,13 @@ def handle_ctrader(args):
               f"({'demo' if args.ctrader_demo else data.get('host', 'live')})")
 
     if args.ctrader_accounts:
-        s = session_for(account_id=None, need_account=False)
+        # App-level listing: authenticate the API app only, NOT the stored
+        # account — a LIVE account cannot be routed through the demo host
+        # (CANT_ROUTE), and vice versa.
+        creds, store = ct.resolve_credentials()
+        ct.ensure_fresh_token(creds, store)
+        s = ct.CTraderSession(creds, demo=args.ctrader_demo,
+                              use_default_account=False)
         res = s.execute([lambda s, r: s.account_list()])
         rows = ct.summarize_account_list(res[1])
         if not rows:
@@ -2119,9 +2131,11 @@ def handle_ctrader(args):
         s = session_for()
         res = s.execute([lambda s, r: s.trader_info(),
                          lambda s, r: s.open_positions(),
-                         lambda s, r: s.unrealized_pnl()])
+                         lambda s, r: s.unrealized_pnl(),
+                         symbol_view_step])
         trader = ct.summarize_trader(res[1])
         recon, upnl = res[2], res[3]
+        views = res[4] or {}
         md = int(getattr(upnl, "moneyDigits", 2) or 2)
         upnl_sum = sum(p.grossUnrealizedPnL for p in upnl.positionUnrealizedPnL)
         equity = trader["balance"] + ct.money_float(upnl_sum, md)
@@ -2130,7 +2144,7 @@ def handle_ctrader(args):
         print(f"   balance: ${trader['balance']:,.2f}   "
               f"equity: ${equity:,.2f}   "
               f"unrealized PnL: ${ct.money_float(upnl_sum, md):,.2f}")
-        positions = [ct.summarize_position(p) for p in recon.position]
+        positions = [ct.summarize_position(p, views) for p in recon.position]
         if positions:
             for p in positions:
                 print(f"   📌 {p['symbol']} {p['side']} {p['volume_lots']} lots "
@@ -2141,11 +2155,11 @@ def handle_ctrader(args):
     if args.ctrader_positions:
         s = session_for()
         res = s.execute([lambda s, r: s.open_positions(),
-                         lambda s, r: resolve_symbols_step(s, r)])
-        symbols = symbols_from(res, 2)
+                         symbol_view_step])
+        views = res[2] or {}
         recon = res[1]
-        positions = [ct.summarize_position(p, symbols) for p in recon.position]
-        orders = [ct.summarize_order(o, symbols) for o in recon.order]
+        positions = [ct.summarize_position(p, views) for p in recon.position]
+        orders = [ct.summarize_order(o, views) for o in recon.order]
         if not positions and not orders:
             print("📭 no open positions or pending orders")
         for p in positions:
@@ -2161,9 +2175,9 @@ def handle_ctrader(args):
     if args.ctrader_orders:
         s = session_for()
         res = s.execute([lambda s, r: s.open_orders(),
-                         lambda s, r: resolve_symbols_step(s, r)])
-        symbols = symbols_from(res, 2)
-        orders = [ct.summarize_order(o, symbols) for o in res[1].order]
+                         symbol_view_step])
+        views = res[2] or {}
+        orders = [ct.summarize_order(o, views) for o in res[1].order]
         if not orders:
             print("📭 no pending orders")
         for o in orders:
@@ -2176,9 +2190,9 @@ def handle_ctrader(args):
         n = args.ctrader_deals or 20
         s = session_for()
         res = s.execute([lambda s, r: s.deal_list(max_rows=n),
-                         lambda s, r: resolve_symbols_step(s, r)])
-        symbols = symbols_from(res, 2)
-        deals = [ct.summarize_deal(d, symbols) for d in res[1].deal]
+                         symbol_view_step])
+        views = res[2] or {}
+        deals = [ct.summarize_deal(d, views) for d in res[1].deal]
         deals.sort(key=lambda d: d["executed_ms"], reverse=True)
         if not deals:
             print(f"📭 no deals in the last 30 days")
@@ -2208,10 +2222,12 @@ def handle_ctrader(args):
             return s.spot_snapshot(ids, wait_seconds=args.ctrader_wait)
 
         res = s.execute(steps + [spot_step], hard_timeout=90)
-        for q in ct.summarize_quotes(res[3], box["full"]):
+        views = ct.join_symbol_views(box)
+        quotes = ct.summarize_quotes(res[3], views)
+        for q in quotes:
             print(f"  {q['symbol']:<12} bid={q['bid']}  ask={q['ask']}  "
                   f"spread={q['spread']}  ({fmt_ts(q['ts_ms'])} UTC)")
-        got = set(q["symbol"] for q in ct.summarize_quotes(res[3], box["full"]))
+        got = {ct.normalize_name(q["symbol"]) for q in quotes}
         want = {ct.normalize_name(n) for n in names}
         for w in sorted(want - got):
             print(f"  ⚠️  no quote received for {w} (symbol inactive or market closed)")
@@ -2226,8 +2242,8 @@ def handle_ctrader(args):
                                      count=args.ctrader_count)
 
         res = s.execute(steps + [bars_step], hard_timeout=120)
-        sym = next(iter(box["full"].values()))
-        bars = ct.summarize_bars(res[3], int(sym.digits))
+        sym = next(iter(ct.join_symbol_views(box).values()))
+        bars = ct.summarize_bars(res[3])
         print(f"📈 {sym.symbolName} {args.ctrader_period.upper()} — "
               f"{len(bars)} bars (most recent last)")
         for b in bars[-20:]:
@@ -2258,15 +2274,58 @@ def handle_ctrader(args):
         s = session_for()
         steps, box = s.symbol_steps([symbol])
 
-        def order_step(s, r):
-            sym = next(iter(box["full"].values()))
-            return s.place_order(
-                sym.symbolId, side, lots,
-                stop_loss=args.ctrader_sl, take_profit=args.ctrader_tp,
-                comment=args.ctrader_comment or "clever-curie",
-                client_order_id="cli-%d" % int(time.time()))
+        def order_flow_step(s, r):
+            spec = next(iter(box["full"].values()))
+            raw = ct.volume_for_symbol(lots, spec)
+            ct.check_volume(spec, raw)
+            mn, st, mx = int(spec.minVolume), int(spec.stepVolume), int(spec.maxVolume)
+            print(f"   volume: {lots} lots = {raw} raw units "
+                  f"(min {mn} / step {st} / max {mx}; "
+                  f"1.0 lot = {int(spec.lotSize) // 100} units)")
 
-        res = s.execute(steps + [order_step], hard_timeout=90)
+            req = CTMSG.ProtoOAExpectedMarginReq(
+                ctidTraderAccountId=s._acct(), symbolId=int(spec.symbolId))
+            req.volume.extend([raw])
+            d = s._ok(s._send(req, timeout=10))
+
+            def after_margin(mres):
+                box["need_raw"] = mres.margin[0].buyMargin \
+                    if side == ct.SIDE_BUY else mres.margin[0].sellMargin
+                box["need_md"] = int(mres.moneyDigits or 2)
+                return s.trader_info()
+
+            def after_trader(tres):
+                t = tres.trader
+                box["bal"] = ct.money_float(
+                    t.balance, int(getattr(t, "moneyDigits", 2) or 2))
+                box["need"] = ct.money_float(box["need_raw"], box["need_md"])
+                return s.open_positions()
+
+            def after_pos(pres):
+                used = 0.0
+                for p in pres.position:
+                    used += ct.money_float(
+                        p.usedMargin, int(getattr(p, "moneyDigits", 2) or 2))
+                free = box["bal"] - used
+                print(f"   preflight: margin needed ${box['need']:,.2f}, "
+                      f"free ${free:,.2f} "
+                      f"(balance ${box['bal']:,.2f}, used ${used:,.2f})")
+                if box["need"] > free:
+                    raise ct.CTraderError(
+                        "INSUFFICIENT_MARGIN",
+                        f"order needs ${box['need']:,.2f} margin but free "
+                        f"margin is ${free:,.2f} — add funds or reduce size")
+                return s.place_order(
+                    int(spec.symbolId), side, raw,
+                    stop_loss=args.ctrader_sl, take_profit=args.ctrader_tp,
+                    comment=args.ctrader_comment or "clever-curie",
+                    client_order_id="cli-%d" % int(time.time()))
+
+            return (d.addCallback(after_margin)
+                       .addCallback(after_trader)
+                       .addCallback(after_pos))
+
+        res = s.execute(steps + [order_flow_step], hard_timeout=90)
         execs = ct.summarize_executions(res[3])
         print(f"✅ order sent on {host}: {'BUY' if side == ct.SIDE_BUY else 'SELL'} "
               f"{lots} lots {symbol} (market)")
@@ -2299,10 +2358,11 @@ def handle_ctrader(args):
 
     if args.ctrader_close:
         s = session_for()
+        close_box = {}
 
         def close_step(s, r):
             recon = s.open_positions()
-            d = recon
+
             def pick(res_):
                 target = None
                 for p in res_.position:
@@ -2313,10 +2373,24 @@ def handle_ctrader(args):
                     raise ct.CTraderError(
                         "POSITION_NOT_FOUND",
                         f"no open position with id {args.ctrader_close}")
-                lots = args.close_lots if args.close_lots is not None \
-                    else ct.lots_from_raw(target.tradeData.volume)
-                return s.close_position(target.positionId, lots=lots)
-            return d.addCallback(pick)
+                close_box["target"] = target
+                return s.joined_symbol_views([target.tradeData.symbolId])
+
+            def do_close(views):
+                target = close_box["target"]
+                if args.close_lots is not None:
+                    spec = (views or {}).get(int(target.tradeData.symbolId))
+                    raw = ct.volume_for_symbol(args.close_lots, spec) \
+                        if spec else ct.volume_raw(args.close_lots)
+                    if spec:
+                        ct.check_volume(spec, raw)
+                    print(f"   closing {args.close_lots} lots = {raw} raw units")
+                    return s.close_position(target.positionId, volume=raw)
+                print(f"   closing whole position "
+                      f"({ct.lots_display(target.tradeData.volume)} lots)")
+                return s.close_position(target.positionId)
+
+            return recon.addCallback(pick).addCallback(do_close)
 
         res = s.execute([close_step], hard_timeout=90)
         execs = ct.summarize_executions(res[1])
@@ -2629,7 +2703,11 @@ Environment Variables for Live Trading:
         '--ctrader-lots',
         type=float,
         default=0.01,
-        help='Order size in lots for --ctrader-buy/--ctrader-sell (default: 0.01)'
+        help='Order size in lots for --ctrader-buy/--ctrader-sell. '
+             'Lots are converted to raw volume via the symbol contract '
+             '(QCG: 1.0 lot = lotSize/100 raw units, e.g. EURUSD 1 lot = '
+             '10,000 EUR; BTCUSD 1 lot = 1 BTC). Must satisfy the symbol\'s '
+             'min/step/max volume.'
     )
     parser.add_argument(
         '--ctrader-sl',

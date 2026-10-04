@@ -15,11 +15,17 @@ Session flow (verified against the Spotware console sample):
     4. ProtoOAAccountAuthReq(account_id, access_token)
     5. request/response + push events (spot, execution, error, margin)
 
-Unit conventions (cTrader Open API):
-    - spot prices:  fixed-point int64/uint64, raw = price * 10**digits
-    - bar prices:   Trendbar.low is absolute;
+Unit conventions (cTrader Open API, per official OpenApiMessages.proto):
+    - spot prices:  fixed-point, raw = price * 1e5 (PROTOCOL scale —
+                    "1/100000 of unit of a price"; NOT the symbol digits
+                    field, which is display precision only)
+    - bar prices:   Trendbar.low is absolute (same 1e5 scale);
                     open/high/close = low + delta{Open,High,Close}
-    - volume:       int64, 1 lot == 100 (0.01-lot granularity)
+    - order/position prices in requests & models: plain double
+    - relative SL/TP: int64 in 1/100000 of a price (same 1e5 scale)
+    - volume:       int64, 1 lot == 100 (0.01-lot granularity); must
+                    respect per-symbol minVolume/stepVolume (verify with
+                    ProtoOAExpectedMarginReq before placing orders)
     - money:        int64 in smallest currency unit (USD -> cents;
                     divide by 10**money_digits)
     - timestamps:   int64 milliseconds since epoch (except bar
@@ -112,23 +118,80 @@ class CTraderError(Exception):
 # ---------------------------------------------------------------------------
 # Unit helpers
 # ---------------------------------------------------------------------------
-def price_raw(price, digits) -> int:
-    """float price -> fixed-point int (price * 10**digits)."""
-    return int(round(float(price) * (10 ** int(digits))))
+# Per the official OpenApiMessages.proto (spotware/openapi-proto-messages):
+# all fixed-point prices (spot bid/ask, trendbars, relative SL/TP) are
+# "specified in 1/100000 of unit of a price" — a PROTOCOL-constant scale,
+# NOT the symbol's `digits` field (that is display precision only).
+PRICE_SCALE = 100000
 
 
-def price_float(raw, digits) -> float:
-    """fixed-point int -> float price."""
-    return int(raw) / (10.0 ** int(digits))
+def price_raw(price) -> int:
+    """float price -> fixed-point int (price * 1e5, protocol scale)."""
+    return int(round(float(price) * PRICE_SCALE))
+
+
+def price_float(raw) -> float:
+    """fixed-point int (1e5 scale) -> float price."""
+    return int(raw) / PRICE_SCALE
 
 
 def volume_raw(lots) -> int:
-    """lots -> int64 volume (1 lot == 100, 0.01-lot granularity)."""
+    """lots -> int64 volume (1 lot == 100, 0.01-lot granularity).
+
+    This is the generic convention from the official Spotware sample
+    (`int(volume) * 100`).  Brokers with custom contract sizes (e.g. QCG)
+    define 1.0 lot = lotSize/100 raw units instead — use
+    volume_for_symbol() with the symbol's full spec there.
+    """
     return int(round(float(lots) * 100))
 
 
 def lots_from_raw(raw) -> float:
     return int(raw) / 100.0
+
+
+def lots_display(raw, spec=None) -> float:
+    """Raw volume -> lots for display, honoring the symbol's contract size.
+
+    With a full spec (or joined view) carrying `lotSize`: lots = raw*100/lotSize
+    (verified QCG convention: 1.0 lot == lotSize/100 raw units).  Without a
+    spec, falls back to the generic 1 lot == 100 raw units.
+    """
+    if spec is not None:
+        ls = int(getattr(spec, "lotSize", 0) or 0)
+        if ls > 0:
+            return int(raw) * 100.0 / ls
+    return int(raw) / 100.0
+
+
+def volume_for_symbol(lots, spec) -> int:
+    """Raw int64 volume for `lots` on a symbol with the given full spec.
+
+    Verified on QCG (all 7 enabled symbols): the `lotSize` field equals
+    100 x (raw units per 1.0 lot), so 1.0 lot == lotSize/100 raw units:
+        EURUSD lotSize=10,000,000 -> 1 lot = 100,000 units = 10,000 EUR
+        BTCUSD lotSize=1,000      -> 1 lot = 10 units = 1 BTC
+        ETHUSD lotSize=100,000    -> 1 lot = 1,000 units = 100 ETH
+    Check the result against minVolume/stepVolume/maxVolume with
+    check_volume() before sending.
+    """
+    return int(round(float(lots) * int(spec.lotSize) / 100.0))
+
+
+def check_volume(spec, raw) -> None:
+    """Raise CTraderError(BAD_VOLUME) if raw volume breaks min/step/max."""
+    mn, st, mx = int(spec.minVolume), int(spec.stepVolume), int(spec.maxVolume)
+    problems = []
+    if raw < mn:
+        problems.append(f"below minVolume {mn}")
+    if st > 0 and raw % st != 0:
+        problems.append(f"not a multiple of stepVolume {st}")
+    if raw > mx:
+        problems.append(f"above maxVolume {mx}")
+    if problems:
+        raise CTraderError(
+            "BAD_VOLUME",
+            "volume " + str(raw) + " is " + "; ".join(problems))
 
 
 def money_float(raw, digits) -> float:
@@ -365,7 +428,8 @@ class CTraderSession:
     """
 
     def __init__(self, creds: dict, account_id=None, demo: bool = False,
-                 request_timeout: float = 15.0, hard_timeout: float = 90.0):
+                 request_timeout: float = 15.0, hard_timeout: float = 90.0,
+                 use_default_account: bool = True):
         if not CT_SDK_AVAILABLE:
             raise CTraderError("SDK_MISSING", CT_SDK_ERROR)
         missing = [k for k in ("client_id", "client_secret", "access_token")
@@ -376,8 +440,13 @@ class CTraderSession:
         self.client_id = creds["client_id"]
         self.client_secret = creds["client_secret"]
         self.access_token = creds["access_token"]
-        self.account_id = (str(account_id) if account_id
-                           else str(creds.get("account_id") or "")) or None
+        if account_id:
+            self.account_id = str(account_id)
+        elif use_default_account:
+            self.account_id = str(creds.get("account_id") or "") or None
+        else:
+            # App-level session (e.g. account listing): no account auth.
+            self.account_id = None
         host_type, host, port = host_for(creds, demo_flag=demo)
         self.host_type = host_type
         self._host = host
@@ -501,7 +570,10 @@ class CTraderSession:
         return self._ok(self._send(req))
 
     def open_orders(self):
-        req = MSG.ProtoOAOrderListReq(ctidTraderAccountId=self._acct())
+        req = MSG.ProtoOAOrderListReq(
+            ctidTraderAccountId=self._acct(),
+            fromTimestamp=0,
+            toTimestamp=now_ms())
         return self._ok(self._send(req))
 
     def open_positions(self):
@@ -537,6 +609,44 @@ class CTraderSession:
         req = MSG.ProtoOASymbolByIdReq(ctidTraderAccountId=self._acct())
         req.symbolId.extend([int(i) for i in symbol_ids])
         return self._ok(self._send(req, timeout=10))
+
+    def joined_symbol_views(self, symbol_ids):
+        """Fetch full symbol specs for the given ids, joined with their names.
+
+        Two requests: symbols list (names) + by-id (full specs).  Resolves to
+        {symbolId: SimpleNamespace(symbolName=..., **full spec fields)}.
+        Archived symbols are included so positions in delisted symbols still
+        resolve to a name.
+        """
+        from types import SimpleNamespace
+        ids = [int(i) for i in dict.fromkeys(symbol_ids)]
+        if not ids:
+            return Deferred.succeed({})
+        req = MSG.ProtoOASymbolsListReq(
+            ctidTraderAccountId=self._acct(), includeArchivedSymbols=True)
+        d = self._ok(self._send(req, timeout=30))
+
+        def after_list(list_res):
+            names = {int(x.symbolId): x.symbolName for x in list_res.symbol}
+            req2 = MSG.ProtoOASymbolByIdReq(ctidTraderAccountId=self._acct())
+            req2.symbolId.extend(ids)
+            d2 = self._send(req2, timeout=10)
+            d2.addCallback(_check_and_extract)
+            d2.addErrback(self._translate_failure)
+
+            def build(byid_res):
+                out = {}
+                for sym in byid_res.symbol:
+                    fid = int(sym.symbolId)
+                    view = SimpleNamespace(symbolName=names.get(fid, str(fid)))
+                    for f in sym.DESCRIPTOR.fields:
+                        setattr(view, f.name, getattr(sym, f.name))
+                    out[fid] = view
+                return out
+
+            return d2.addCallback(build)
+
+        return d.addCallback(after_list)
 
     def version(self):
         req = MSG.ProtoOAVersionReq()
@@ -587,19 +697,20 @@ class CTraderSession:
             count=count)
         return self._ok(self._send(req, timeout=45))
 
-    def place_order(self, symbol_id, side: int, lots: float,
+    def place_order(self, symbol_id, side: int, volume: int,
                     order_type: int = ORDER_TYPE_MARKET, price: float = None,
                     stop_loss: float = None, take_profit: float = None,
                     comment: str = None, slippage_points: int = 0,
                     client_order_id: str = None,
                     watch_seconds: float = 8.0):
-        """Place an order. side: SIDE_BUY|SIDE_SELL.  Returns exec events."""
+        """Place an order.  volume = RAW int64 units (see volume_for_symbol /
+        check_volume).  side: SIDE_BUY|SIDE_SELL.  Returns exec events."""
         req = MSG.ProtoOANewOrderReq(
             ctidTraderAccountId=self._acct(),
             symbolId=int(symbol_id),
             orderType=int(order_type),
             tradeSide=int(side),
-            volume=volume_raw(lots))
+            volume=int(volume))
         if order_type == ORDER_TYPE_LIMIT and price is not None:
             req.limitPrice = float(price)
         if order_type == ORDER_TYPE_STOP and price is not None:
@@ -621,13 +732,14 @@ class CTraderSession:
             ctidTraderAccountId=self._acct(), orderId=int(order_id))
         return self._fire_and_watch(req, watch_seconds)
 
-    def close_position(self, position_id, lots: float = None,
+    def close_position(self, position_id, volume: int = None,
                        watch_seconds: float = 8.0):
-        """Close all (or given) volume of a position.  lots=None closes all."""
+        """Close all (or given RAW volume of) a position.  volume=None closes
+        the whole position."""
         req = MSG.ProtoOAClosePositionReq(
             ctidTraderAccountId=self._acct(), positionId=int(position_id))
-        if lots is not None:
-            req.volume = volume_raw(lots)
+        if volume is not None:
+            req.volume = int(volume)
         return self._fire_and_watch(req, watch_seconds)
 
     def _acct(self) -> int:
@@ -645,7 +757,7 @@ class CTraderSession:
         symbolId -> ProtoOASymbol once the second step completes.
         """
         wanted = [normalize_name(n) for n in names]
-        box = {"list": None, "matched": {}, "full": {}}
+        box = {"list": None, "matched": {}, "full": {}, "names": {}}
 
         def step_list(s, _r):
             return s.symbol_list(include_archived=include_archived)
@@ -804,12 +916,15 @@ def _check_and_extract_msg(msg):
 def summarize_trader(res) -> dict:
     t = res.trader
     md = int(getattr(t, "moneyDigits", 2) or 2)
+    lev = int(getattr(t, "leverageInCents", 0) or 0)
     return {
         "account_id": t.ctidTraderAccountId,
         "trader_login": t.traderLogin,
         "balance": round(money_float(t.balance, md), 2),
         "money_digits": md,
-        "leverage": t.maxLeverage,
+        # leverageInCents: 2000 <-> 1:200 on QCG (verified against
+        # ExpectedMargin: notional == margin * 200).
+        "leverage": lev / 10 if lev else t.maxLeverage,
         "account_type": _enum_name(t, "accountType"),
         "broker": t.brokerName,
         "swap_free": t.swapFree,
@@ -848,7 +963,7 @@ def summarize_position(pos, symbols: dict = None) -> dict:
         "position_id": int(pos.positionId),
         "symbol": getattr(sym, "symbolName", str(td.symbolId)),
         "side": "BUY" if td.tradeSide == SIDE_BUY else "SELL",
-        "volume_lots": round(lots_from_raw(td.volume), 4),
+        "volume_lots": round(lots_display(td.volume, sym), 4),
         "opened_ms": int(td.openTimestamp),
         "comment": td.comment,
         "price": round(float(pos.price), 6) if pos.price else None,
@@ -870,7 +985,7 @@ def summarize_order(o, symbols: dict = None) -> dict:
         "type": {1: "MARKET", 2: "LIMIT", 3: "STOP", 4: "SLTP",
                  5: "MARKET_RANGE", 6: "STOP_LIMIT"}.get(o.orderType, o.orderType),
         "side": "BUY" if o.tradeData.tradeSide == SIDE_BUY else "SELL",
-        "volume_lots": round(lots_from_raw(o.tradeData.volume), 4),
+        "volume_lots": round(lots_display(o.tradeData.volume, sym), 4),
         "limit_price": round(float(o.limitPrice), 6) if o.limitPrice else None,
         "stop_price": round(float(o.stopPrice), 6) if o.stopPrice else None,
         "stop_loss": round(float(o.stopLoss), 6) if o.stopLoss else None,
@@ -889,8 +1004,8 @@ def summarize_deal(d, symbols: dict = None) -> dict:
         "deal_id": int(d.dealId),
         "symbol": getattr(sym, "symbolName", str(d.symbolId)),
         "side": "BUY" if d.tradeSide == SIDE_BUY else "SELL",
-        "volume_lots": round(lots_from_raw(d.volume), 4),
-        "filled_lots": round(lots_from_raw(d.filledVolume), 4),
+        "volume_lots": round(lots_display(d.volume, sym), 4),
+        "filled_lots": round(lots_display(d.filledVolume, sym), 4),
         "price": round(float(d.executionPrice), 6) if d.executionPrice else None,
         "status": {2: "FILLED", 3: "PARTIAL", 4: "REJECTED",
                    5: "INTERNAL_REJECTED", 6: "ERROR", 7: "MISSED"
@@ -905,29 +1020,28 @@ def summarize_quotes(spot_raw: dict, symbols: dict) -> list:
     out = []
     for sid, q in spot_raw.items():
         sym = symbols.get(int(sid))
-        digits = int(sym.digits) if sym is not None else 5
         out.append({
             "symbol": getattr(sym, "symbolName", str(sid)),
-            "bid": round(price_float(q["bid_raw"], digits), 8),
-            "ask": round(price_float(q["ask_raw"], digits), 8),
-            "spread": round(price_float(q["ask_raw"], digits)
-                            - price_float(q["bid_raw"], digits), 8),
+            "bid": round(price_float(q["bid_raw"]), 8),
+            "ask": round(price_float(q["ask_raw"]), 8),
+            "spread": round(price_float(q["ask_raw"])
+                            - price_float(q["bid_raw"]), 8),
             "ts_ms": int(q["ts"]),
         })
     out.sort(key=lambda x: x["symbol"])
     return out
 
 
-def summarize_bars(res, digits: int = 5) -> list:
+def summarize_bars(res) -> list:
     out = []
     for tb in res.trendbar:
         low = int(tb.low)
         out.append({
             "ts_ms": int(tb.utcTimestampInMinutes) * 60000,
-            "open": round(price_float(low + int(tb.deltaOpen), digits), 8),
-            "high": round(price_float(low + int(tb.deltaHigh), digits), 8),
-            "low": round(price_float(low, digits), 8),
-            "close": round(price_float(low + int(tb.deltaClose), digits), 8),
+            "open": round(price_float(low + int(tb.deltaOpen)), 8),
+            "high": round(price_float(low + int(tb.deltaHigh)), 8),
+            "low": round(price_float(low), 8),
+            "close": round(price_float(low + int(tb.deltaClose)), 8),
             "volume_units": int(tb.volume),
         })
     return out
@@ -957,6 +1071,26 @@ def summarize_executions(events) -> list:
 
 def symbol_map_from(full_box: dict) -> dict:
     return {int(k): v for k, v in (full_box or {}).get("full", {}).items()}
+
+
+def join_symbol_views(box: dict) -> dict:
+    """{symbolId: SimpleNamespace} — join light-symbol names onto full specs
+    from a symbol_steps() box.
+
+    The full ProtoOASymbol model has NO symbolName field (names exist only on
+    the light list model), so every display path must join by symbolId.
+    """
+    from types import SimpleNamespace
+    out = {}
+    for _nm, light in (box or {}).get("matched", {}).items():
+        fid = int(light.symbolId)
+        full = (box.get("full") or {}).get(fid)
+        view = SimpleNamespace(symbolName=light.symbolName)
+        if full is not None:
+            for f in full.DESCRIPTOR.fields:
+                setattr(view, f.name, getattr(full, f.name))
+        out[fid] = view
+    return out
 
 
 # ---------------------------------------------------------------------------

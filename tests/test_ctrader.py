@@ -44,11 +44,16 @@ def _strip_ctrader_env(monkeypatch):
 # ---------------------------------------------------------------------------
 # Unit conventions
 # ---------------------------------------------------------------------------
-def test_price_raw_float_roundtrip():
-    assert ct.price_raw(1.08530, 5) == 108530
-    assert ct.price_float(108530, 5) == pytest.approx(1.0853)
-    assert ct.price_raw(108.5, 2) == 10850
-    assert ct.price_float(0, 5) == 0.0
+def test_price_protocol_scale():
+    # Official proto: prices are "1/100000 of unit of a price" — a fixed
+    # protocol scale, NOT the per-symbol digits field.
+    assert ct.PRICE_SCALE == 100000
+    assert ct.price_raw(1.08530) == 108530
+    assert ct.price_float(108530) == pytest.approx(1.0853)
+    assert ct.price_raw(84841.5) == 8484150000
+    assert ct.price_float(0) == 0.0
+    # same price whether symbol digits=2 or digits=5
+    assert ct.price_float(ct.price_raw(4142.72)) == pytest.approx(4142.72)
 
 
 def test_volume_convention():
@@ -87,6 +92,35 @@ def test_historical_bars_bad_period():
     with pytest.raises(ct.CTraderError) as ei:
         s.historical_bars(1, period="X9")
     assert ei.value.code == "BAD_PERIOD"
+
+
+@SKIP_NO_SDK
+def test_open_orders_sets_required_timestamps():
+    # Regression: ProtoOAOrderListReq has proto2 REQUIRED fromTimestamp /
+    # toTimestamp — omitting them crashes the deferred with EncodeError
+    # ("missing required fields") at send time.
+    s = ct.CTraderSession(
+        {"client_id": "c", "client_secret": "s", "access_token": "t",
+         "host": "live"}, account_id="42")
+    captured = {}
+
+    class _D:
+        def addCallback(self, *a, **k):
+            return self
+        def addErrback(self, *a, **k):
+            return self
+
+    def fake_send(req, timeout=None):
+        captured["req"] = req
+        return _D()
+
+    s._send = fake_send
+    s._ok = lambda d: d
+    s.open_orders()
+    req = captured["req"]
+    assert req.fromTimestamp == 0
+    assert req.toTimestamp > 0
+    req.SerializeToString()  # must not raise EncodeError
 
 
 # ---------------------------------------------------------------------------
@@ -328,7 +362,7 @@ def test_summarize_bars_delta_decode():
     t = TB()
     t.low, t.deltaOpen, t.deltaHigh, t.deltaClose = 108500, 10, 50, 20
     t.utcTimestampInMinutes, t.volume = 100, 7
-    bars = ct.summarize_bars(SimpleNamespace(trendbar=[t]), digits=5)
+    bars = ct.summarize_bars(SimpleNamespace(trendbar=[t]))
     assert bars[0]["low"] == pytest.approx(1.085)
     assert bars[0]["open"] == pytest.approx(1.0851)
     assert bars[0]["high"] == pytest.approx(1.0855)

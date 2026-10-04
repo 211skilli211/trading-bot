@@ -10,13 +10,15 @@ Portal:     https://openapi.ctrader.com/apps   (app CRUD + redirect URIs + Playg
 Protobuf:   live.ctraderapi.com:5035   (or demo.ctraderapi.com:5035)  [TLS]
 ```
 
-Verified on this phone (2026-10-03):
-- `live.ctraderapi.com:5035` and `demo.ctraderapi.com:5035` both reachable
-- Full TLS + protobuf round-trip works (Spotware `ctrader-open-api` 0.9.2,
-  Python 3.8, Twisted 24.3.0, service-identity 24.2.0)
-- The server correctly rejects fake app credentials with
-  `CH_CLIENT_AUTH_FAILURE` — with your real app credentials the same
-  pipeline authenticates and trades.
+Verified on this phone:
+- **2026-10-03**: both protobuf hosts reachable; full TLS + protobuf
+  round-trip (Spotware `ctrader-open-api` 0.9.2, Python 3.8, Twisted 24.3.0,
+  service-identity 24.2.0); fake credentials rejected cleanly with
+  `CH_CLIENT_AUTH_FAILURE`.
+- **2026-10-04**: full pipeline wired to the **live QCG account 47848046**
+  ($10, 1:200, HEDGED): OAuth, account listing, balance, symbol specs, spot
+  quotes, H1 bars, ExpectedMargin — all live-verified. Unit conventions and
+  QCG contract sizes in §9/§10 below.
 
 ## 1. Dependencies (already installed on this phone)
 
@@ -29,6 +31,11 @@ pip install "service-identity==24.2.0" # TLS verification; must be the
 (`ctrader-open-api` pins `pyOpenSSL==24.1.0` + `protobuf==3.20.1`, which in
 turn pins `cryptography` to 42.x. That's why service-identity must be 24.2.0,
 not 26.1.0.)
+
+> **PRoot gotcha:** the overlay can silently drop the SDK between sessions
+> (pip metadata survives, the `.py` files vanish). Always verify at session
+> start: `python3 -c "import ctrader_open_api"` — if it fails, the two pip
+> installs above bring it back in ~30 s.
 
 ## 2. Create the API app (one-time, ~5 minutes)
 
@@ -133,33 +140,104 @@ python3 trading_bot.py --ctrader-deals 20
 
 ```bash
 # demo account — no confirmation needed
-python3 trading_bot.py --ctrader-buy EURUSD --ctrader-lots 0.01 --ctrader-demo
+python3 trading_bot.py --ctrader-buy EURUSD --ctrader-lots 1 --ctrader-demo
 
 # LIVE account — requires explicit --yes (the bot refuses otherwise)
-python3 trading_bot.py --ctrader-buy EURUSD --ctrader-lots 0.01 \
-    --ctrader-sl 1.0750 --ctrader-tp 1.0950 --yes
+python3 trading_bot.py --ctrader-buy EURUSD --ctrader-lots 1 \
+    --ctrader-sl 1.1150 --ctrader-tp 1.1350 --yes
 
 python3 trading_bot.py --ctrader-cancel <ORDER_ID>
 python3 trading_bot.py --ctrader-close <POSITION_ID> [--close-lots 0.5]
 ```
+
+(Lots are converted to raw volume via the symbol's contract — on QCG,
+`--ctrader-lots 1` for EURUSD = 100,000 raw units = 10,000 EUR. See §10.)
+
+Every order runs a **local preflight before anything is sent**: volume is
+checked against the symbol's min/step/max, then ExpectedMargin + balance +
+used margin are fetched and the order is refused with
+`INSUFFICIENT_MARGIN` if the account can't carry it. (With the $10 live
+account every order is refused here by design — that's the floor working,
+not a bug.)
 
 Orders are confirmed through cTrader's execution events (the API has no
 order-response message); the command prints `ORDER_ACCEPTED` /
 `ORDER_FILLED` / `ORDER_REJECTED` from the watch window. No confirmation in
 the window ⇒ verify with `--ctrader-orders` / `--ctrader-positions`.
 
-## Unit conventions (important)
+## 8. Demo account
 
-| Quantity  | On the wire                                    | In the CLI            |
-|-----------|------------------------------------------------|-----------------------|
-| volume    | int64, **1 lot = 100** (0.01-lot granularity)  | lots (float)          |
-| spot px   | fixed-point int64, `price * 10^digits`         | float price           |
-| bar px    | `Trendbar.low` absolute; `open/high/close = low + delta{Open,High,Close}` | float |
-| money     | int64 in smallest currency unit (USD cents)    | dollars               |
-| time      | int64 ms since epoch (bars: minutes)           | UTC timestamps        |
+- The Open API **cannot create accounts** (the protocol only has
+  AccountAuth / GetAccountList / AccountLogout). Create the demo in QCG's
+  platform: my.ctrader.com (cTrader web terminal) or the cTrader mobile app →
+  **Open demo account** (instant, virtual $10,000).
+- QCG routes `demo.ctraderapi.com` to the **same cluster** as live (verified:
+  the demo host's account list returns the live account `isLive:true`). Once
+  the demo account exists it shows up in `--ctrader-accounts` as `DEMO`:
 
-`--ctrader-lots 0.01` sends `volume=1`. Symbol min/step volume come from the
-account's symbol table — check `--ctrader-symbols` if a size is rejected.
+```bash
+python3 trading_bot.py --ctrader-accounts            # new id, marked DEMO
+python3 trading_bot.py --ctrader-account <DEMO_ID> --ctrader-demo
+python3 trading_bot.py --ctrader-info --ctrader-demo # balance $10,000 virtual
+```
+
+- **Never** mix environments: a LIVE account id on the demo host (or vice
+  versa) fails with `CANT_ROUTE_REQUEST`.
+
+## 9. QCG account & symbol facts (verified live 2026-10-04)
+
+- Live account **47848046** (traderLogin 8008440), HEDGED, **1:200**
+  (`leverageInCents=2000` ÷ 10; confirmed by ExpectedMargin: notional =
+  margin × 200).
+- Reference prices that day: BTC $84.8k · ETH $2,693 · BCH $315.8 · EURUSD
+  1.1251 · XAU $4,142.7 · US30 51,163.
+- Forex (EURUSD/XAU/US30) is **closed weekends** — spot events return the
+  last session quote (stale timestamp). Crypto (BTC/ETH/BCH) trades 24/7.
+
+| Symbol | 1.0 lot (raw units) | Min order | Min margin (USD) |
+|--------|--------------------:|----------:|-----------------:|
+| EURUSD / EURGBP | 100,000 u = 10,000 EUR | 1 lot | **$56.28** |
+| XAUUSD | 100 u = 10 oz | 1 lot | $207.21 |
+| BTCUSD | 10 u = **1 BTC** | 1 lot | $424.20 |
+| ETHUSD | 1,000 u = 100 ETH | 1 lot | $1,347.73 |
+| BCHUSD | 1,000 u = 100 BCH | 10 lots (=1,000 BCH) | $1,590.75 |
+| US30 | 100 u = 10 index u | 1 lot | $2,558.33 |
+
+## 10. Unit conventions (IMPORTANT — protocol constants, not per-symbol)
+
+Verified against the official `OpenApiMessages.proto` **and** live QCG data.
+Getting these wrong produces silently-off prices or rejected orders.
+
+| Quantity | On the wire | In the CLI |
+|----------|-------------|------------|
+| spot / bar price | fixed-point int64 = **price × 100000** ("1/100000 of a price unit"). The symbol's `digits` field is **display precision only** — do NOT scale by it (BTC is off by ~100x otherwise). | float price |
+| bar deltas | `Trendbar.low` absolute; `open/high/close = low + delta{Open,High,Close}` (all 1e5) | float |
+| order/position/execution prices | **plain `double`** (NOT fixed-point): `limitPrice`, `stopLoss`, `takeProfit`, `executionPrice` | float price |
+| relative SL/TP | int64 in 1/100000 of a price (1e5 scale) | — |
+| volume | int64 raw units. **QCG: 1.0 lot = lotSize/100 raw units** (generic sample convention is 1 lot = 100). Must satisfy per-symbol `minVolume`/`stepVolume`/`maxVolume`. | lots (float) via `volume_for_symbol(lots, spec)` |
+| money | int64, smallest currency unit (USD = cents) | dollars (`/10**moneyDigits`) |
+| time | int64 ms since epoch (bars: `utcTimestampInMinutes` = minutes) | UTC |
+
+Helpers: `price_raw(price)` / `price_float(raw)` (1e5, **no digits arg**),
+`volume_for_symbol(lots, spec)`, `check_volume(spec, raw)`,
+`money_float(raw, digits)`, `lots_display(raw, spec)`.
+
+## 11. How much to fund for live trading (from §9 margins)
+
+| Balance | Minimum orders you can place |
+|---------|------------------------------|
+| $10–$100 | **Nothing** — below every min margin ($10 account is a read-only demo of the wiring) |
+| $300 | EURUSD/EURGBP only (56.28 = 19% of equity) |
+| $500 | EURUSD + XAUUSD |
+| $1,000 | + BTCUSD (min order = 1 BTC, 42% margin) |
+| $2,000 | comfortable FX; BTC at ~21% margin |
+| $5,000 | + ETHUSD, BCHUSD |
+| $15,000 | + US30 (full range) |
+
+**Recommendation:** $500 is the hard floor; **$1,000–$2,000** to start on
+FX + BTC; **$5,000+** if you want ETH/gold/BCH. Keep used margin well under
+~25% of equity, size SLs off the symbols' `slDistance`, and do the first
+trades on the QCG demo account (§8) before funding live.
 
 ## Command reference
 
@@ -193,6 +271,12 @@ account's symbol table — check `--ctrader-symbols` if a size is rejected.
 | `CH_ACCOUNT_NOT_FOUND` / account errors | Wrong account id — `--ctrader-accounts` |
 | `SYMBOL_NOT_FOUND` | Symbol name differs on this broker (e.g. `EURUSD.c`) — `--ctrader-symbols` |
 | `CONNECT_TIMEOUT` | Network drop — check connectivity, retry |
+| `CANT_ROUTE_REQUEST` | Account-auth for an account that doesn't exist in this environment — usually a LIVE id on the demo host or vice-versa. List accounts on the matching host and set the right id (§8). |
+| `ACCESS_DENIED` on code exchange | Auth code expired (>~60 s) or already used — re-authorize and paste faster, or use Playground import (Path B) |
+| `TRADING_BAD_VOLUME` | Raw volume not a multiple of `stepVolume` / below `minVolume` — use the QCG contract size (§10); `--ctrader-lots` is converted via `volume_for_symbol` |
+| `INSUFFICIENT_MARGIN` (local preflight) | Order's expected margin exceeds free margin — add funds or reduce size (§11) |
+| prices look off by ~100x | Scaled by `10**digits` instead of the protocol 1e5 scale — use `price_float(raw)` (§10) |
+| `import ctrader_open_api` fails mid-project | PRoot overlay dropped the SDK — re-run the two pip installs in §1 |
 | order rejected at placement | Look at the `ORDER_REJECTED` execution event / `--ctrader-orders`; often min-volume, SL/TP too close to price, or symbol session closed |
 
 ## Security notes
