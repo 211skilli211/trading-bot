@@ -16,7 +16,11 @@ Full pipeline verified **from the phone** (Python 3.8.10, PRoot userland):
 
 **Credentials** live in `.env` (git-ignored, chmod 600): `POLYMARKET_API_KEY`, `POLYMARKET_API_SECRET`, `POLYMARKET_API_PASSPHRASE`, `POLYMARKET_PRIVATE_KEY`.
 
-**Sizing note:** Polymarket markets carry a `minimum_order_size` (~5 shares ≈ $5). This is the ONLY venue in our stack where a $10–35 bankroll can actually trade (QCG's cheapest order needs $56.28 margin). No trading fees on most markets.
+**Sizing note:** Polymarket markets carry a `minimum_order_size` (~5 shares).
+This is the ONLY venue in our stack where a $10–35 bankroll can actually
+trade (QCG's cheapest order needs $56.28 margin). Taker fees apply per
+market category since 2026 (0 on geopolitics/zero_fees; 3–7% × p × (1−p)
+otherwise — see the fee table in § "Trading Strategies").
 
 ### py-clob-client on Python 3.8 (install recipe)
 
@@ -126,50 +130,96 @@ POLYGON_RPC_URL=https://polygon-rpc.com
 USDC_POLYGON_ADDRESS=0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
 ```
 
-## Trading Strategies
+## Trading Strategies (verified 2026-10-05)
 
-### 1. Binary Arbitrage
+Research + implementation live in:
+- the global `polymarket` skill (`/root/.dsh/skills/polymarket/`) — the
+  no-guesswork playbook (API facts, fees, strategies, CLI, error table)
+- `polymarket_scanner.py` / `polymarket_strategies.py` in this repo
 
-**How it works:**
-- Buy both YES and NO when their combined price < $1.00
-- Guaranteed profit = $1.00 - (YES_price + NO_price)
-- Example: YES @ $0.49 + NO @ $0.48 = $0.97 → $0.03 profit
+The four implemented strategies, in priority order:
 
-**Requirements:**
-- USDC on Polygon
-- API credentials for order placement
+1. **YES+NO binary arb** — ask(YES) + ask(NO) < $1 after taker fees on both
+   legs. Locked profit at resolution; windows last seconds. Rare.
+2. **Negative-risk set arb** — in a mutually-exclusive event group (gamma
+   `negRisk` + `negRiskMarketID`), the sum of ALL outcomes' YES asks must be
+   ~$1. If the full set's ask sum (after per-leg fees) is < $1, buy every
+   outcome: exactly one pays $1. An outcome with no ask makes the set
+   untradeable → skip (buying a partial set is a bet, not an arb).
+3. **Endgame quick-win** — buy the near-certain favorite: ask ≥ 0.95 with
+   ≤ 48h to resolution (≥ 0.97 with ≤ 24h), liquidity ≥ $2k, vol24h ≥ $5k,
+   priced against a conservative prior (0.99 / 0.995). Small, fast,
+   high-probability return — the workhorse for a small bankroll.
+4. **Smart money** — copy large recent buys (≥ $500 by default) from
+   data-api `/trades`, credentialed via wallet P&L from `/positions`.
+   High-frequency wallets (>200 positions) are flagged "indicative only".
 
-### 2. Market Making
+Sizing: quarter-Kelly on the edge, capped at 25% of bankroll per signal,
+rounded up to the 5-share exchange minimum when below it. Bankroll comes
+from `--polymarket-bankroll` or `$POLYMARKET_BANKROLL` (default $10).
 
-Place bids on both sides of the spread to earn the difference.
-
-### 3. Trend Following
-
-Buy shares in markets where you have strong conviction about the outcome.
-
-## API Endpoints
-
-The bot provides these PolyMarket endpoints:
-
-### Public Endpoints (No API Key Required)
-
-```
-GET /api/polymarket/markets              # List all markets
-GET /api/polymarket/market/<id>          # Get specific market
-GET /api/polymarket/trending             # Trending markets
-GET /api/polymarket/arbitrage            # Arbitrage opportunities
-GET /api/polymarket/orderbook/<token_id> # Order book for token
-```
-
-### Trading Endpoints (API Key Required)
+### Fees (post-2025 model — NOT zero fees)
 
 ```
-GET  /api/polymarket/status              # Trading status & balance
-GET  /api/polymarket/orders              # List open orders
-POST /api/polymarket/orders              # Place order
-DELETE /api/polymarket/orders/<id>       # Cancel order
-GET  /api/polymarket/portfolio           # Portfolio positions
+taker_fee = shares × feeRate × p × (1 − p)      (makers pay 0; redemption free)
 ```
+
+feeRate per market category (gamma `feeType` field; the
+`makerBaseFee`/`takerBaseFee` fields are a constant 1000 placeholder and are
+NOT the rate):
+
+| feeType | rate | notes |
+|---|---|---|
+| geopolitics / none / `zero_fees` | 0.00 | fee-free |
+| `sports_fees_v2` | 0.03 | older sports markets |
+| `politics_fees`, `tech_fees` | 0.04 | |
+| `sports_fees_v3` | 0.05 | newer sports markets |
+| `economics_fees`, `culture_fees`, `weather_fees` | 0.05 | |
+| `crypto_fees_v2` | 0.07 | 5-min crypto up/down markets |
+| unknown new type | 0.05 | conservative default in code |
+
+At p = 0.5 the fee peaks (rate/4 of notional); it → 0 at extreme prices,
+which is why endgame favorites still clear fees.
+
+## Scanner & CLI (runs on the phone, no keys needed for scanning)
+
+```bash
+python3 trading_bot.py --polymarket-scan 20        # top 20 markets by 24h volume
+python3 trading_bot.py --polymarket-opps          # full opportunity scan (~35s)
+python3 trading_bot.py --polymarket-quickwins     # quick-wins only, sized
+python3 trading_bot.py --polymarket-detail <market-slug-or-event-slug-or-0xID>
+python3 trading_bot.py --polymarket-portfolio     # our positions + P&L
+python3 trading_bot.py --polymarket-exec <slug> --pm-outcome "Yes" \
+    --pm-shares 5 --pm-price 0.97 --yes           # place a limit BUY (--yes required)
+python3 trading_bot.py --polymarket-bankroll 25   # sizing bankroll override
+python3 polymarket_check.py                       # verify L2 credentials
+```
+
+Event slugs (e.g. `brazil-presidential-election`) render the whole negRisk
+group with its all-YES ask sum. Minimum order: 5 shares.
+
+## API Endpoints (actual Polymarket, all reachable from this phone)
+
+```
+Gamma (public, no auth):
+  GET https://gamma-api.polymarket.com/markets?active=true&closed=false
+      &order=volume24hr&ascending=false&limit=100&offset=0
+  GET https://gamma-api.polymarket.com/markets?slug=<market-slug>
+  GET https://gamma-api.polymarket.com/markets/<0xConditionId>
+  GET https://gamma-api.polymarket.com/events?slug=<event-slug>
+CLOB (public):
+  POST https://clob.polymarket.com/books   # body: [{"token_id": "..."}, ...]
+  GET  https://clob.polymarket.com/price?token_id=...&side=buy
+Data-API (public):
+  GET https://data-api.polymarket.com/trades?limit=1000
+  GET https://data-api.polymarket.com/positions?user=0xWALLET&limit=500
+```
+
+Key gamma market fields: `outcomes`/`outcomePrices`/`clobTokenIds` (JSON
+strings), `bestBid`/`bestAsk`/`spread` (first outcome only), `volume24hr`,
+`liquidityNum`, `endDateIso`, `negRisk` + `negRiskMarketID` +
+`events[0].slug`, `feeType` + `feesEnabled`, `orderMinSize` (= 5 shares),
+`orderPriceMinTickSize`.
 
 ## Testing
 

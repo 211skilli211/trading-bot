@@ -2022,6 +2022,43 @@ def handle_ctrader(args):
     except Exception:  # pragma: no cover - SDK absent
         CTMSG = None
 
+    def parked_guard(action):
+        """Refuse mutating LIVE actions while the live account is parked.
+
+        The live account is parked until the user tops it up (a $10 balance
+        can't cover QCG's $56.28 minimum-order margin anyway). Read-only
+        commands are unaffected; --yes overrides the parking lock.
+        """
+        if args.ctrader_demo:
+            return
+        _, store = ct.resolve_credentials()
+        data = store.load()
+        if data.get("host", "live") == "live" and data.get("live_parked") \
+                and not args.yes:
+            print(f"🔒 LIVE ACCOUNT PARKED — refusing {action}.")
+            ts = data.get("live_parked_at")
+            if ts:
+                print("   parked at: " + datetime.fromtimestamp(
+                    int(ts), tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
+            print("   unpark:  python3 trading_bot.py --ctrader-unpark")
+            print("   override: add --yes (live orders also need margin "
+                   "the account currently lacks)")
+            sys.exit(1)
+
+    if args.ctrader_park or args.ctrader_unpark:
+        _, store = ct.resolve_credentials()
+        data = store.load()
+        data["live_parked"] = bool(args.ctrader_park)
+        data["live_parked_at"] = int(time.time())
+        store.save(data)
+        if args.ctrader_park:
+            print("🔒 LIVE cTrader account PARKED — live orders blocked "
+                  "(demo unaffected).")
+            print("   unpark:  python3 trading_bot.py --ctrader-unpark")
+        else:
+            print("🔓 LIVE cTrader account UNPARKED — live orders "
+                  "allowed with --yes.")
+
     def session_for(account_id=None, need_account=True):
         creds, store = ct.resolve_credentials()
         ct.ensure_fresh_token(creds, store)
@@ -2136,6 +2173,12 @@ def handle_ctrader(args):
         trader = ct.summarize_trader(res[1])
         recon, upnl = res[2], res[3]
         views = res[4] or {}
+        _, _st = ct.resolve_credentials()
+        _sd = _st.load()
+        if (not args.ctrader_demo) and _sd.get("live_parked") \
+                and _sd.get("host", "live") == "live":
+            print("🔒 NOTE: this LIVE account is PARKED — no orders will "
+                  "go through until --ctrader-unpark")
         md = int(getattr(upnl, "moneyDigits", 2) or 2)
         upnl_sum = sum(p.grossUnrealizedPnL for p in upnl.positionUnrealizedPnL)
         equity = trader["balance"] + ct.money_float(upnl_sum, md)
@@ -2251,6 +2294,7 @@ def handle_ctrader(args):
                   f"L={b['low']} C={b['close']}  vol={b['volume_units']}")
 
     if args.ctrader_buy or args.ctrader_sell:
+        parked_guard("live order")
         symbol = args.ctrader_buy or args.ctrader_sell
         side = ct.SIDE_BUY if args.ctrader_buy else ct.SIDE_SELL
         lots = args.ctrader_lots
@@ -2344,6 +2388,7 @@ def handle_ctrader(args):
                   "verify with --ctrader-orders / --ctrader-positions)")
 
     if args.ctrader_cancel:
+        parked_guard("order cancel")
         s = session_for()
         res = s.execute([lambda s, r: s.cancel_order(args.ctrader_cancel)],
                         hard_timeout=60)
@@ -2357,6 +2402,7 @@ def handle_ctrader(args):
                   f"(no confirmation event in watch window)")
 
     if args.ctrader_close:
+        parked_guard("position close")
         s = session_for()
         close_box = {}
 
@@ -2406,6 +2452,163 @@ def handle_ctrader(args):
         else:
             print("   (no confirmation event in watch window — "
                   "verify with --ctrader-positions)")
+
+
+def handle_polymarket(args):
+    """Run all requested --polymarket-* actions, in order."""
+    import polymarket_scanner as pms
+    import polymarket_strategies as pms_strat
+
+    bankroll = args.polymarket_bankroll
+    if bankroll is None:
+        bankroll = float(os.getenv("POLYMARKET_BANKROLL")
+                         or pms.DEFAULT_BANKROLL)
+    scanner = pms.PolyScanner(bankroll=bankroll)
+
+    if args.polymarket_scan is not None:
+        n = args.polymarket_scan or 20
+        markets = scanner.fetch_markets(limit=max(n, 50))
+        print(f"📡 Polymarket — top markets by 24h volume "
+              f"(bankroll ${bankroll:.2f})")
+        print(pms.format_market_table(markets, n))
+
+    if args.polymarket_detail:
+        d = scanner.market_detail(args.polymarket_detail)
+        print(pms.format_detail(d))
+
+    if args.polymarket_opps or args.polymarket_quickwins:
+        report = scanner.scan(limit=200,
+                              smart_min_usd=args.polymarket_min_usd)
+        st = report["stats"]
+        print(f"📡 scanned {st['markets_scanned']} markets, "
+              f"{st['books_fetched']} books, {st['nr_groups_checked']} NR groups, "
+              f"{st['whale_buys']} whale buys in {st['duration_s']}s")
+        if args.polymarket_quickwins:
+            report = dict(report)
+            report["opportunities"] = [
+                o for o in report["opportunities"]
+                if o["strategy"] in ("endgame", "smart_money")]
+        print(pms.format_opportunities(report))
+        if report["opportunities"]:
+            print("\nExecution (when you're ready):")
+            for o in report["opportunities"][:5]:
+                if "legs" in o:
+                    print(f"  {o['id']} {o['strategy']}: multi-leg — "
+                          f"buy all {len(o['legs'])} legs as the rationale "
+                          f"describes (arbs close fast; manual only)")
+                else:
+                    print(f"  {o['id']} {o['strategy']}: "
+                          f"python3 trading_bot.py --polymarket-exec {o['slug']} "
+                          f"--pm-outcome {o['outcome']} --pm-shares {o['shares']} "
+                          f"--pm-price {o['price']} --yes")
+
+    if args.polymarket_portfolio:
+        import requests
+        wallet = None
+        key = os.environ.get("POLYMARKET_PRIVATE_KEY")
+        if key:
+            try:
+                from py_clob_client.client import ClobClient
+                c = ClobClient("https://clob.polymarket.com",
+                               key=key, chain_id=137)
+                wallet = c.get_address()
+            except Exception as e:
+                print(f"⚠️  could not derive wallet from key: {e}")
+        if not wallet:
+            print("❌ no POLYMARKET_PRIVATE_KEY in .env — cannot identify "
+                  "our wallet")
+            sys.exit(1)
+        r = requests.get(f"{pms.DATA_API}/positions",
+                         params={"user": wallet, "limit": 500},
+                         timeout=30).json()
+        print(f"📊 Polymarket positions — wallet {wallet}")
+        if not r:
+            print("   (no open positions)")
+        else:
+            tot_val = tot_cost = tot_pnl = 0.0
+            for p in r:
+                size = float(p.get("size", 0) or 0)
+                avg = float(p.get("avgPrice", 0) or 0)
+                cur = float(p.get("curPrice", 0) or 0)
+                val = float(p.get("currentValue", 0) or 0)
+                cost = size * avg
+                pnl = float(p.get("cashPnl", 0) or 0) + \
+                    float(p.get("realizedPnl", 0) or 0)
+                tot_val += val
+                tot_cost += cost
+                tot_pnl += pnl
+                mark = " ⚑redeemable" if p.get("redeemable") else ""
+                print(f"   {str(p.get('title', '?'))[:48]:<48} "
+                      f"{str(p.get('outcome', '?'))[:10]:<10} "
+                      f"{size:>10.2f} sh @ {avg:.3f} → cur {cur:.3f} "
+                      f"(${val:>9.2f}, PnL ${pnl:+8.2f}){mark}")
+            print(f"   total: ${tot_val:,.2f} value, "
+                  f"${tot_cost:,.2f} cost, PnL ${tot_pnl:+,.2f}")
+
+    if args.polymarket_exec:
+        if not args.yes:
+            print("🛑 Polymarket order refused without explicit --yes:")
+            print(f"   python3 trading_bot.py --polymarket-exec "
+                  f"{args.polymarket_exec} "
+                  f"--pm-outcome <Yes|No|...> "
+                  f"--pm-shares {args.pm_shares or 'N'} "
+                  f"[--pm-price P] --yes")
+            sys.exit(0)
+        if args.pm_shares is None:
+            print("❌ --pm-shares is required for --polymarket-exec")
+            sys.exit(1)
+        import polymarket_trading as pmt
+        client = pmt.get_polymarket_client_from_env()
+        if not client.is_trading_enabled():
+            print("❌ trading not enabled — check POLYMARKET_* credentials "
+                  "in .env (python3 polymarket_check.py)")
+            sys.exit(1)
+        d = scanner.market_detail(args.polymarket_exec)
+        m = d["market"]
+        idx = 0
+        if args.pm_outcome:
+            idx = None
+            for i, o in enumerate(m["outcomes"]):
+                if o.lower() == args.pm_outcome.lower():
+                    idx = i
+                    break
+            if idx is None:
+                print(f"❌ outcome {args.pm_outcome!r} not in {m['outcomes']}")
+                sys.exit(1)
+        price = args.pm_price
+        if price is None:
+            book = d["books"][m["outcomes"][idx]]
+            if not book["best_ask"]:
+                print("❌ no ask on that side — cannot enter")
+                sys.exit(1)
+            price = book["best_ask"][0]
+        shares = float(args.pm_shares)
+        min_sz = float(m["order_min_size"] or pms_strat.MIN_SHARES)
+        if shares < min_sz:
+            print(f"❌ {shares:g} shares < exchange minimum {min_sz:g}")
+            sys.exit(1)
+        if not (0.01 <= price <= 0.99):
+            print(f"❌ price {price} outside [0.01, 0.99]")
+            sys.exit(1)
+        cost = price * shares
+        if cost > bankroll:
+            print(f"🛑 order cost ${cost:.2f} exceeds bankroll "
+                  f"${bankroll:.2f} — refusing (raise with "
+                  f"--polymarket-bankroll / $POLYMARKET_BANKROLL)")
+            sys.exit(1)
+        token = m["token_ids"][idx]
+        print(f"placing BUY {shares:g} shares {m['outcomes'][idx]!r} "
+              f"@ {price:.3f} on {m['question'][:56]} "
+              f"(feeType={m['fee_type'] or 'free'})…")
+        order = client.place_order(token_id=token, side="BUY",
+                                   price=price, size=shares)
+        if order:
+            print(f"✅ order placed: {order.id} — verify with "
+                  f"--polymarket-portfolio")
+        else:
+            print("❌ order failed — see logs; L2 credentials may need "
+                  "refreshing (python3 polymarket_check.py)")
+            sys.exit(1)
 
 
 def main():
@@ -2757,6 +2960,97 @@ Environment Variables for Live Trading:
         action='store_true',
         help='Explicitly confirm LIVE order placement (required for live orders)'
     )
+    parser.add_argument(
+        '--ctrader-park',
+        action='store_true',
+        help='Park the LIVE cTrader account (block live orders until '
+             '--ctrader-unpark; demo unaffected, read-only commands fine)'
+    )
+    parser.add_argument(
+        '--ctrader-unpark',
+        action='store_true',
+        help='Unpark the LIVE cTrader account'
+    )
+
+    # Polymarket — scanner / quick wins / portfolio / execution
+    parser.add_argument(
+        '--polymarket-scan',
+        type=int,
+        nargs='?',
+        const=20,
+        default=None,
+        metavar='N',
+        help='Show top N Polymarket markets by 24h volume (default: 20)'
+    )
+    parser.add_argument(
+        '--polymarket-opps',
+        action='store_true',
+        help='Scan Polymarket for opportunities: YES+NO arbs, negRisk-set '
+             'arbs, endgame quick-wins, smart-money copies'
+    )
+    parser.add_argument(
+        '--polymarket-quickwins',
+        action='store_true',
+        help='Like --polymarket-opps but only quick-win signals '
+             '(endgame + smart-money), sized for the bankroll'
+    )
+    parser.add_argument(
+        '--polymarket-detail',
+        type=str,
+        default=None,
+        metavar='SLUG_OR_0xID',
+        help='Detail + live books for one Polymarket market'
+    )
+    parser.add_argument(
+        '--polymarket-portfolio',
+        action='store_true',
+        help='Show our Polymarket positions/P&L '
+             '(wallet derived from POLYMARKET_PRIVATE_KEY)'
+    )
+    parser.add_argument(
+        '--polymarket-bankroll',
+        type=float,
+        default=None,
+        metavar='USD',
+        help='Bankroll used for signal sizing (default: $POLYMARKET_BANKROLL '
+             'or 10)'
+    )
+    parser.add_argument(
+        '--polymarket-min-usd',
+        type=float,
+        default=500.0,
+        metavar='USD',
+        help='Smart-money: min single-trade USD to track (default: 500)'
+    )
+    parser.add_argument(
+        '--polymarket-exec',
+        type=str,
+        default=None,
+        metavar='SLUG_OR_0xID',
+        help='Place a Polymarket limit BUY on a market (needs --pm-shares '
+             'and --yes; price defaults to best ask; bankroll-capped)'
+    )
+    parser.add_argument(
+        '--pm-outcome',
+        type=str,
+        default=None,
+        metavar='OUTCOME',
+        help='Outcome to buy for --polymarket-exec (default: first outcome)'
+    )
+    parser.add_argument(
+        '--pm-shares',
+        type=float,
+        default=None,
+        metavar='SHARES',
+        help='Shares to buy for --polymarket-exec'
+    )
+    parser.add_argument(
+        '--pm-price',
+        type=float,
+        default=None,
+        metavar='PRICE',
+        help='Limit price for --polymarket-exec (default: best ask)'
+    )
 
     parser.add_argument(
         '--rl-model',
@@ -2825,7 +3119,7 @@ Environment Variables for Live Trading:
         args.ctrader_positions, args.ctrader_orders, args.ctrader_deals,
         args.ctrader_symbols, args.ctrader_quote, args.ctrader_bars,
         args.ctrader_buy, args.ctrader_sell, args.ctrader_cancel,
-        args.ctrader_close,
+        args.ctrader_close, args.ctrader_park, args.ctrader_unpark,
     ])
     if ctrader_requested:
         try:
@@ -2836,6 +3130,21 @@ Environment Variables for Live Trading:
                 print(f"❌ cTrader: {e.code}: {e.description}")
             else:
                 print(f"❌ cTrader error: {e}")
+            sys.exit(1)
+        return
+
+    # Polymarket: scanner / opportunities / quick wins / portfolio / exec
+    if any([args.polymarket_scan is not None, args.polymarket_opps,
+            args.polymarket_quickwins, args.polymarket_portfolio,
+            args.polymarket_detail, args.polymarket_exec]):
+        try:
+            handle_polymarket(args)
+        except SystemExit:
+            raise
+        except Exception as e:
+            print(f"❌ Polymarket error: {e}")
+            import traceback
+            traceback.print_exc()
             sys.exit(1)
         return
 
