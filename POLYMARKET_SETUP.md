@@ -4,6 +4,62 @@
 
 PolyMarket is a decentralized prediction market platform on Polygon where you can trade YES/NO shares on real-world events. This guide will help you set up PolyMarket trading.
 
+## Phone Environment — VERIFIED WORKING (2026-10-05)
+
+Full pipeline verified **from the phone** (Python 3.8.10, PRoot userland):
+
+- `clob.polymarket.com` + `gamma-api.polymarket.com` reachable ✅
+- L2 API auth (HMAC headers with stored key/secret/passphrase) ✅ — `GET /data/orders` returned 0 open orders
+- Wallet address derived from `POLYMARKET_PRIVATE_KEY`: `0xEd42...c9E6`
+- EIP-712 order signing (keccak + secp256k1) produces valid 132-char signatures locally ✅
+- `polymarket_check.py` — one-command verification (run: `python3 polymarket_check.py` from repo root)
+
+**Credentials** live in `.env` (git-ignored, chmod 600): `POLYMARKET_API_KEY`, `POLYMARKET_API_SECRET`, `POLYMARKET_API_PASSPHRASE`, `POLYMARKET_PRIVATE_KEY`.
+
+**Sizing note:** Polymarket markets carry a `minimum_order_size` (~5 shares ≈ $5). This is the ONLY venue in our stack where a $10–35 bankroll can actually trade (QCG's cheapest order needs $56.28 margin). No trading fees on most markets.
+
+### py-clob-client on Python 3.8 (install recipe)
+
+`py-clob-client` declares `>=3.9.10` and its newest deps target py3.10 — but 0.34.6 installs and runs on 3.8.10 with this exact recipe (if the PRoot env loses `/usr/local`, redo in order):
+
+```bash
+pip install --ignore-requires-python --no-build-isolation \
+  'cytoolz==0.12.1' 'bitarray==2.9.3' 'ckzg==2.1.7' 'coincurve==20.0.0' \
+  'pydantic==2.10.6' 'pydantic-core==2.27.2' 'regex==2024.11.6' \
+  'typing-extensions==4.13.2' 'annotated-types==0.6.0' \
+  'eth-account==0.13.7' 'eth-utils==5.3.1' 'eth-typing==5.2.1' \
+  'eth-abi==5.2.0' 'eth-keys==0.7.0' 'eth-rlp==2.2.0' 'eth-keyfile==0.8.1' \
+  'rlp==4.1.0' 'hexbytes==1.3.1' 'eth-hash==0.7.1' \
+  'h2==4.1.0' 'hpack==4.0.0' 'hyperframe==6.0.1' 'anyio==4.4.0' \
+  py-clob-client
+```
+
+Why each pin (all verified 2026-10-05):
+- `--ignore-requires-python` + `--no-build-isolation`: SDK declares py≥3.9.10; its pure-python sdists demand `setuptools>=77` (py≥3.9) in build isolation
+- `ckzg==2.1.7`: last cp38/aarch64 wheel (2.1.8+ dropped 3.8)
+- `coincurve==20.0.0`: cp38/aarch64 wheel + `>=3.8` (13.0.1 doesn't exist)
+- `pydantic==2.10.6` / `pydantic-core==2.27.2`: last cp38 releases; newer pydantic-core is py3.9+ and builds via maturin (absent)
+- `regex==2024.11.6`: last cp38 wheel; 2025+ sdists use PEP-639 license tables this setuptools can't parse
+- `eth-*` 5.x/0.13.x generation: the 6.0/0.14 generation declares py≥3.10 and uses PEP-585 `collections.abc` generics at runtime (e.g. `Sequence[...]` in eth_typing)
+- `eth-keyfile==0.8.1`: 0.9.x is py≥3.10, and eth-account 0.13.7 requires `<0.9.0`
+- `h2==4.1.0` / `hpack==4.0.0`: hpack 4.1+ subclasses `tuple[bytes, bytes]` (PEP 585 runtime — 3.9+)
+- `typing-extensions==4.13.2` / `annotated-types==0.6.0`: 4.16/0.8 use py3.9/3.10 stdlib internals (`_SpecialGenericAlias`, `types.EllipsisType`)
+- `anyio==4.4.0`: 4.5+ imports `typing.TypeAlias` (py3.10)
+
+**Code patch** (SDK ships py3.9+ annotations; ~2 min, idempotent): add `from __future__ import annotations` as first statement of every `.py` in `py_clob_client`, `py_order_utils`, `poly_eip712_structs`, `py_builder_signing_sdk` under `/usr/local/lib/python3.8/dist-packages/`. Safe: no `get_type_hints`/runtime annotation eval anywhere in those packages.
+
+### 0.34.6 API deltas vs older SDKs
+
+| Old | 0.34.6 |
+|---|---|
+| `ApiCredentials` | `ApiCreds` (in `clob_types`) |
+| `client.address()` | `client.get_address()` |
+| `OrderArgs(side="buy")` | `OrderArgs(side="BUY")` (uppercase string; `OrderType` enum is order *lifetime* GTC/FAK, not side) |
+| `create_order` + manual post | `client.create_and_post_order(args)` → dict with `orderID`, `success` |
+| `get_orders()` | same ✅, `cancel(id)` ✅, `cancel_all()` ✅ |
+
+Repo code (`polymarket_trading.py`) is version-tolerant for all of the above.
+
 ## What You Need
 
 ### 1. Polygon Wallet with USDC

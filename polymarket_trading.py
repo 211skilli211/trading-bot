@@ -26,7 +26,12 @@ from datetime import datetime, timezone
 # Try to import official client, fall back to custom implementation
 try:
     from py_clob_client.client import ClobClient
-    from py_clob_client.clob_types import ApiCredentials, OrderArgs, OrderType
+    from py_clob_client.clob_types import OrderArgs, OrderType
+    # Version-tolerant creds class: 0.34.x renamed ApiCredentials -> ApiCreds
+    try:
+        from py_clob_client.clob_types import ApiCreds as ApiCredentials
+    except ImportError:
+        from py_clob_client.clob_types import ApiCredentials
     CLOB_CLIENT_AVAILABLE = True
 except ImportError:
     CLOB_CLIENT_AVAILABLE = False
@@ -210,17 +215,24 @@ class PolyMarketTradingClient(PolyMarketClient):
             if size <= 0:
                 raise ValueError(f"Size must be positive: {size}")
             
-            # Create order args
+            # Create order args. Both old and 0.34.x SDKs expect the
+            # UPPERCASE side string ("BUY"/"SELL"), already validated above.
             order_args = OrderArgs(
                 price=price,
                 size=size,
-                side=side.lower(),
+                side=side,
                 token_id=token_id
             )
-            
-            # Place order
-            result = self.clob_client.create_order(order_args)
-            
+
+            # Place order. 0.34.x: create_and_post_order() signs and posts in
+            # one call and returns a dict with "orderID"/"success".
+            if hasattr(self.clob_client, "create_and_post_order"):
+                result = self.clob_client.create_and_post_order(order_args)
+            else:  # legacy SDK: create + post separately
+                result = self.clob_client.post_order(
+                    self.clob_client.create_order(order_args)
+                )
+
             if result and "orderID" in result:
                 return Order(
                     id=result["orderID"],
