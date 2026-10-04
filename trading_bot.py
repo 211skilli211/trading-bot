@@ -2801,6 +2801,37 @@ Environment Variables for Live Trading:
         help='Force synthetic bars for Nautilus backtest (offline, no exchange calls)'
     )
 
+    # Paper lab: sweep-validated strategies on live data, simulated fills
+    # (paper_lab.py — same per-bar engine as the backtester)
+    parser.add_argument(
+        '--paper-run',
+        action='store_true',
+        help='Process newly closed bars for the paper lab slots, print dashboard'
+    )
+    parser.add_argument(
+        '--paper-status',
+        action='store_true',
+        help='Show saved paper lab state (offline, no exchange calls)'
+    )
+    parser.add_argument(
+        '--paper-reset',
+        action='store_true',
+        help='Re-initialize paper lab slots flat (requires --yes)'
+    )
+    parser.add_argument(
+        '--paper-monitor',
+        type=int,
+        default=0,
+        metavar='SEC',
+        help='Run the paper lab continuously every SEC seconds (implies --paper-run)'
+    )
+    parser.add_argument(
+        '--paper-capital',
+        type=float,
+        default=10000.0,
+        help='Initial capital for new/reset paper lab slots (default: 10000)'
+    )
+
     # cTrader Open API (QCG broker) — direct phone-side control
     parser.add_argument(
         '--ctrader-status',
@@ -3128,6 +3159,23 @@ Environment Variables for Live Trading:
             sys.exit(1)
         nautilus.print_report(result)
         return
+
+    # Paper lab: sweep-validated strategies on live data (simulated fills)
+    if any([args.paper_run, args.paper_status, args.paper_reset,
+            args.paper_monitor > 0]):
+        try:
+            import paper_lab
+        except ImportError as e:
+            print(f"❌ Paper lab unavailable: {e}")
+            sys.exit(1)
+        if args.paper_reset:
+            rc = paper_lab.cmd_reset(capital=args.paper_capital, yes=args.yes)
+        elif args.paper_status:
+            rc = paper_lab.cmd_status()
+        else:
+            rc = paper_lab.cmd_run(capital=args.paper_capital,
+                                   monitor=args.paper_monitor, yes=args.yes)
+        sys.exit(rc)
 
     # cTrader Open API (QCG): status / auth / account / data / trading
     ctrader_requested = any([

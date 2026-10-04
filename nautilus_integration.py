@@ -363,6 +363,175 @@ class NautilusDataAdapter:
 # ─── Backtest Runner (event-driven simulator) ────────────────────────────────
 
 
+# ─── Shared per-bar engine (backtest + paper lab) ─────────────────────────────
+
+
+def _close_trade(
+    position: Dict, exit_price: float, ts: int, reason: str, fee_rate: float
+) -> Tuple[float, Dict]:
+    """
+    Realize P&L on a close.
+
+    Returns (net_pnl, trade) where net_pnl = gross - entry fee - exit fee
+    (the full trade P&L; caller adds it to the flat-basis equity).
+    """
+    qty = position["qty"]
+    if position["side"] == "long":
+        gross = qty * (exit_price - position["entry"])
+    else:
+        gross = qty * (position["entry"] - exit_price)
+    fee_open = position["notional"] * fee_rate
+    fee_close = qty * exit_price * fee_rate
+    pnl = gross - fee_close - fee_open
+    trade = {
+        "side": position["side"],
+        "entry_ts": position["entry_ts"],
+        "exit_ts": ts,
+        "entry": round(position["entry"], 8),
+        "exit": round(exit_price, 8),
+        "qty": round(qty, 8),
+        "pnl": round(pnl, 8),
+        "gross_pnl": round(gross, 8),
+        "fees": round(fee_open + fee_close, 8),
+        "exit_reason": reason,
+    }
+    return pnl, trade
+
+
+def step_bars(
+    state: Dict[str, Any],
+    strategy: Any,
+    bars: List[Dict],
+    cfg: NautilusConfig,
+) -> List[float]:
+    """
+    Advance a backtest/paper position state through ``bars`` (mutates state).
+
+    Single source of truth for per-bar engine semantics — used by the
+    backtest runner (fresh state over the full history) and the paper lab
+    (persisted state over only the bars that closed since the last run), so
+    paper fills are exact backtest semantics by construction.
+
+    Per bar (in order):
+      1. ``strategy.on_bar(bar)`` — the strategy consumes the bar (internal
+         state accumulates; a signal may be returned).
+      2. Open position: SL/TP against the bar high/low, effective from the
+         bar AFTER entry. A position carried over from a previous batch has
+         ``entry_idx == -1`` so SL/TP is live on every bar of this batch.
+      3. Signal actions ("close"/"buy"/"sell") executed at the bar close with
+         slippage; opposite-direction signals reverse.
+      4. Mark to market.
+
+    ``state`` (mutated in place)::
+
+        {
+            "equity": float,            # flat basis (cash; fees netted on close)
+            "position": Optional[dict], # side/entry/qty/notional/entry_ts/entry_idx
+            "trades": List[dict],
+            "fees_paid": float,
+        }
+
+    Returns:
+        Per-bar marked equity (equity + unrealized), one entry per processed
+        bar (does not include the starting equity).
+    """
+    fee_rate = cfg.commission_pct
+    slip = cfg.slippage_pct
+    sl = cfg.stop_loss_pct
+    tp = cfg.take_profit_pct
+
+    equity = float(state["equity"])
+    position = state["position"]
+    trades: List[Dict] = state.setdefault("trades", [])
+    fees_paid = float(state.get("fees_paid", 0.0))
+    curve: List[float] = []
+
+    for i, bar in enumerate(bars):
+        o, h, l, c = bar["open"], bar["high"], bar["low"], bar["close"]
+        ts = bar["timestamp"]
+
+        # 1) Strategy decision on this bar's close
+        signal = strategy.on_bar(bar)
+        action = signal.get("action") if isinstance(signal, dict) else None
+
+        # 2) Manage open position: SL/TP against the bar range
+        #    (effective from the bar AFTER entry)
+        if position and i > position.get("entry_idx", 0):
+            exit_price: Optional[float] = None
+            reason = None
+            entry = position["entry"]
+            if position["side"] == "long":
+                if l <= entry * (1 - sl):
+                    exit_price, reason = entry * (1 - sl) * (1 - slip), "stop_loss"
+                elif h >= entry * (1 + tp):
+                    exit_price, reason = entry * (1 + tp) * (1 - slip), "take_profit"
+            else:  # short
+                if h >= entry * (1 + sl):
+                    exit_price, reason = entry * (1 + sl) * (1 + slip), "stop_loss"
+                elif l <= entry * (1 - tp):
+                    exit_price, reason = entry * (1 - tp) * (1 + slip), "take_profit"
+            if exit_price is not None:
+                pnl, trade = _close_trade(position, exit_price, ts, reason, fee_rate)
+                equity += pnl
+                fees_paid += trade["fees"]
+                trades.append(trade)
+                position = None
+
+        # 3) Signal-driven action at the bar close
+        if position:
+            if action == "close":
+                fill = c * (1 - slip) if position["side"] == "long" else c * (1 + slip)
+                pnl, trade = _close_trade(position, fill, ts, "signal_close", fee_rate)
+                equity += pnl
+                fees_paid += trade["fees"]
+                trades.append(trade)
+                position = None
+            elif action in ("buy", "sell"):
+                same_dir = (
+                    (action == "buy" and position["side"] == "long")
+                    or (action == "sell" and position["side"] == "short")
+                )
+                if not same_dir:
+                    fill = c * (1 - slip) if position["side"] == "long" else c * (1 + slip)
+                    pnl, trade = _close_trade(position, fill, ts, "reversed", fee_rate)
+                    equity += pnl
+                    fees_paid += trade["fees"]
+                    trades.append(trade)
+                    position = None
+
+        if position is None and action in ("buy", "sell"):
+            side = "long" if action == "buy" else "short"
+            fill = c * (1 + slip) if side == "long" else c * (1 - slip)
+            size_pct = signal.get("size_pct", cfg.max_position_pct) if isinstance(signal, dict) else cfg.max_position_pct
+            size_pct = max(float(size_pct), 0.0)
+            notional = equity * size_pct
+            if notional > 0 and fill > 0:
+                qty = notional / fill
+                position = {
+                    "side": side,
+                    "entry": fill,
+                    "qty": qty,
+                    "notional": notional,
+                    "entry_ts": ts,
+                    "entry_idx": i,
+                }
+
+        # 4) Mark to market
+        if position:
+            if position["side"] == "long":
+                unreal = position["qty"] * (c - position["entry"])
+            else:
+                unreal = position["qty"] * (position["entry"] - c)
+        else:
+            unreal = 0.0
+        curve.append(equity + unreal)
+
+    state["equity"] = equity
+    state["position"] = position
+    state["fees_paid"] = fees_paid
+    return curve
+
+
 class NautilusBacktestRunner:
     """
     Runs backtests with an event-driven matching account.
@@ -439,97 +608,19 @@ class NautilusBacktestRunner:
         bars: List[Dict],
     ) -> Dict[str, Any]:
         cfg = self.config
-        fee_rate = cfg.commission_pct
-        slip = cfg.slippage_pct
-        sl = cfg.stop_loss_pct
-        tp = cfg.take_profit_pct
         initial = cfg.initial_capital
+        slip = cfg.slippage_pct
 
-        equity = initial            # cash basis (fees already deducted)
-        fees_paid = 0.0
-        trades: List[Dict] = []
-        position: Optional[Dict] = None
-        equity_curve: List[float] = [initial]
-
-        for i, bar in enumerate(bars):
-            o, h, l, c = bar["open"], bar["high"], bar["low"], bar["close"]
-            ts = bar["timestamp"]
-
-            # 1) Strategy decision on this bar's close
-            signal = strategy.on_bar(bar)
-            action = signal.get("action") if isinstance(signal, dict) else None
-
-            # 2) Manage open position: SL/TP against the bar range
-            #    (effective from the bar AFTER entry)
-            if position and i > position["entry_idx"]:
-                exit_price: Optional[float] = None
-                reason = None
-                entry = position["entry"]
-                if position["side"] == "long":
-                    if l <= entry * (1 - sl):
-                        exit_price, reason = entry * (1 - sl) * (1 - slip), "stop_loss"
-                    elif h >= entry * (1 + tp):
-                        exit_price, reason = entry * (1 + tp) * (1 - slip), "take_profit"
-                else:  # short
-                    if h >= entry * (1 + sl):
-                        exit_price, reason = entry * (1 + sl) * (1 + slip), "stop_loss"
-                    elif l <= entry * (1 - tp):
-                        exit_price, reason = entry * (1 - tp) * (1 + slip), "take_profit"
-                if exit_price is not None:
-                    pnl, trade = self._close_position(position, exit_price, ts, reason)
-                    equity += pnl
-                    fees_paid += trade["fees"]
-                    trades.append(trade)
-                    position = None
-
-            # 3) Signal-driven action at the bar close
-            if position:
-                if action == "close":
-                    fill = c * (1 - slip) if position["side"] == "long" else c * (1 + slip)
-                    pnl, trade = self._close_position(position, fill, ts, "signal_close")
-                    equity += pnl
-                    fees_paid += trade["fees"]
-                    trades.append(trade)
-                    position = None
-                elif action in ("buy", "sell"):
-                    same_dir = (
-                        (action == "buy" and position["side"] == "long")
-                        or (action == "sell" and position["side"] == "short")
-                    )
-                    if not same_dir:
-                        fill = c * (1 - slip) if position["side"] == "long" else c * (1 + slip)
-                        pnl, trade = self._close_position(position, fill, ts, "reversed")
-                        equity += pnl
-                        fees_paid += trade["fees"]
-                        trades.append(trade)
-                        position = None
-
-            if position is None and action in ("buy", "sell"):
-                side = "long" if action == "buy" else "short"
-                fill = c * (1 + slip) if side == "long" else c * (1 - slip)
-                size_pct = signal.get("size_pct", cfg.max_position_pct) if isinstance(signal, dict) else cfg.max_position_pct
-                size_pct = max(float(size_pct), 0.0)
-                notional = equity * size_pct
-                if notional > 0 and fill > 0:
-                    qty = notional / fill
-                    position = {
-                        "side": side,
-                        "entry": fill,
-                        "qty": qty,
-                        "notional": notional,
-                        "entry_ts": ts,
-                        "entry_idx": i,
-                    }
-
-            # 4) Mark to market
-            if position:
-                if position["side"] == "long":
-                    unreal = position["qty"] * (c - position["entry"])
-                else:
-                    unreal = position["qty"] * (position["entry"] - c)
-            else:
-                unreal = 0.0
-            equity_curve.append(equity + unreal)
+        state: Dict[str, Any] = {
+            "equity": initial,
+            "position": None,
+            "trades": [],
+            "fees_paid": 0.0,
+        }
+        curve = step_bars(state, strategy, bars, cfg)
+        equity = state["equity"]
+        position = state["position"]
+        equity_curve = [initial] + curve
 
         # 5) Force-close any open position at the final close
         if position and bars:
@@ -537,45 +628,20 @@ class NautilusBacktestRunner:
             fill = last["close"] * (1 - slip) if position["side"] == "long" else last["close"] * (1 + slip)
             pnl, trade = self._close_position(position, fill, last["timestamp"], "end_of_data")
             equity += pnl
-            fees_paid += trade["fees"]
-            trades.append(trade)
+            state["fees_paid"] += trade["fees"]
+            state["trades"].append(trade)
             equity_curve[-1] = equity
 
-        return self._build_result(name, bars, initial, equity, equity_curve, trades,
-                                  fees_paid, fee_rate, slip, sl, tp, cfg.interval)
+        return self._build_result(name, bars, initial, equity, equity_curve,
+                                  state["trades"], state["fees_paid"],
+                                  cfg.commission_pct, slip,
+                                  cfg.stop_loss_pct, cfg.take_profit_pct, cfg.interval)
 
     def _close_position(
         self, position: Dict, exit_price: float, ts: int, reason: str
     ) -> Tuple[float, Dict]:
-        """
-        Realize P&L on a close.
-
-        Returns (net_pnl, trade) where net_pnl = gross - entry fee - exit fee
-        (the full trade P&L; caller adds it to the flat-basis equity).
-        """
-        cfg = self.config
-        fee_rate = cfg.commission_pct
-        qty = position["qty"]
-        if position["side"] == "long":
-            gross = qty * (exit_price - position["entry"])
-        else:
-            gross = qty * (position["entry"] - exit_price)
-        fee_open = position["notional"] * fee_rate
-        fee_close = qty * exit_price * fee_rate
-        pnl = gross - fee_close - fee_open
-        trade = {
-            "side": position["side"],
-            "entry_ts": position["entry_ts"],
-            "exit_ts": ts,
-            "entry": round(position["entry"], 8),
-            "exit": round(exit_price, 8),
-            "qty": round(qty, 8),
-            "pnl": round(pnl, 8),
-            "gross_pnl": round(gross, 8),
-            "fees": round(fee_open + fee_close, 8),
-            "exit_reason": reason,
-        }
-        return pnl, trade
+        """Realize P&L on a close (see module-level :func:`_close_trade`)."""
+        return _close_trade(position, exit_price, ts, reason, self.config.commission_pct)
 
     @staticmethod
     def _build_result(

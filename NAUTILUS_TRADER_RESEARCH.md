@@ -138,6 +138,9 @@ developing the Nautilus version. The key benefit is deterministic backtesting �
 | P0 fixes found along the way | ✅ `core/regime.py` py3.8 annotation crash; `ccxt_connector.py` `ccxt.gateio` import crash |
 | Rust engine on phone | ❌ Impossible (py3.8 < 3.11) — server only |
 | Rust engine on server | ⏳ Phase 3/5 |
+| Parameter sweep (365d real data, cross-validated) | ✅ 2 armable configs — ETH 1d (+4.16%, Sharpe 1.64) & ETH 4h (+0.81%, Sharpe 1.42) |
+| Live paper-trading lab | ✅ `paper_lab.py` — real live bars, shared `step_bars` engine, 22 tests |
+| Shared engine refactor | ✅ `step_bars`/`_close_trade` — backtest ≡ paper fills by construction |
 
 ## Alternatives Considered
 - **Freqtrade**: Crypto-only, simpler, 380+ contributors → good for crypto-only
@@ -151,3 +154,48 @@ developing the Nautilus version. The key benefit is deterministic backtesting �
 3. **Rust performance** → can handle high-frequency data without Python GIL issues
 4. **Professional risk management** → built-in position sizing, drawdown limits
 5. **No vendor lock-in** — self-hosted, full control
+
+## Strategy Parameter Sweep (2026-10-04)
+
+`strategy_sweep.py` runs a two-stage sweep (signal grid → sizing stage) over real Binance data
+(365 days of 1h bars per symbol, resampled to 4h/1d), with **cross-symbol validation** so a config
+only qualifies if it also profits on the *other* symbol (guards against curve-fits).
+Full results: `research/strategy_sweep_report.md` + `research/sweep_results.json`.
+
+Verdict (0.1% + 0.05% fees per side, slippage modeled):
+
+| Config | TF | Params | Primary (365d) | Cross-validated |
+|---|---|---|---|---|
+| **ETH regime-momentum 1d** ⭐ | 1d | lb=20, thr=5%, ema 5/20, SL/TP 5%/10% | +4.16%, Sharpe 1.64 | BTC: +0.70% ✅ |
+| **ETH regime-momentum 4h** | 4h | lb=10, thr=0.5%, ema 50/100, SL/TP 15%/30% | +0.81%, Sharpe 1.42 | BTC: +0.41%, Sharpe 1.00 ✅ |
+
+Key findings:
+- All BTC 1h top cells **failed** cross-validation on ETH → curve-fit risk, not armed
+- ETH 1h had **zero** qualifying cells — 1h momentum on these symbols churns
+- Default 1h config (pre-sweep) was −0.12% BTC / −0.50% ETH: the sweep found the real edge
+- Modest but real: max DD ~0.5% of equity; the edge survives fees + slippage
+
+## Live Paper-Trading Lab (2026-10-04)
+
+`paper_lab.py` — the strategy lab that replaces QCG's frozen demo (QCG's demo book is static:
+orders are accepted then engine-cancelled with no fill). Runs the two cross-validated configs above
+as two independent slots, each $10k, on **real live Binance bars**:
+
+- **Slot A — ETH/USDT daily** (winner #1): signals on each newly *closed* daily bar
+- **Slot B — ETH/USDT 4h** (winner #2): signals on each newly *closed* 4h bar
+- Uses the **same** `step_bars` engine as the backtester (refactored out of
+  `nautilus_integration.py` so backtest and paper fills are byte-identical — parity by construction)
+- State persists to `data/paper_state.json` (git-ignored); in-progress candles are never
+  processed; resuming mid-position works (state carries the open trade)
+- Runs fully on the phone, no dependencies beyond ccxt
+
+CLI:
+```
+python3 trading_bot.py --paper-run          # process newly closed bars + dashboard
+python3 trading_bot.py --paper-status       # offline state view
+python3 trading_bot.py --paper-reset --yes  # flat re-init (new capital: --paper-capital)
+python3 trading_bot.py --paper-monitor 300  # continuous (every 5 min)
+```
+
+Tests: `tests/test_paper_lab.py` — 22 tests incl. the chunked-processing ≡ full-history invariant
+(on 3 seeds), warmup gating, gap recovery, reset semantics.

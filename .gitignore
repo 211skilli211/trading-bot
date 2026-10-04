@@ -46,6 +46,8 @@ dashboard_patch.py
 # Runtime data
 data/nautilus_cache/
 data/ctrader_credentials.json
+data/paper_state.json
+data/paper_state_*.json
 storage/
 Desktop/
 models/*.pkl
