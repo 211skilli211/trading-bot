@@ -33,6 +33,7 @@ data/ctrader_credentials.json
 data/paper_state.json
 data/paper_state_*.json
 data/polymarket_last_scan.json
+data/pm_ledger.json
 storage/
 Desktop/
 models/*.pkl

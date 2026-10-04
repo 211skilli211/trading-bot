@@ -66,23 +66,44 @@ Repo code (`polymarket_trading.py`) is version-tolerant for all of the above.
 
 ## What You Need
 
-### 1. Polygon Wallet with USDC
+### 1. Polygon Wallet with USDC (step by step)
 
-PolyMarket trades using USDC on the Polygon network.
+PolyMarket trades with **USDC on Polygon** (native USDC —
+`0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174`, don't confuse it with other
+bridged variants some bridges mint). The trading wallet is
+`0xEd42785Bb96799b957cB39D987553A9E8b71c9E6` (derived from
+`POLYMARKET_PRIVATE_KEY` in `.env`).
 
-**Steps:**
-1. Get a wallet that supports Polygon (MetaMask, Rainbow, etc.)
-2. Add Polygon network to your wallet:
-   - Network Name: Polygon Mainnet
-   - RPC URL: https://polygon-rpc.com
-   - Chain ID: 137
-   - Currency Symbol: MATIC
-   - Block Explorer: https://polygonscan.com
+**Path A — fund the existing wallet (recommended, no new key):**
+1. Get USDC (or USDT) where you keep cash (exchange, card, etc.).
+2. Transfer it **to `0xEd42785Bb96799b957cB39D987553A9E8b71c9E6` on the
+   Polygon network**. Most exchanges have a direct Polygon withdrawal;
+   if you only get USDT on Polygon, swap USDT → USDC once (e.g. via a
+   DEX) — Polymarket settles in USDC.
+3. Verify from the phone:
+   ```bash
+   python3 trading_bot.py --polymarket-balance
+   # "USDC cash: $X" must be > 0 (L2 read, no gas)
+   ```
 
-3. Bridge USDC from Ethereum to Polygon:
-   - Use the official bridge: https://portal.polygon.technology/bridge
-   - Or use a third-party bridge like Hop Exchange, Stargate, or Bungee
-   - You need USDC on Polygon to trade (minimum $10-20 recommended)
+**Path B — recycle the wallet of your old trading bot:**
+1. Extract its Polygon private key (the old bot's config/env/key file).
+2. Point Polymarket at it: set `POLYMARKET_PRIVATE_KEY=<old key>` in
+   `.env` (git-ignored, chmod 600). If that wallet already had Polymarket
+   API credentials, reuse them (Polymarket site → Settings → API).
+3. Verify: `python3 polymarket_check.py`, then
+   `python3 trading_bot.py --polymarket-balance`.
+4. Keep only the trade float in that wallet — anything extra is exposed
+   to the same risk.
+
+**Path C — brand-new wallet:** generate a key, fund it with ~$10–35, set
+the same env vars. Never reuse a wallet that holds your main savings.
+
+**Funding note:** $10 is enough to start (5-share minimum orders, ~$5
+typical endgame entries). The executor refuses to spend more than the
+declared bankroll (`--polymarket-bankroll` / `POLYMARKET_BANKROLL`) and
+halts new entries after a −$3 UTC-day realized loss (configurable
+`--pm-daily-loss-cap`).
 
 ### 2. PolyMarket API Credentials
 
@@ -198,6 +219,47 @@ python3 polymarket_check.py                       # verify L2 credentials
 Event slugs (e.g. `brazil-presidential-election`) render the whole negRisk
 group with its all-YES ask sum. Minimum order: 5 shares.
 
+## Execution loop (auto-execution + settlement tracking)
+
+Closed-loop trading on top of the scanner — `polymarket_executor.py`:
+
+```bash
+# live USDC cash + open orders + positions + realized-PnL ledger
+python3 trading_bot.py --polymarket-balance
+
+# DRY RUN first (no --yes): scan + show what WOULD be bought
+python3 trading_bot.py --polymarket-auto 2
+
+# real execution of the top-N single-leg signals (endgame + smart_money default)
+python3 trading_bot.py --polymarket-auto 2 --yes
+
+# one settlement pass: match open ledger bets against live market state,
+# mark settled, record realized P&L, fire alerts
+python3 trading_bot.py --polymarket-watch
+```
+
+Rules enforced by the executor (all in code; tested in
+`tests/test_polymarket_executor.py`):
+
+- **Single-leg only** — multi-leg arbs are never auto-executed (leg risk).
+- **Cash guard** — reads live L2 USDC cash; refuses entries the wallet can't
+  pay (dry runs annotate instead of skip).
+- **Bankroll cap** — cost ≤ `--polymarket-bankroll` / `POLYMARKET_BANKROLL`.
+- **Daily loss cap** — realized P&L ≤ −`--pm-daily-loss-cap` (default $3)
+  for the UTC day → no new entries until tomorrow.
+- **Quote guard** — re-quotes the book at order time; skips if the ask moved
+  >2¢ against the signal (stale-tape protection).
+- **Ledger** — every entry/exit appended to `data/pm_ledger.json`
+  (git-ignored); `--polymarket-watch` settles it against live state.
+- **Telegram** — fill/settle/stop events go to the configured bot
+  (`TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`; test with `--telegram-test`).
+
+Resident mode (paper lab + Polymarket settlement in one loop):
+
+```bash
+python3 trading_bot.py --watch 300     # cycle every 300s; Ctrl-C stops cleanly
+```
+
 ## API Endpoints (actual Polymarket, all reachable from this phone)
 
 ```
@@ -226,11 +288,11 @@ strings), `bestBid`/`bestAsk`/`spread` (first outcome only), `volume24hr`,
 Test your configuration:
 
 ```bash
-cd /root/trading-bot
-python3 polymarket_client.py
+cd /workspace/clever-curie
+python3 polymarket_check.py                        # L2 credentials + wallet
+python3 trading_bot.py --polymarket-scan 10        # public data (no keys)
+python3 trading_bot.py --polymarket-balance        # L2: cash, orders, ledger
 ```
-
-This will fetch markets and show arbitrage opportunities.
 
 ## Troubleshooting
 
@@ -238,9 +300,12 @@ This will fetch markets and show arbitrage opportunities.
 - Check that POLYMARKET_API_KEY is set correctly in .env
 - Ensure the key is not the placeholder "your_polymarket_api_key_here"
 
-### "Insufficient balance" error
-- Make sure you have USDC on Polygon (not Ethereum mainnet)
-- Check your balance at https://polymarket.com/portfolio
+### "Insufficient balance" / "USDC cash: $0.00"
+- No funds on the wallet yet: see §1 (transfer USDC **on Polygon** to
+  `0xEd42...c9E6`), then `python3 trading_bot.py --polymarket-balance`
+- USDC on the wrong network (Ethereum mainnet) is invisible to Polymarket
+- Dry-run `--polymarket-auto` annotations ("no USDC cash") are this guard,
+  not an error
 
 ### Orders not filling
 - PolyMarket has low liquidity on some markets
@@ -251,11 +316,6 @@ This will fetch markets and show arbitrage opportunities.
 - Verify your API credentials are correct
 - Check that your API key hasn't expired
 - Ensure you have internet connectivity to clob.polymarket.com
-
-## Fees
-
-- Trading Fee: 2% per trade (taken from profit)
-- Gas Fees: Minimal on Polygon (~$0.01-0.10 per transaction)
 
 ## Risk Warning
 

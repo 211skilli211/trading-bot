@@ -5,6 +5,7 @@ Sends alerts for trade events, stop-losses, and errors
 """
 
 import os
+import time
 import requests
 import json
 from datetime import datetime, timezone
@@ -212,6 +213,85 @@ Timestamp: {datetime.now(timezone.utc).isoformat()}
             
         except Exception as e:
             print(f"[AlertManager] Discord error: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers (env-only, no config dict needed)
+#
+# Used by the Polymarket executor and the CLI `--telegram-test` flag.
+# Same env vars as AlertManager: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID.
+# ---------------------------------------------------------------------------
+
+def telegram_configured() -> bool:
+    """True when both env vars hold a real (non-placeholder) value."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    bad = ("", "YOUR_BOT_TOKEN", "your_bot_token", "YOUR_CHAT_ID",
+           "your_chat_id")
+    return bool(token) and bool(chat_id) and \
+        token not in bad and chat_id not in bad
+
+
+def send_telegram(text: str, timeout: int = 15):
+    """Send one plain-text message. Returns True on success, an error string
+    on failure, or None when not configured. Never raises.
+
+    Independent of AlertManager (no config dict, no HTML), so callers can use
+    it from any module without wiring."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    if not token or not chat_id or token in ("YOUR_BOT_TOKEN",) or \
+            chat_id in ("YOUR_CHAT_ID",):
+        return None
+    url = "https://api.telegram.org/bot{}/sendMessage".format(token)
+    try:
+        r = requests.post(
+            url,
+            json={"chat_id": chat_id, "text": text,
+                  "disable_web_page_preview": True},
+            timeout=timeout)
+        if r.status_code == 200:
+            return True
+        if r.status_code == 429:
+            retry = r.headers.get("Retry-After")
+            if retry:
+                try:
+                    time.sleep(min(int(retry), 30))
+                except ValueError:
+                    pass
+                r = requests.post(
+                    url,
+                    json={"chat_id": chat_id, "text": text,
+                          "disable_web_page_preview": True},
+                    timeout=timeout)
+                if r.status_code == 200:
+                    return True
+        return "HTTP {}: {}".format(r.status_code, (r.text or "")[:200])
+    except requests.RequestException as e:
+        return str(e)
+
+
+def notify(title: str, body: str = ""):
+    """Convenience wrapper: prefix + send. No-op when unconfigured."""
+    text = "[trading-bot] {}\n{}".format(title, body) if body else \
+        "[trading-bot] {}".format(title)
+    return send_telegram(text)
+
+
+def test_telegram() -> str:
+    """Send a test message; returns a human-readable status line."""
+    if not telegram_configured():
+        return ("❌ Telegram not configured. Add to .env:\n"
+                "   TELEGRAM_BOT_TOKEN=<from @BotFather>\n"
+                "   TELEGRAM_CHAT_ID=<your chat id>\n"
+                "then re-run --telegram-test")
+    res = send_telegram(
+        "✅ Trading bot alerts wired.\n"
+        "You will get Polymarket fills, settlements (with P&L), "
+        "and daily-loss-cap halts here.")
+    if res is True:
+        return "✅ test message sent — check your Telegram"
+    return "❌ send failed: {}".format(res)
 
 
 if __name__ == "__main__":

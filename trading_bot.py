@@ -2469,6 +2469,85 @@ def handle_ctrader(args):
                   "verify with --ctrader-positions)")
 
 
+def handle_watch(args):
+    """Resident watch loop: paper-lab tick + Polymarket settlement watch.
+
+    Every cycle:
+      1. paper-lab tick (same engine as the backtester — one run per cycle)
+      2. Polymarket settlement watch (marks settled bets, records P&L, alerts)
+      3. every 4th cycle: refresh the opportunity scan cache (dashboard)
+    Ctrl-C stops it cleanly.
+    """
+    import paper_lab
+    import polymarket_executor as px
+    import alerts
+
+    interval = args.watch if args.watch else 300
+    print("👀 Watch mode — cycle every {}s (Ctrl-C to stop)".format(interval))
+    print("   each cycle: paper-lab tick → PM settlement watch → "
+          "(every 4th cycle) scan-cache refresh")
+    cycle = 0
+    try:
+        while True:
+            cycle += 1
+            ts = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+            print("\n--- watch cycle {} @ {} ---".format(cycle, ts),
+                  flush=True)
+            try:
+                paper_lab.cmd_run(capital=args.paper_capital, monitor=0,
+                                  yes=False)
+            except Exception as e:
+                print("⚠️ paper tick failed: {}".format(str(e)[:120]))
+            try:
+                trader = px.PmTrader()
+                out = px.watch_settlements(trader)
+                if out["settled"]:
+                    s = px.ledger_summary(px.load_ledger())
+                    line = ("PM: settled {} bet(s) this pass "
+                            "(today ${:+.2f})").format(
+                                len(out["settled"]), s["realized_today"])
+                else:
+                    line = "PM: no settlements — {} bet(s) still open".format(
+                        out["still_open"])
+                for e in out.get("errors", []):
+                    line += "  ⚠️ " + e[:80]
+                print(line, flush=True)
+            except px.ClobAuthError as e:
+                print("PM watch: auth problem — " + str(e)[:100])
+            except Exception as e:
+                print("⚠️ PM watch failed: {}".format(str(e)[:100]))
+            if cycle % 4 == 0:
+                try:
+                    import polymarket_scanner as pms
+                    scanner = pms.PolyScanner(
+                        bankroll=float(
+                            os.getenv("POLYMARKET_BANKROLL")
+                            or pms.DEFAULT_BANKROLL))
+                    report = scanner.scan(limit=200)
+                    st = report["stats"]
+                    print("   scan: {} markets, {} opportunities in "
+                          "{:.0f}s".format(st["markets_scanned"],
+                                           len(report["opportunities"]),
+                                           st["duration_s"]))
+                    os.makedirs("data", exist_ok=True)
+                    with open(
+                            os.path.join("data", "polymarket_last_scan.json"),
+                            "w") as f:
+                        json.dump({
+                            "ts": int(time.time()),
+                            "scan_secs": st.get("duration_s"),
+                            "bankroll": scanner.bankroll,
+                            "count": len(report["opportunities"]),
+                            "opportunities": report["opportunities"],
+                        }, f)
+                except Exception as e:
+                    print("⚠️ scan refresh failed: " + str(e)[:100])
+            print("   sleeping {}s…".format(interval), flush=True)
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("\n👋 watch stopped after {} cycle(s)".format(cycle))
+
+
 def handle_polymarket(args):
     """Run all requested --polymarket-* actions, in order."""
     import polymarket_scanner as pms
@@ -2637,6 +2716,111 @@ def handle_polymarket(args):
             print("❌ order failed — see logs; L2 credentials may need "
                   "refreshing (python3 polymarket_check.py)")
             sys.exit(1)
+
+    if args.polymarket_balance:
+        import polymarket_executor as px
+        try:
+            trader = px.PmTrader()
+        except px.ClobAuthError as e:
+            print("❌ " + str(e))
+            sys.exit(1)
+        print(px.balance_report(trader))
+
+    if args.polymarket_watch:
+        import polymarket_executor as px
+        try:
+            trader = px.PmTrader()
+            out = px.watch_settlements(trader)
+        except px.ClobAuthError as e:
+            print("❌ " + str(e))
+            sys.exit(1)
+        if out["settled"]:
+            for rec in out["settled"]:
+                emoji = "✅" if rec.get("resolution") == "win" else "❌"
+                print("{} settled: {} {} sh @ {} → {} "
+                      "(net ${:+.2f})".format(
+                          emoji, str(rec.get("question", ""))[:48],
+                          rec.get("outcome"), rec.get("price"),
+                          str(rec.get("resolution", "")).upper(),
+                          rec.get("settled_pnl", 0)))
+            s = px.ledger_summary(px.load_ledger())
+            print("ledger: {} open (${:.2f}), {} settled, "
+                  "realized ${:+.2f}, today ${:+.2f}".format(
+                      s["open_count"], s["open_cost"], s["settled_count"],
+                      s["realized_total"], s["realized_today"]))
+        else:
+            print("no settlements this pass — {} bet(s) still open".format(
+                out["still_open"]))
+        for e in out.get("errors", []):
+            print("⚠️ " + e)
+
+    if args.polymarket_auto is not None:
+        import polymarket_executor as px
+        n = max(0, args.polymarket_auto)
+        types = tuple(t.strip()
+                      for t in args.pm_auto_types.split(",")
+                      if t.strip())
+        report = scanner.scan(limit=200,
+                              smart_min_usd=args.polymarket_min_usd)
+        st = report["stats"]
+        print(f"📡 scanned {st['markets_scanned']} markets, "
+              f"{st['books_fetched']} books in {st['duration_s']}s — "
+              f"{len(report['opportunities'])} opportunities")
+        # cache the scan for the dashboard (same shape as --polymarket-opps)
+        try:
+            os.makedirs("data", exist_ok=True)
+            with open(os.path.join("data", "polymarket_last_scan.json"),
+                      "w") as f:
+                json.dump({
+                    "ts": int(time.time()),
+                    "scan_secs": st.get("duration_s"),
+                    "bankroll": bankroll,
+                    "count": len(report["opportunities"]),
+                    "opportunities": report["opportunities"],
+                }, f)
+        except (OSError, TypeError, ValueError):
+            pass
+        if n == 0:
+            print("N=0 — nothing to execute.")
+        else:
+            dry = not args.yes
+            try:
+                trader = px.PmTrader()
+            except px.ClobAuthError as e:
+                print("❌ " + str(e))
+                sys.exit(1)
+            res = px.auto_execute(report, trader, bankroll=bankroll,
+                                  types=types, max_n=n,
+                                  daily_loss_cap=args.pm_daily_loss_cap,
+                                  dry_run=dry)
+            if dry:
+                print("🧪 DRY RUN — add --yes to actually place orders:")
+            for rec in res["executed"]:
+                if rec.get("dry_run"):
+                    print("  would buy {} {} sh @ {:.3f} (${:.2f}) — "
+                          "{}".format(rec["outcome"], rec["shares"],
+                                      rec["price"], rec["cost_usd"],
+                                      str(rec.get("question", ""))[:52]))
+                    if not rec.get("cash_ok"):
+                        print("    ⚠️ at the moment: "
+                              + str(rec.get("cash_note"))[:100])
+                else:
+                    print("  🟢 bought {} {} sh @ {:.3f} (${:.2f}) — "
+                          "order {}".format(
+                              rec["outcome"], rec["shares"], rec["price"],
+                              rec["cost_usd"], rec.get("order_id")))
+            for sk in res["skipped"]:
+                print("  ⏭ skipped {}: {}".format(sk.get("id", "?"),
+                                                  sk.get("reason")))
+            if res.get("halted"):
+                print("⛔ run halted by the daily loss cap — no more "
+                      "entries today")
+            if not dry:
+                try:
+                    print()
+                    print(px.balance_report(trader))
+                except Exception:
+                    pass
 
 
 def main():
@@ -3032,6 +3216,22 @@ Environment Variables for Live Trading:
         help='Unpark the LIVE cTrader account'
     )
 
+    parser.add_argument(
+        '--telegram-test',
+        action='store_true',
+        help='Send a test message via the Telegram bot (TELEGRAM_BOT_TOKEN '
+             '/ TELEGRAM_CHAT_ID in .env)'
+    )
+    parser.add_argument(
+        '--watch',
+        type=int,
+        default=0,
+        metavar='SEC',
+        help='Resident watch loop every SEC seconds (e.g. --watch 300): '
+             'paper-lab tick + Polymarket settlement watch each cycle, '
+             'scan-cache refresh ~every 4th cycle. Ctrl-C stops cleanly.'
+    )
+
     # Polymarket — scanner / quick wins / portfolio / execution
     parser.add_argument(
         '--polymarket-scan',
@@ -3113,6 +3313,45 @@ Environment Variables for Live Trading:
     )
 
     parser.add_argument(
+        '--polymarket-balance',
+        action='store_true',
+        help='Show Polymarket USDC cash, open orders, positions, and the '
+             'ledger (realized P&L) for our wallet'
+    )
+    parser.add_argument(
+        '--polymarket-auto',
+        type=int,
+        default=None,
+        metavar='N',
+        help='Scan, then execute the top-N single-leg opportunities '
+             '(endgame + smart_money by default). Without --yes this is a '
+             'dry run (shows what would be bought). Multi-leg arbs are '
+             'never auto-executed.'
+    )
+    parser.add_argument(
+        '--pm-auto-types',
+        type=str,
+        default='endgame,smart_money',
+        metavar='TYPES',
+        help='Comma-separated strategies for --polymarket-auto '
+             '(default: endgame,smart_money)'
+    )
+    parser.add_argument(
+        '--pm-daily-loss-cap',
+        type=float,
+        default=3.0,
+        metavar='USD',
+        help='Halt new Polymarket entries for the UTC day when realized '
+             'P&L today <= -USD (default: 3.0)'
+    )
+    parser.add_argument(
+        '--polymarket-watch',
+        action='store_true',
+        help='One settlement-watch pass: check open ledger bets against '
+             'live market state, mark settled ones, record P&L, alert'
+    )
+
+    parser.add_argument(
         '--rl-model',
         type=str,
         default='models/ppo_agent.pkl',
@@ -3137,7 +3376,18 @@ Environment Variables for Live Trading:
             print("❌ Dashboard not available. Install flask: pip install flask")
             sys.exit(1)
         return
-    
+
+    # Telegram test message
+    if args.telegram_test:
+        import alerts
+        print(alerts.test_telegram())
+        return
+
+    # Resident watch loop (paper-lab tick + Polymarket settlement watch)
+    if args.watch > 0:
+        handle_watch(args)
+        return
+
     # Nautilus integration: status and/or backtest
     if args.nautilus_status or args.nautilus_backtest:
         try:
@@ -3210,10 +3460,13 @@ Environment Variables for Live Trading:
             sys.exit(1)
         return
 
-    # Polymarket: scanner / opportunities / quick wins / portfolio / exec
+    # Polymarket: scanner / opportunities / quick wins / portfolio / exec /
+    # balance / auto-execute / settlement watch
     if any([args.polymarket_scan is not None, args.polymarket_opps,
             args.polymarket_quickwins, args.polymarket_portfolio,
-            args.polymarket_detail, args.polymarket_exec]):
+            args.polymarket_detail, args.polymarket_exec,
+            args.polymarket_balance, args.polymarket_watch,
+            args.polymarket_auto is not None]):
         try:
             handle_polymarket(args)
         except SystemExit:
