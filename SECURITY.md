@@ -60,7 +60,7 @@ Add this to your `~/.bashrc` or `~/.profile` to make it permanent.
 ### 5. Start the Bot
 
 ```bash
-python launch_bot.py
+python3 trading_bot.py --mode paper
 ```
 
 The bot will automatically detect and decrypt encrypted values.
@@ -289,7 +289,7 @@ python security.py check
 
 4. Test the bot starts correctly:
    ```bash
-   python launch_bot.py --mode paper
+   python3 trading_bot.py --mode paper
    ```
 
 5. Delete the backup once confirmed working:

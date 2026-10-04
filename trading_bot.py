@@ -468,9 +468,7 @@ class TradingBot:
                 binance_api_key=binance_key,
                 binance_secret=binance_secret,
                 coinbase_api_key=coinbase_key,
-                coinbase_secret=coinbase_secret,
-                kraken_api_key=kraken_key,
-                kraken_secret=kraken_secret
+                coinbase_secret=coinbase_secret
             )
             print("✅ Execution Layer initialized")
         else:
@@ -1956,7 +1954,7 @@ def run_tests():
     
     import subprocess
     result = subprocess.run(
-        ["python", "-m", "pytest", "tests/", "-v"],
+        [sys.executable, "-m", "pytest", "tests/", "-v"],
         capture_output=True,
         text=True
     )
@@ -2500,6 +2498,19 @@ def handle_polymarket(args):
         print(f"📡 scanned {st['markets_scanned']} markets, "
               f"{st['books_fetched']} books, {st['nr_groups_checked']} NR groups, "
               f"{st['whale_buys']} whale buys in {st['duration_s']}s")
+        # Cache the scan for the dashboard (data/polymarket_last_scan.json)
+        try:
+            os.makedirs("data", exist_ok=True)
+            with open(os.path.join("data", "polymarket_last_scan.json"), "w") as f:
+                json.dump({
+                    "ts": int(time.time()),
+                    "scan_secs": st.get("duration_s"),
+                    "bankroll": bankroll,
+                    "count": len(report["opportunities"]),
+                    "opportunities": report["opportunities"],
+                }, f)
+        except (OSError, TypeError, ValueError):
+            pass
         if args.polymarket_quickwins:
             report = dict(report)
             report["opportunities"] = [

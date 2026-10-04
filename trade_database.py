@@ -70,6 +70,9 @@ class TradeRecord:
     fees_close: float = 0.0
     is_open: bool = True
 
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
 
 class TradeDatabase:
     """
@@ -328,7 +331,7 @@ class TradeDatabase:
                        MIN(profit_abs) as worst_trade,
                        AVG(profit_abs) as avg_profit
                 FROM trades 
-                WHERE state = 'close' AND close_date >= ?
+                WHERE state = 'closed' AND close_date >= ?
             """, (since,)).fetchone()
         
         total = rows['total_trades'] or 0
@@ -358,7 +361,7 @@ class TradeDatabase:
                        SUM(profit_abs) as total_profit,
                        AVG(profit_ratio) as avg_return
                 FROM trades 
-                WHERE state = 'close'
+                WHERE state = 'closed'
                 GROUP BY pair
                 ORDER BY total_profit DESC
             """).fetchall()
@@ -375,7 +378,7 @@ class TradeDatabase:
                        SUM(profit_abs) as total_profit,
                        AVG(profit_ratio) as avg_return
                 FROM trades 
-                WHERE state = 'close'
+                WHERE state = 'closed'
                 GROUP BY strategy
                 ORDER BY total_profit DESC
             """).fetchall()
@@ -393,7 +396,7 @@ class TradeDatabase:
                        SUM(profit_abs) as pnl,
                        SUM(CASE WHEN profit_abs > 0 THEN 1 ELSE 0 END) as wins
                 FROM trades 
-                WHERE state = 'close' AND close_date >= ?
+                WHERE state = 'closed' AND close_date >= ?
                 GROUP BY date(close_date)
                 ORDER BY day
             """, (since,)).fetchall()
@@ -492,21 +495,6 @@ class TradeDatabase:
             "strategy_performance": strategy_perf,
             "daily_pnl": daily_pnl,
         }
-
-    def open_trade(self, pair: str, side: str, entry_price: float,
-                   quantity: float, strategy: str = "manual") -> str:
-        """Simplified open_trade for API compatibility."""
-        import uuid
-        trade_id = str(uuid.uuid4())[:8]
-        return self.create_trade(
-            trade_id=trade_id,
-            pair=pair,
-            exchange="api",
-            amount=quantity,
-            open_rate=entry_price,
-            stake_amount=quantity * entry_price,
-            direction="long" if side == "buy" else "short",
-        )
 
     def __len__(self) -> int:
         with self._conn() as conn:

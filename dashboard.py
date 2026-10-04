@@ -1,4473 +1,717 @@
 #!/usr/bin/env python3
 """
-Final Trading Dashboard - Fully Working v1.0
-============================================
-Combines ultra_simple.py reliability with dashboard.py features:
-- HTML forms only (no JavaScript fetch)
-- Direct database queries
-- Real-time Binance prices
-- Working bot controls
-- All pages server-side rendered
+Trading Bot Dashboard — v2 (2026-10-05)
+========================================
+Self-contained Flask dashboard for the trading bot. No build step, no CDN,
+no external assets: a single dark UI page served from this module plus
+read-only JSON APIs.
+
+Data sources (all local, all real — no mocks):
+  * trades.db           — main loop trade log (TradeDatabase schema)
+  * trades_legacy.db    — legacy trade log (TradingDatabase schema)
+  * data/paper_state.json   — live paper-trading lab slots
+  * data/ctrader_credentials.json — cTrader account / park status (secrets never shown)
+  * data/polymarket_last_scan.json — most recent Polymarket scanner run
+  * Binance public API  — live prices (30s cache, degrades gracefully)
+  * bot.pid             — bot process control (PID-file based; never pkill -f)
+
+Run standalone:
+    python3 dashboard.py            # http://localhost:7777  (PORT env overrides)
+
+Run embedded in the bot:
+    python3 trading_bot.py --dashboard          # dashboard-only mode
+    config dashboard.enabled=true               # dashboard in a background thread
+
+Programmatic (used by the bot loop):
+    import dashboard
+    dashboard.update_dashboard(prices=..., trades=..., positions=..., stats=...)
+    dashboard.run_dashboard(port=7777)
+
+Replaces the old 4.4k-line dashboard.py (duplicate routes, dead code after
+return, mock ML/zeroclaw/multi-agent/arbitrage endpoints, broken template
+routes, and pkill-based bot control) and the React app in trading-dashboard/.
 """
 
-from flask import (
-    Flask,
-    render_template,
-    request,
-    redirect,
-    jsonify,
-    send_from_directory,
-)
 import json
 import os
+import signal
 import sqlite3
 import subprocess
+import sys
 import time
-import requests
-from datetime import datetime
-
-# React build path
-REACT_DIST = os.path.join(os.path.dirname(__file__), "trading-dashboard", "dist")
-
-# Configuration - works on both local and cloud
-BOT_DIR = os.environ.get("BOT_DIR", os.getcwd())
-
-app = Flask(__name__, template_folder=None, static_folder=None)
-app.secret_key = "trading-bot-secret-key-2026"
-
-
-# Serve React static files
-@app.route("/assets/<path:filename>")
-def serve_assets(filename):
-    return send_from_directory(REACT_DIST, f"assets/{filename}")
-
-
-@app.route("/manifest.webmanifest")
-def serve_manifest():
-    return send_from_directory(REACT_DIST, "manifest.webmanifest")
-
-
-@app.route("/sw.js")
-def serve_sw():
-    return send_from_directory(REACT_DIST, "sw.js")
-
-
-@app.route("/registerSW.js")
-def serve_register_sw():
-    return send_from_directory(REACT_DIST, "registerSW.js")
-
-
-@app.route("/icon-192.svg")
-def serve_icon_192():
-    return send_from_directory(REACT_DIST, "icon-192.svg")
-
-
-@app.route("/icon-512.svg")
-def serve_icon_512():
-    return send_from_directory(REACT_DIST, "icon-512.svg")
-
-
-@app.route("/")
-def serve_react_app():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-# Keep simple HTML fallback routes for specific pages
-@app.route("/simple")
-def simple_fallback():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/prices-simple")
-def prices_simple():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/portfolio-simple")
-def portfolio_simple():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/settings-simple")
-def settings_simple():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/overview")
-def overview_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/prices")
-def prices_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/portfolio")
-def portfolio_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/strategies")
-def strategies_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/alerts")
-def alerts_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/ml")
-def ml_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/analytics")
-def analytics_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/risk")
-def risk_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/zeroclaw")
-def zeroclaw_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/solana")
-def solana_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/backtest")
-def backtest_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-@app.route("/multi-agent")
-def multi_agent_redirect():
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-# For other routes that don't exist, serve React app (SPA routing)
-@app.route("/<path:path>")
-def catch_all(path):
-    if path.startswith("api/"):
-        return jsonify({"error": "API endpoint not found"}), 404
-    return send_from_directory(REACT_DIST, "index.html")
-
-
-# ============================================================================
-# MOBILE APP API ROUTES (placed at top for proper registration)
-# ============================================================================
-# MOBILE APP API ROUTES (placed at top for proper registration)
-# ============================================================================
-
-
-@app.route("/api/prices")
-def api_prices():
-    """Get live prices for all tracked coins"""
-    prices = get_all_usdt_prices()
-    # Format for frontend
-    result = []
-    for p in prices[:100]:  # Top 100 coins
-        result.append(
-            {
-                "symbol": p.get("symbol", ""),
-                "price": p.get("price", 0),
-                "change_24h": p.get("change", 0),
-                "volume": p.get("volume", 0),
-                "icon": p.get("icon"),
-            }
-        )
-    return jsonify(result)
-
-
-@app.route("/api/portfolio")
-def api_portfolio():
-    """Get portfolio with real data"""
-    cfg = get_config()
-    mode = cfg.get("bot", {}).get("mode", "PAPER")
-
-    # Get stats from database
-    stats = get_portfolio_stats()
-
-    return jsonify(
-        {
-            "total_balance": stats.get("pnl", 10000),
-            "pnl": stats.get("pnl", 0),
-            "total_trades": stats.get("total_trades", 0),
-            "positions": get_positions(),
-            "mode": mode,
-        }
-    )
-
-
-@app.route("/api/positions")
-def api_positions():
-    """Get open positions"""
-    return jsonify(get_positions())
-
-
-@app.route("/api/bot/status")
-def api_bot_status():
-    """Get bot status with real data"""
-    cfg = get_config()
-    mode = cfg.get("bot", {}).get("mode", "PAPER")
-    running = is_bot_running()
-    stats = get_portfolio_stats()
-
-    return jsonify(
-        {
-            "mode": mode,
-            "running": running,
-            "last_cycle": "N/A",
-            "pnl": stats.get("pnl", 0),
-            "active_positions": stats.get("active_positions", 0),
-            "win_rate": stats.get("win_rate", 0),
-        }
-    )
-
-
-@app.route("/api/alerts")
-def api_alerts():
-    """Get alerts"""
-    cfg = get_config()
-    alerts = cfg.get("alerts", [])
-    return jsonify(alerts[-10:])  # Last 10 alerts
-
-
-# ============================================================================
-# MISSING API ENDPOINTS (Phase 1)
-# ============================================================================
-
-
-@app.route("/api/strategies")
-def api_get_strategies():
-    """Get all strategies with their status"""
-    cfg = get_config()
-    strategies = cfg.get("strategies", {})
-    result = []
-    for name, data in strategies.items():
-        result.append(
-            {
-                "id": name,
-                "name": data.get("name", name),
-                "description": data.get("description", ""),
-                "enabled": data.get("enabled", False),
-                "config": data,
-            }
-        )
-    return jsonify(result)
-
-
-@app.route("/api/zeroclaw/status")
-def api_zeroclaw_status():
-    """Get ZeroClaw daemon status"""
-    cfg = get_config()
-    zc_config = cfg.get("zeroclaw", {})
-    return jsonify(
-        {
-            "available": True,
-            "enabled": zc_config.get("enabled", False),
-            "running": False,
-            "skills_count": len(zc_config.get("skills", [])),
-            "sessions_count": len(zc_config.get("sessions", [])),
-        }
-    )
-
-
-@app.route("/api/multi-agent/status")
-def api_multi_agent_status():
-    """Get multi-agent system status with detailed agent info"""
-    cfg = get_config()
-    agents = cfg.get("multi_agent", {}).get("agents", [])
-    if not agents:
-        # Default agents with detailed config
-        agents = [
-            {
-                "name": "ArbBot",
-                "status": "stopped",
-                "type": "arbitrage",
-                "pnl": 0,
-                "trades": 0,
-                "win_rate": 0,
-            },
-            {
-                "name": "SolSniper",
-                "status": "stopped",
-                "type": "sniper",
-                "pnl": 0,
-                "trades": 0,
-                "win_rate": 0,
-            },
-            {
-                "name": "ContrarianBot",
-                "status": "stopped",
-                "type": "contrarian",
-                "pnl": 0,
-                "trades": 0,
-                "win_rate": 0,
-            },
-            {
-                "name": "MomentumBot",
-                "status": "stopped",
-                "type": "momentum",
-                "pnl": 0,
-                "trades": 0,
-                "win_rate": 0,
-            },
-        ]
-
-    # Check if any agent is running
-    any_running = any(a.get("status") == "running" for a in agents)
-
-    # Get real PnL from orders
-    orders = cfg.get("orders", [])
-    for agent in agents:
-        agent_type = agent.get("type", "")
-        agent_orders = [o for o in orders if o.get("agent") == agent.get("name")]
-        if agent_orders:
-            agent["trades"] = len(agent_orders)
-            agent["pnl"] = sum(o.get("pnl", 0) for o in agent_orders)
-            wins = sum(1 for o in agent_orders if o.get("pnl", 0) > 0)
-            agent["win_rate"] = (
-                round(wins / len(agent_orders) * 100, 1) if agent_orders else 0
-            )
-
-    return jsonify(
-        {
-            "active": any_running,
-            "agents": agents,
-            "mode": cfg.get("bot", {}).get("mode", "PAPER"),
-            "total_pnl": sum(a.get("pnl", 0) for a in agents),
-            "consensus": {"signal": "neutral", "confidence": 0, "agents_agreeing": 0},
-        }
-    )
-
-
-@app.route("/api/multi-agent/activate", methods=["POST"])
-def api_multi_agent_activate():
-    """Activate multi-agent swarm - starts all agents"""
-    cfg = get_config()
-    agents = cfg.get("multi_agent", {}).get("agents", [])
-
-    if not agents:
-        agents = [
-            {"name": "ArbBot", "status": "running", "type": "arbitrage"},
-            {"name": "SolSniper", "status": "running", "type": "sniper"},
-            {"name": "ContrarianBot", "status": "running", "type": "contrarian"},
-            {"name": "MomentumBot", "status": "running", "type": "momentum"},
-        ]
-    else:
-        for agent in agents:
-            agent["status"] = "running"
-
-    cfg["multi_agent"] = cfg.get("multi_agent", {})
-    cfg["multi_agent"]["agents"] = agents
-    save_config(cfg)
-
-    return jsonify(
-        {
-            "success": True,
-            "message": "Multi-agent swarm activated",
-            "agents_started": len(agents),
-            "mode": cfg.get("bot", {}).get("mode", "PAPER"),
-        }
-    )
-
-
-@app.route("/api/multi-agent/consensus")
-def api_multi_agent_consensus():
-    """Get AI consensus from agents"""
-    return jsonify(
-        {
-            "signal": "neutral",
-            "confidence": 45,
-            "agents_agreeing": 2,
-            "total_agents": 4,
-            "breakdown": [
-                {"agent": "ArbBot", "signal": "bullish", "confidence": 60},
-                {"agent": "SniperBot", "signal": "neutral", "confidence": 40},
-                {"agent": "ContrarianBot", "signal": "bearish", "confidence": 35},
-                {"agent": "MomentumBot", "signal": "neutral", "confidence": 45},
-            ],
-        }
-    )
-
-
-@app.route("/api/ml-predictions")
-def api_ml_predictions():
-    """Get ML-based predictions"""
-    return jsonify(
-        {
-            "predictions": [
-                {
-                    "symbol": "BTC/USDT",
-                    "signal": "buy",
-                    "confidence": 72,
-                    "reason": "RSI oversold, volume spike",
-                },
-                {
-                    "symbol": "ETH/USDT",
-                    "signal": "hold",
-                    "confidence": 55,
-                    "reason": "Neutral momentum",
-                },
-                {
-                    "symbol": "SOL/USDT",
-                    "signal": "sell",
-                    "confidence": 61,
-                    "reason": "Overbought, divergence",
-                },
-            ],
-            "model_version": "v2.1",
-            "last_updated": "2026-03-30T12:00:00Z",
-        }
-    )
-
-
-@app.route("/api/ml/status")
-def api_ml_status():
-    """Get ML system status"""
-    return jsonify(
-        {
-            "enabled": True,
-            "model_loaded": True,
-            "accuracy": 0.68,
-            "total_predictions": 156,
-            "last_train": "2026-03-28T00:00:00Z",
-        }
-    )
-
-
-@app.route("/api/arbitrage")
-def api_arbitrage():
-    """Get arbitrage opportunities"""
-    return jsonify(
-        {
-            "opportunities": [
-                {
-                    "symbol": "BTC",
-                    "buy_exchange": "Binance",
-                    "sell_exchange": "Coinbase",
-                    "spread": 0.8,
-                    "profit_usd": 25,
-                },
-                {
-                    "symbol": "ETH",
-                    "buy_exchange": "Kraken",
-                    "sell_exchange": "Binance",
-                    "spread": 0.5,
-                    "profit_usd": 12,
-                },
-            ],
-            "last_scan": "2026-03-30T12:00:00Z",
-        }
-    )
-
-
-@app.route("/api/wallet/status")
-def api_wallet_status():
-    """Get wallet connection status"""
-    return jsonify({"connected": False, "type": None, "address": None, "balance": 0})
-
-
-@app.route("/api/credentials")
-def api_credentials():
-    """Get saved credentials status (masked)"""
-    cfg = get_config()
-    creds = cfg.get("credentials", {})
-    masked = {}
-    for k, v in creds.items():
-        if v and len(str(v)) > 4:
-            masked[k] = "****" + str(v)[-4:]
-        else:
-            masked[k] = v if v else ""
-    return jsonify(masked if masked else {"binance_key": "", "binance_secret": ""})
-
-
-# ============================================================================
-# ZEROCLAW DAEMON INTEGRATION (Phase 2)
-# ============================================================================
-
-
-@app.route("/api/zeroclaw/start", methods=["POST"])
-def api_zeroclaw_start():
-    """Start ZeroClaw daemon"""
-    import subprocess
-    import os
-
-    zeroclaw_dir = os.path.join(os.path.dirname(__file__), ".zeroclaw")
-
-    # Try to start zeroclaw daemon
-    try:
-        # Check if zeroclaw command exists
-        result = subprocess.run(
-            ["which", "zeroclaw"], capture_output=True, text=True, timeout=5
-        )
-        if result.returncode == 0:
-            # Start daemon in background
-            subprocess.Popen(
-                ["zeroclaw", "daemon"],
-                cwd=zeroclaw_dir,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-            return jsonify({"success": True, "message": "ZeroClaw daemon starting..."})
-        else:
-            return jsonify(
-                {
-                    "success": False,
-                    "message": "ZeroClaw not installed. Run: pip install zeroclaw",
-                }
-            )
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)[:100]})
-
-
-@app.route("/api/zeroclaw/chat", methods=["POST"])
-def api_zeroclaw_chat_v2():
-    """Send chat message to ZeroClaw AI"""
-    message = request.form.get("message", "")
-    if not message:
-        return jsonify({"success": False, "message": "No message provided"})
-
-    cfg = get_config()
-
-    # Store in chat history
-    if "zeroclaw" not in cfg:
-        cfg["zeroclaw"] = {}
-    if "chat_history" not in cfg["zeroclaw"]:
-        cfg["zeroclaw"]["chat_history"] = []
-
-    cfg["zeroclaw"]["chat_history"].append(
-        {"role": "user", "content": message, "timestamp": datetime.now().isoformat()}
-    )
-    save_config(cfg)
-
-    # Try to get response from ZeroClaw
-    try:
-        from zeroclaw_integration import get_zeroclaw
-
-        zc = get_zeroclaw(cfg.get("zeroclaw", {}))
-        response = zc.ask_ai(message)
-
-        cfg["zeroclaw"]["chat_history"].append(
-            {
-                "role": "assistant",
-                "content": response,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-        cfg["zeroclaw"]["chat_history"] = cfg["zeroclaw"]["chat_history"][-50:]
-        save_config(cfg)
-
-        return jsonify({"success": True, "response": response})
-    except Exception as e:
-        # Return mock response if ZeroClaw not available
-        mock_responses = {
-            "buy": "Based on current market analysis, BTC shows bullish momentum. Consider a small position with tight stop loss.",
-            "sell": "ETH is showing signs of exhaustion. Taking profits now would be prudent.",
-            "status": "All systems operational. Bot is running in PAPER mode with 4 active strategies.",
-            "help": "I can help with: market analysis, trade execution, portfolio review, and system diagnostics.",
-        }
-
-        response = mock_responses.get(
-            message.lower().split()[0] if message else "help",
-            "I'm your AI trading assistant. Ask me about markets, trades, or system status.",
-        )
-
-        return jsonify({"success": True, "response": response, "mock": True})
-
-
-@app.route("/api/zeroclaw/sessions")
-def api_zeroclaw_sessions():
-    """Get ZeroClaw sessions"""
-    cfg = get_config()
-    sessions = cfg.get("zeroclaw", {}).get("sessions", [])
-    return jsonify({"sessions": sessions, "count": len(sessions)})
-
-
-@app.route("/api/zeroclaw/skills")
-def api_zeroclaw_skills():
-    """Get available ZeroClaw skills"""
-    skills = [
-        {
-            "id": "price-check",
-            "name": "Price Check",
-            "description": "Get current market prices",
-        },
-        {
-            "id": "arbitrage-scan",
-            "name": "Arbitrage Scanner",
-            "description": "Find cross-exchange opportunities",
-        },
-        {
-            "id": "trade-execute",
-            "name": "Trade Execution",
-            "description": "Execute buy/sell orders",
-        },
-        {
-            "id": "portfolio-check",
-            "name": "Portfolio Check",
-            "description": "View portfolio status",
-        },
-        {
-            "id": "market-analyst",
-            "name": "Market Analyst",
-            "description": "Technical analysis & patterns",
-        },
-        {
-            "id": "system-diagnostic",
-            "name": "System Diagnostic",
-            "description": "Health checks & diagnostics",
-        },
-    ]
-    return jsonify({"skills": skills, "count": len(skills)})
-
-
-# ============================================================================
-# TRADING BOT START/STOP (Phase 2)
-# ============================================================================
-
-
-@app.route("/api/bot/start", methods=["POST"])
-def api_bot_start_v2():
-    """Start trading bot"""
-    try:
-        start_bot()
-        return jsonify(
-            {"success": True, "message": "Trading bot started", "running": True}
-        )
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)[:100]})
-
-
-@app.route("/api/bot/stop", methods=["POST"])
-def api_bot_stop_v2():
-    """Stop trading bot"""
-    try:
-        stop_bot()
-        return jsonify(
-            {"success": True, "message": "Trading bot stopped", "running": False}
-        )
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)[:100]})
-
-
-@app.route("/api/bot/restart", methods=["POST"])
-def api_bot_restart():
-    """Restart trading bot"""
-    try:
-        stop_bot()
-        time.sleep(2)
-        start_bot()
-        return jsonify(
-            {"success": True, "message": "Trading bot restarted", "running": True}
-        )
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)[:100]})
-
-
-# ============================================================================
-# ENHANCED ML ANALYTICS
-# ============================================================================
-
-
-def get_ml_profit_metrics():
-    """Get ML profit/loss metrics per dollar and advanced statistics"""
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-
-        # Total P&L metrics
-        cur.execute("""
-            SELECT 
-                COUNT(*) as total_trades,
-                SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) as winning_trades,
-                SUM(CASE WHEN net_pnl < 0 THEN 1 ELSE 0 END) as losing_trades,
-                SUM(CASE WHEN net_pnl > 0 THEN net_pnl ELSE 0 END) as gross_profit,
-                SUM(CASE WHEN net_pnl < 0 THEN ABS(net_pnl) ELSE 0 END) as gross_loss,
-                SUM(net_pnl) as net_pnl,
-                AVG(net_pnl) as avg_trade,
-                AVG(CASE WHEN net_pnl > 0 THEN net_pnl END) as avg_win,
-                AVG(CASE WHEN net_pnl < 0 THEN net_pnl END) as avg_loss
-            FROM trades WHERE net_pnl IS NOT NULL
-        """)
-        row = cur.fetchone()
-
-        total_trades = row[0] or 0
-        winning_trades = row[1] or 0
-        losing_trades = row[2] or 0
-        gross_profit = row[3] or 0
-        gross_loss = row[4] or 0
-        net_pnl = row[5] or 0
-        avg_trade = row[6] or 0
-        avg_win = row[7] or 0
-        avg_loss = row[8] or 0
-
-        # Calculate metrics per $1 invested (simulated with trade sizes)
-        # In production, this would use actual position sizes
-        avg_trade_size = 1000  # Assume $1000 average trade size
-
-        pnl_per_dollar = (
-            net_pnl / (total_trades * avg_trade_size) * 100 if total_trades > 0 else 0
-        )
-        profit_per_dollar_win = avg_win / avg_trade_size * 100 if avg_win else 0
-        loss_per_dollar_loss = avg_loss / avg_trade_size * 100 if avg_loss else 0
-
-        # Profit factor
-        profit_factor = round(gross_profit / gross_loss, 2) if gross_loss > 0 else 0
-
-        # Expectancy: (Win% * Avg Win) + (Loss% * Avg Loss)
-        win_rate = winning_trades / total_trades if total_trades > 0 else 0
-        loss_rate = losing_trades / total_trades if total_trades > 0 else 0
-        expectancy = (
-            (win_rate * avg_win) + (loss_rate * avg_loss) if total_trades > 0 else 0
-        )
-        expectancy_pct = expectancy / avg_trade_size * 100 if avg_trade_size > 0 else 0
-
-        # Risk/Reward ratio
-        rr_ratio = (
-            round(abs(avg_win / avg_loss), 2) if avg_loss and avg_loss != 0 else 0
-        )
-
-        # Sharpe-like ratio (simplified)
-        sharpe_like = (
-            round(expectancy / abs(avg_loss), 2) if avg_loss and avg_loss != 0 else 0
-        )
-
-        # Spread impact estimate (typical 0.1% spread)
-        spread_cost_per_trade = avg_trade_size * 0.001
-        total_spread_cost = spread_cost_per_trade * total_trades
-        spread_impact_pct = (
-            (total_spread_cost / gross_profit * 100) if gross_profit > 0 else 0
-        )
-
-        conn.close()
-
-        return {
-            "pnl_per_dollar": round(pnl_per_dollar, 3),
-            "profit_per_dollar_win": round(profit_per_dollar_win, 2),
-            "loss_per_dollar_loss": round(loss_per_dollar_loss, 2),
-            "profit_factor": profit_factor,
-            "expectancy": round(expectancy, 2),
-            "expectancy_pct": round(expectancy_pct, 2),
-            "rr_ratio": rr_ratio,
-            "sharpe_like": sharpe_like,
-            "spread_impact_pct": round(spread_impact_pct, 2),
-            "total_spread_cost": round(total_spread_cost, 2),
-            "avg_trade_size": avg_trade_size,
-            "avg_win": round(avg_win, 2),
-            "avg_loss": round(avg_loss, 2),
-            "win_rate": round(win_rate * 100, 1),
-        }
-    except Exception as e:
-        print(f"ML profit metrics error: {e}")
-        return {
-            "pnl_per_dollar": 0,
-            "profit_factor": 0,
-            "expectancy": 0,
-            "rr_ratio": 0,
-            "spread_impact_pct": 0,
-            "win_rate": 0,
-        }
-
-
-def get_trade_recommendations():
-    """Generate AI trade recommendations with expected outcomes"""
-    try:
-        metrics = get_ml_profit_metrics()
-
-        # Budget presets with expected outcomes
-        presets = [
-            {"amount": 50, "label": "$50 Quick", "risk": "low"},
-            {"amount": 200, "label": "$200 Starter", "risk": "low"},
-            {"amount": 500, "label": "$500 Standard", "risk": "medium"},
-            {"amount": 1000, "label": "$1K Growth", "risk": "medium"},
-            {"amount": 5000, "label": "$5K Pro", "risk": "high"},
-            {"amount": 10000, "label": "$10K Whale", "risk": "high"},
-        ]
-
-        recommendations = []
-        win_rate = metrics.get("win_rate", 50) / 100
-        expectancy_pct = metrics.get("expectancy_pct", 1)
-
-        for preset in presets:
-            amount = preset["amount"]
-            # Calculate expected profit based on ML metrics
-            expected_profit = amount * (expectancy_pct / 100)
-            expected_roi = expectancy_pct
-
-            # Risk-adjusted based on preset risk level
-            risk_multiplier = {"low": 0.7, "medium": 1.0, "high": 1.5}.get(
-                preset["risk"], 1.0
-            )
-            adjusted_profit = expected_profit * risk_multiplier
-            adjusted_roi = expected_roi * risk_multiplier
-
-            # Confidence score based on win rate and history
-            confidence = min(95, int(win_rate * 100 + (expectancy_pct * 2)))
-
-            recommendations.append(
-                {
-                    "preset": preset["label"],
-                    "amount": amount,
-                    "expected_profit": round(adjusted_profit, 2),
-                    "expected_roi": round(adjusted_roi, 1),
-                    "confidence": confidence,
-                    "risk_level": preset["risk"],
-                    "suggested_position": "LONG" if win_rate > 0.5 else "SHORT",
-                    "timeframe": "1-4 hours",
-                }
-            )
-
-        return recommendations
-    except Exception as e:
-        print(f"Trade recommendations error: {e}")
-        return []
-
-
-def get_wallet_recommendation(wallet_balance=10000):
-    """Get trade recommendation based on wallet balance"""
-    recommendations = get_trade_recommendations()
-
-    # Find best recommendation for wallet size
-    for rec in recommendations:
-        if rec["amount"] <= wallet_balance * 0.1:  # Max 10% of wallet per trade
-            return rec
-
-    return recommendations[0] if recommendations else None
-
-
-def get_ml_learning_log():
-    """Get ML learning history - patterns and mistakes"""
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-
-        # Get recent losing trades for analysis
-        cur.execute("""
-            SELECT timestamp, strategy as symbol, buy_price, quantity, net_pnl
-            FROM trades 
-            WHERE net_pnl < 0
-            ORDER BY timestamp DESC
-            LIMIT 10
-        """)
-        mistakes = []
-        for row in cur.fetchall():
-            mistakes.append(
-                {
-                    "date": row[0],
-                    "symbol": row[1],
-                    "entry": row[2],
-                    "size": row[3],
-                    "loss": row[4],
-                    "lesson": "High volatility entry"
-                    if row[4] < -100
-                    else "Stop loss too tight",
-                }
-            )
-
-        # Get successful patterns
-        cur.execute("""
-            SELECT strategy as symbol, COUNT(*) as count, SUM(net_pnl) as total_pnl
-            FROM trades 
-            WHERE net_pnl > 0
-            GROUP BY strategy
-            ORDER BY total_pnl DESC
-            LIMIT 5
-        """)
-        patterns = []
-        for row in cur.fetchall():
-            patterns.append(
-                {
-                    "symbol": row[0],
-                    "success_count": row[1],
-                    "total_profit": round(row[2], 2),
-                }
-            )
-
-        conn.close()
-
-        return {
-            "mistakes_learned": len(mistakes),
-            "recent_mistakes": mistakes[:3],
-            "successful_patterns": patterns,
-            "strategy_evolution": [
-                {"date": "2024-01", "accuracy": 72},
-                {"date": "2024-02", "accuracy": 78},
-                {"date": "2024-03", "accuracy": 84},
-                {"date": "2024-04", "accuracy": 87},
-            ],
-        }
-    except Exception as e:
-        print(f"ML learning log error: {e}")
-        return {"mistakes_learned": 0, "recent_mistakes": [], "successful_patterns": []}
-
-
-# ============================================================================
-# DATABASE FUNCTIONS
-# ============================================================================
-
-
-def get_db():
-    """Get database connection"""
-    conn = sqlite3.connect(os.path.join(BOT_DIR, "trades.db"))
+from datetime import datetime, timezone
+
+try:
+    import requests
+except ImportError:  # pragma: no cover
+    requests = None
+
+try:
+    from flask import Flask, jsonify, request
+    FLASK_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    FLASK_AVAILABLE = False
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+
+BASE_DIR = os.environ.get("BOT_DIR", os.path.abspath(os.path.dirname(__file__)))
+
+DB_MAIN = os.path.join(BASE_DIR, "trades.db")
+DB_LEGACY = os.path.join(BASE_DIR, "trades_legacy.db")
+PAPER_STATE = os.path.join(BASE_DIR, "data", "paper_state.json")
+CTRADER_CREDS = os.path.join(BASE_DIR, "data", "ctrader_credentials.json")
+POLY_SCAN = os.path.join(BASE_DIR, "data", "polymarket_last_scan.json")
+PID_FILE = os.path.join(BASE_DIR, "bot.pid")
+BOT_LOG = os.path.join(BASE_DIR, "bot.log")
+
+PRICE_TTL = 30  # seconds
+WATCHLIST = ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE"]
+
+# Live-loop snapshot (populated by update_dashboard from the bot process)
+LIVE = {"prices": None, "trades": None, "positions": None, "stats": None,
+        "updated_ts": 0}
+
+
+# ---------------------------------------------------------------------------
+# Data readers
+# ---------------------------------------------------------------------------
+
+def _connect(path):
+    conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def get_trades(limit=50):
-    """Get recent trades from database"""
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT timestamp, strategy as symbol, buy_exchange as side, 
-                   buy_price as price, quantity, status, net_pnl as profit_loss, 
-                   trade_id as order_id
-            FROM trades 
-            ORDER BY timestamp DESC 
-            LIMIT ?
-        """,
-            (limit,),
-        )
-        rows = cur.fetchall()
-        conn.close()
-        return [dict(row) for row in rows]
-    except Exception as e:
-        print(f"DB error (trades): {e}")
+def _row_dicts(rows, fields):
+    out = []
+    for r in rows:
+        d = {}
+        for f in fields:
+            try:
+                d[f] = r[f]
+            except (IndexError, KeyError):
+                d[f] = None
+        out.append(d)
+    return out
+
+
+def main_trades(limit=50):
+    """Recent trades from the main loop DB (TradeDatabase schema)."""
+    if not os.path.exists(DB_MAIN):
         return []
-
-
-def get_positions():
-    """Get open positions"""
     try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT strategy as symbol, buy_exchange as side, 
-                   buy_price as price, quantity, timestamp, trade_id as order_id
-            FROM trades 
-            WHERE status = 'open' OR status = 'OPEN'
-            ORDER BY timestamp DESC
-        """)
-        rows = cur.fetchall()
+        conn = _connect(DB_MAIN)
+        rows = conn.execute(
+            """SELECT pair, direction, amount, open_rate, close_rate,
+                      profit_abs, state, strategy, open_date, close_date, trade_id
+               FROM trades ORDER BY open_date DESC LIMIT ?""", (limit,)).fetchall()
         conn.close()
-        return [dict(row) for row in rows]
-    except Exception as e:
-        print(f"DB error (positions): {e}")
-        return []
-
-
-def get_portfolio_stats():
-    """Get portfolio statistics"""
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-
-        # Total P&L
-        cur.execute("SELECT SUM(net_pnl) FROM trades WHERE net_pnl IS NOT NULL")
-        pnl = cur.fetchone()[0] or 0
-
-        # Total trades count
-        cur.execute("SELECT COUNT(*) FROM trades")
-        total_trades = cur.fetchone()[0] or 0
-
-        # Active positions count
-        cur.execute(
-            "SELECT COUNT(*) FROM trades WHERE status = 'open' OR status = 'OPEN'"
-        )
-        active_positions = cur.fetchone()[0] or 0
-
-        # Win rate
-        cur.execute("SELECT COUNT(*) FROM trades WHERE net_pnl > 0")
-        wins = cur.fetchone()[0] or 0
-        cur.execute("SELECT COUNT(*) FROM trades WHERE net_pnl IS NOT NULL")
-        closed = cur.fetchone()[0] or 1
-        win_rate = (wins / closed * 100) if closed > 0 else 0
-
-        conn.close()
-        return {
-            "pnl": float(pnl),
-            "total_trades": total_trades,
-            "active_positions": active_positions,
-            "win_rate": win_rate,
-        }
-    except Exception as e:
-        print(f"DB error (stats): {e}")
-        return {"pnl": 0, "total_trades": 0, "active_positions": 0, "win_rate": 0}
-
-
-# ============================================================================
-# PRICE FUNCTIONS - Dynamic fetching from APIs
-# ============================================================================
-
-
-# Fetch coin list dynamically from CoinGecko
-def fetch_coingecko_coins():
-    """Fetch official coin list from CoinGecko API with fallback"""
-    try:
-        # Try CoinGecko first
-        resp = requests.get(
-            "https://api.coingecko.com/api/v3/coins/markets",
-            params={
-                "vs_currency": "usd",
-                "order": "market_cap_desc",
-                "per_page": 250,
-                "page": 1,
-            },
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            coins = resp.json()
-            coin_map = {}
-            for coin in coins:
-                symbol = coin.get("symbol", "").upper()
-                coin_map[symbol] = {
-                    "id": coin.get("id"),
-                    "name": coin.get("name"),
-                    "symbol": symbol,
-                    "image": coin.get("image"),
-                    "market_cap": coin.get("market_cap", 0),
-                }
-            print(f"Fetched {len(coin_map)} coins from CoinGecko")
-            return coin_map
-    except Exception as e:
-        print(f"CoinGecko fetch error: {e}")
-
-    # Fallback: Generate coin list from Binance USDT pairs
-    return fetch_binance_coins()
-
-
-def fetch_binance_coins():
-    """Fallback: Get coin list from Binance"""
-    try:
-        resp = requests.get("https://api.binance.com/api/v3/exchangeInfo", timeout=10)
-        if resp.status_code == 200:
-            data = resp.json()
-            coin_map = {}
-            # Common coins with icons (hardcoded fallback)
-            coin_icons = {
-                "BTC": "https://cryptologos.cc/logos/bitcoin-btc-logo.png",
-                "ETH": "https://cryptologos.cc/logos/ethereum-eth-logo.png",
-                "BNB": "https://cryptologos.cc/logos/bnb-bnb-logo.png",
-                "SOL": "https://cryptologos.cc/logos/solana-sol-logo.png",
-                "XRP": "https://cryptologos.cc/logos/xrp-xrp-logo.png",
-                "ADA": "https://cryptologos.cc/logos/cardano-ada-logo.png",
-                "DOGE": "https://cryptologos.cc/logos/dogecoin-doge-logo.png",
-                "DOT": "https://cryptologos.cc/logos/polkadot-new-dot-logo.png",
-                "MATIC": "https://cryptologos.cc/logos/polygon-matic-logo.png",
-                "LTC": "https://cryptologos.cc/logos/litecoin-ltc-logo.png",
-                "AVAX": "https://cryptologos.cc/logos/avalanche-avax-logo.png",
-                "LINK": "https://cryptologos.cc/logos/chainlink-link-logo.png",
-                "ATOM": "https://cryptologos.cc/logos/cosmos-atom-logo.png",
-                "UNI": "https://cryptologos.cc/logos/uniswap-uni-logo.png",
-                "XLM": "https://cryptologos.cc/logos/stellar-xlm-logo.png",
-                "ETC": "https://cryptologos.cc/logos/ethereum-classic-etc-logo.png",
-                "FIL": "https://cryptologos.cc/logos/filecoin-fil-logo.png",
-                "HBAR": "https://cryptologos.cc/logos/hedera-hbar-logo.png",
-                "APT": "https://cryptologos.cc/logos/aptos-apt-logo.png",
-                "ARB": "https://cryptologos.cc/logos/arbitrum-arb-logo.png",
+        return [
+            {
+                "time": r["open_date"] or "",
+                "symbol": r["pair"] or "",
+                "side": (r["direction"] or "").upper(),
+                "entry": r["open_rate"],
+                "exit": r["close_rate"],
+                "size": r["amount"],
+                "pnl": r["profit_abs"],
+                "state": r["state"] or "",
+                "strategy": r["strategy"] or "",
+                "source": "bot",
             }
-            for symbol_info in data.get("symbols", []):
-                if (
-                    symbol_info.get("status") == "TRADING"
-                    and symbol_info.get("quoteAsset") == "USDT"
-                ):
-                    base = symbol_info.get("baseAsset", "")
-                    coin_map[base.upper()] = {
-                        "id": base.lower(),
-                        "name": base,
-                        "symbol": base.upper(),
-                        "image": coin_icons.get(base.upper(), ""),
-                        "market_cap": 0,
-                    }
-            print(f"Fetched {len(coin_map)} coins from Binance fallback")
-            return coin_map
-    except Exception as e:
-        print(f"Binance fallback error: {e}")
-    return {}
-
-
-# Dynamic coin data (fetched once, cached with timestamp)
-_coin_data_cache = None
-_coin_cache_time = 0
-COIN_CACHE_DURATION = 3600  # 1 hour
-
-
-def get_coin_data():
-    """Get coin data from CoinGecko with caching"""
-    global _coin_data_cache, _coin_cache_time
-    import time
-
-    now = time.time()
-    if _coin_data_cache is None or (now - _coin_cache_time) > COIN_CACHE_DURATION:
-        _coin_data_cache = fetch_coingecko_coins()
-        _coin_cache_time = now
-    return _coin_data_cache
-
-
-def get_coin_icon(symbol):
-    """Get official CoinGecko icon URL for a coin (dynamic)"""
-    data = get_coin_data()
-    symbol = symbol.upper()
-    if symbol in data:
-        return data[symbol].get("image")
-    return None
-
-
-_coin_icon_cache = {}
-
-
-def get_coin_icons(symbols):
-    """Get icon URLs for a list of symbols (dynamic)"""
-    global _coin_icon_cache
-    data = get_coin_data()
-    for symbol in symbols:
-        if symbol not in _coin_icon_cache:
-            sym = symbol.upper()
-            if sym in data:
-                _coin_icon_cache[symbol] = data[sym].get("image")
-            else:
-                _coin_icon_cache[symbol] = None
-    return _coin_icon_cache
-
-
-# Dynamic coin list based on CoinGecko data
-def get_tracked_symbols():
-    """Get list of symbols to track dynamically"""
-    data = get_coin_data()
-    # Return top 100 by market cap
-    sorted_coins = sorted(
-        data.values(), key=lambda x: x.get("market_cap", 0), reverse=True
-    )
-    return [c["symbol"] for c in sorted_coins[:100]]
-
-
-# Initialize with empty, will be populated dynamically
-TOP_100_COINS = []  # Will be populated from API
-
-TOP_50_COINS = []  # Will be populated from API
-
-
-def initialize_coins():
-    """Initialize coin lists from CoinGecko API"""
-    global TOP_100_COINS, TOP_50_COINS
-    try:
-        coins = get_tracked_symbols()
-        if coins:
-            TOP_100_COINS = coins[:100]
-            TOP_50_COINS = coins[:50]
-            print(f"Initialized {len(TOP_100_COINS)} coins from CoinGecko")
-    except Exception as e:
-        print(f"Failed to initialize coins: {e}")
-
-
-# Initialize on import
-initialize_coins()
-
-
-def get_prices():
-    """Fetch prices from Binance for tracked coins (dynamic)"""
-    global TOP_100_COINS
-    # Re-initialize if empty
-    if not TOP_100_COINS:
-        initialize_coins()
-
-    tracked = set(TOP_100_COINS)
-    if not tracked:
+            for r in rows
+        ]
+    except Exception:
         return []
 
+
+def legacy_trades(limit=50):
+    """Recent trades from the legacy DB (TradingDatabase schema)."""
+    if not os.path.exists(DB_LEGACY):
+        return []
     try:
-        resp = requests.get("https://api.binance.com/api/v3/ticker/24hr", timeout=10)
-        if resp.status_code == 200:
-            all_tickers = resp.json()
-            prices = []
-            get_coin_icons(TOP_100_COINS)
-            for ticker in all_tickers:
-                symbol = ticker.get("symbol", "")
-                if symbol.endswith("USDT"):
-                    base = symbol.replace("USDT", "")
-                    if base in tracked:
-                        prices.append(
-                            {
-                                "symbol": base,
-                                "price": float(ticker["lastPrice"]),
-                                "change": float(ticker["priceChangePercent"]),
-                                "volume": float(ticker["volume"]),
-                                "high": float(ticker["highPrice"]),
-                                "low": float(ticker["lowPrice"]),
-                                "icon": _coin_icon_cache.get(base),
-                            }
-                        )
-            return sorted(
-                prices,
-                key=lambda x: TOP_100_COINS.index(x["symbol"])
-                if x["symbol"] in TOP_100_COINS
-                else 999,
-            )
-    except Exception as e:
-        print(f"Price fetch error: {e}")
-    return []
-
-
-def get_all_usdt_prices():
-    """Fetch all USDT pairs from Binance (dynamic icons)"""
-    try:
-        resp = requests.get("https://api.binance.com/api/v3/ticker/24hr", timeout=10)
-        if resp.status_code == 200:
-            all_tickers = resp.json()
-            prices = []
-            # Get coin data for icons
-            coin_data = get_coin_data()
-            for ticker in all_tickers:
-                symbol = ticker.get("symbol", "")
-                if symbol.endswith("USDT") and not any(
-                    x in symbol for x in ["UP", "DOWN", "BEAR", "BULL"]
-                ):
-                    base = symbol.replace("USDT", "")
-                    # Try to get icon from CoinGecko
-                    icon = None
-                    if base.upper() in coin_data:
-                        icon = coin_data[base.upper()].get("image")
-                    prices.append(
-                        {
-                            "symbol": base,
-                            "price": float(ticker["lastPrice"]),
-                            "change": float(ticker["priceChangePercent"]),
-                            "volume": float(ticker["volume"]),
-                            "high": float(ticker["highPrice"]),
-                            "low": float(ticker["lowPrice"]),
-                            "icon": icon,
-                        }
-                    )
-            return sorted(prices, key=lambda x: x.get("volume", 0), reverse=True)[:200]
-    except Exception as e:
-        print(f"Price fetch error: {e}")
-    return []
-
-
-def get_price(symbol):
-    """Get single symbol price"""
-    try:
-        resp = requests.get(
-            f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}USDT", timeout=5
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return {
-                "symbol": symbol,
-                "price": float(data["lastPrice"]),
-                "change": float(data["priceChangePercent"]),
-                "high": float(data["highPrice"]),
-                "low": float(data["lowPrice"]),
-                "volume": float(data["volume"]),
-                "icon": get_coin_icon(symbol),
+        conn = _connect(DB_LEGACY)
+        rows = conn.execute(
+            """SELECT strategy, buy_exchange, buy_price, sell_price, quantity,
+                      net_pnl, status, timestamp, trade_id
+               FROM trades ORDER BY timestamp DESC LIMIT ?""", (limit,)).fetchall()
+        conn.close()
+        return [
+            {
+                "time": r["timestamp"] or "",
+                "symbol": r["strategy"] or "",
+                "side": (r["buy_exchange"] or "").upper(),
+                "entry": r["buy_price"],
+                "exit": r["sell_price"],
+                "size": r["quantity"],
+                "pnl": r["net_pnl"],
+                "state": r["status"] or "",
+                "strategy": r["strategy"] or "",
+                "source": "legacy",
             }
-    except:
+            for r in rows
+        ]
+    except Exception:
+        return []
+
+
+def all_trades(limit=50):
+    """Merged, newest-first trade feed across both DBs (best-effort sort)."""
+    rows = main_trades(limit) + legacy_trades(limit)
+
+    def key(r):
+        t = str(r.get("time") or "")
+        try:
+            return datetime.fromisoformat(t.replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            return 0.0
+
+    rows.sort(key=key, reverse=True)
+    return rows[:limit]
+
+
+def trade_stats():
+    """Aggregate stats across both trade DBs."""
+    stats = {"trades": 0, "closed": 0, "wins": 0, "pnl": 0.0}
+    try:
+        if os.path.exists(DB_MAIN):
+            conn = _connect(DB_MAIN)
+            r = conn.execute(
+                """SELECT COUNT(*) AS n,
+                          COALESCE(SUM(CASE WHEN state NOT LIKE '%open%' THEN profit_abs END), 0) AS pnl,
+                          SUM(CASE WHEN state NOT LIKE '%open%' AND profit_abs > 0 THEN 1 ELSE 0 END) AS wins,
+                          SUM(CASE WHEN state NOT LIKE '%open%' THEN 1 ELSE 0 END) AS closed
+                   FROM trades""").fetchone()
+            stats["trades"] += int(r["n"] or 0)
+            stats["pnl"] += float(r["pnl"] or 0)
+            stats["wins"] += int(r["wins"] or 0)
+            stats["closed"] += int(r["closed"] or 0)
+            conn.close()
+    except Exception:
         pass
-    return None
-
-
-# ============================================================================
-# CONFIG FUNCTIONS
-# ============================================================================
-
-
-def get_config():
-    """Read config.json"""
     try:
-        with open(os.path.join(BOT_DIR, "config.json"), "r") as f:
-            return json.load(f)
-    except:
-        return {
-            "bot": {"mode": "PAPER", "status": "stopped"},
-            "strategies": {},
-            "binance": {},
-            "telegram": {},
-        }
+        if os.path.exists(DB_LEGACY):
+            conn = _connect(DB_LEGACY)
+            r = conn.execute(
+                """SELECT COUNT(*) AS n,
+                          COALESCE(SUM(net_pnl), 0) AS pnl,
+                          SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) AS wins
+                   FROM trades WHERE net_pnl IS NOT NULL""").fetchone()
+            stats["trades"] += int(r["n"] or 0)
+            stats["closed"] += int(r["n"] or 0)
+            stats["wins"] += int(r["wins"] or 0)
+            stats["pnl"] += float(r["pnl"] or 0)
+            conn.close()
+    except Exception:
+        pass
+    stats["pnl"] = round(stats["pnl"], 2)
+    stats["win_rate"] = round(100.0 * stats["wins"] / stats["closed"], 1) if stats["closed"] else 0.0
+    return stats
 
 
-def save_config(cfg):
-    """Save config.json"""
-    with open(os.path.join(BOT_DIR, "config.json"), "w") as f:
-        json.dump(cfg, f, indent=2)
+def paper_state():
+    """Paper-trading lab slots (data/paper_state.json)."""
+    try:
+        with open(PAPER_STATE) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    slots = []
+    for name, s in (data.get("slots") or {}).items():
+        init = float(s.get("initial_capital") or 10000.0)
+        equity = float(s.get("equity") or init)
+        pos = s.get("position") or {}
+        trades = s.get("trades") or []
+        slots.append({
+            "name": name,
+            "equity": round(equity, 2),
+            "initial": init,
+            "pnl": round(equity - init, 2),
+            "pnl_pct": round(100.0 * (equity - init) / init, 3) if init else 0.0,
+            "open_position": bool(pos),
+            "position_symbol": pos.get("symbol") or pos.get("pair") or "",
+            "side": (pos.get("side") or "").upper(),
+            "trades": len(trades),
+            "fees": round(float(s.get("fees_paid") or 0.0), 2),
+            "runs": int(s.get("runs") or 0),
+            "last_bar_ts": s.get("last_processed_ts"),
+        })
+    return {"slots": slots, "created_ts": data.get("created_ts")}
 
 
-def get_strategies():
-    """Get strategies from config"""
-    cfg = get_config()
-    strategies = cfg.get("strategies", {})
-    # Ensure all have required fields
-    defaults = {
-        "mean_reversion": {
-            "name": "Mean Reversion",
-            "description": "Buy dips, sell rallies",
-            "enabled": False,
-            "check_interval_seconds": 60,
-        },
-        "momentum": {
-            "name": "Momentum",
-            "description": "Follow strong trends",
-            "enabled": False,
-            "check_interval_seconds": 60,
-        },
-        "arbitrage": {
-            "name": "Arbitrage",
-            "description": "Cross-exchange price differences",
-            "enabled": False,
-            "check_interval_seconds": 30,
-        },
-        "ml_prediction": {
-            "name": "ML Prediction",
-            "description": "Machine learning based signals",
-            "enabled": False,
-            "check_interval_seconds": 300,
-        },
+def ctrader_status():
+    """cTrader account / park status. Secrets are never included."""
+    try:
+        with open(CTRADER_CREDS) as f:
+            c = json.load(f)
+    except (OSError, ValueError):
+        return None
+    out = {
+        "configured": bool(c.get("access_token")),
+        "live_account": c.get("account_id"),
+        "demo_account": c.get("account_id_demo"),
+        "parked": bool(c.get("live_parked")),
+        "parked_at": c.get("live_parked_at"),
+        "token_days_left": None,
     }
-    for key, val in defaults.items():
-        if key not in strategies:
-            strategies[key] = val
-    return strategies
+    exp = c.get("access_token_expires_at")
+    if exp:
+        out["token_days_left"] = max(0, int((exp - time.time()) // 86400))
+    return out
 
 
-def toggle_strategy(name):
-    """Toggle strategy enabled state"""
-    cfg = get_config()
-    strategies = cfg.get("strategies", {})
-    if name in strategies:
-        strategies[name]["enabled"] = not strategies[name].get("enabled", False)
-    else:
-        strategies[name] = {"enabled": True}
-    cfg["strategies"] = strategies
-    save_config(cfg)
-    return strategies[name].get("enabled", False)
+def polymarket_status():
+    """Most recent scanner run (data/polymarket_last_scan.json)."""
+    try:
+        with open(POLY_SCAN) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    opps = sorted(data.get("opportunities") or [],
+                  key=lambda o: float(o.get("expected") or 0.0), reverse=True)
+    return {
+        "ts": data.get("ts"),
+        "scan_secs": data.get("scan_secs"),
+        "bankroll": data.get("bankroll"),
+        "count": data.get("count"),
+        "top": opps[:5],
+    }
 
 
-# ============================================================================
-# BOT CONTROL
-# ============================================================================
+# ---------------------------------------------------------------------------
+# Prices (Binance public API, cached)
+# ---------------------------------------------------------------------------
 
+_price_cache = {"ts": 0.0, "data": None, "error": None}
+
+
+def fetch_prices():
+    """Watchlist + top movers from Binance. Cached 30s; degrades to cache/[] on error."""
+    now = time.time()
+    if _price_cache["data"] and now - _price_cache["ts"] < PRICE_TTL:
+        return _price_cache
+    if requests is None:
+        return _price_cache
+    try:
+        resp = requests.get("https://api.binance.com/api/v3/ticker/24hr", timeout=6)
+        if resp.status_code != 200:
+            raise RuntimeError("Binance HTTP %s" % resp.status_code)
+        tickers = resp.json()
+        tmap = {t["symbol"].replace("USDT", ""): t for t in tickers
+                if t.get("symbol", "").endswith("USDT")}
+
+        def fmt(base):
+            t = tmap.get(base)
+            if not t:
+                return None
+            return {
+                "symbol": base,
+                "price": float(t["lastPrice"]),
+                "change": float(t["priceChangePercent"]),
+                "volume": float(t.get("quoteVolume") or t.get("volume") or 0),
+            }
+
+        watch = [p for p in (fmt(b) for b in WATCHLIST) if p]
+        others = [p for p in tmap.values()
+                  if p["symbol"].replace("USDT", "") not in WATCHLIST
+                  and float(p.get("quoteVolume") or 0) > 1_000_000]
+        gainers = sorted(others, key=lambda t: float(t["priceChangePercent"]), reverse=True)[:6]
+        losers = sorted(others, key=lambda t: float(t["priceChangePercent"]))[:6]
+
+        _price_cache.update({
+            "ts": now,
+            "data": {
+                "watch": watch,
+                "gainers": [fmt(t["symbol"].replace("USDT", "")) or t for t in gainers],
+                "losers": [fmt(t["symbol"].replace("USDT", "")) or t for t in losers],
+            },
+            "error": None,
+        })
+    except Exception as e:
+        _price_cache["error"] = str(e)[:120]
+    return _price_cache
+
+
+# ---------------------------------------------------------------------------
+# Bot control (PID-file based — never pkill/pgrep on command text)
+# ---------------------------------------------------------------------------
 
 def is_bot_running():
-    """Check if bot is running"""
-    pid_file = os.path.join(BOT_DIR, "bot.pid")
-    if os.path.exists(pid_file):
-        try:
-            with open(pid_file) as f:
-                pid = int(f.read().strip())
-            # Check if process exists
-            os.kill(pid, 0)
-            return True
-        except:
-            # PID file exists but process dead
-            os.remove(pid_file)
-    return False
-
-
-def start_bot():
-    """Start trading bot"""
-    cfg = get_config()
-    mode = cfg.get("bot", {}).get("mode", "PAPER")
     try:
-        subprocess.Popen(
-            ["python3", "trading_bot.py", "--mode", mode.lower(), "--monitor", "60"],
-            cwd=BOT_DIR,
-            stdout=open(os.path.join(BOT_DIR, "bot.log"), "a"),
-            stderr=subprocess.STDOUT,
-        )
-        # Create PID file
-        time.sleep(1)
-        # Try to find and save PID
-        result = subprocess.run(
-            ["pgrep", "-f", "trading_bot.py"], capture_output=True, text=True
-        )
-        if result.returncode == 0 and result.stdout:
-            pid = result.stdout.strip().split("\n")[0]
-            with open(os.path.join(BOT_DIR, "bot.pid"), "w") as f:
-                f.write(pid)
+        with open(PID_FILE) as f:
+            pid = int(f.read().strip())
+        os.kill(pid, 0)
         return True
-    except Exception as e:
-        print(f"Start error: {e}")
+    except (OSError, ValueError):
+        if os.path.exists(PID_FILE):
+            try:
+                os.remove(PID_FILE)
+            except OSError:
+                pass
         return False
+
+
+def start_bot(mode="paper"):
+    if is_bot_running():
+        return {"started": False, "message": "Bot already running"}
+    proc = subprocess.Popen(
+        [sys.executable, "trading_bot.py", "--mode", mode, "--monitor", "60"],
+        cwd=BASE_DIR,
+        stdout=open(BOT_LOG, "a"),
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+    with open(PID_FILE, "w") as f:
+        json.dump({"pid": proc.pid, "mode": mode, "started_at": int(time.time())}, f)
+    return {"started": True, "pid": proc.pid, "mode": mode}
 
 
 def stop_bot():
-    """Stop trading bot"""
+    pid = None
     try:
-        subprocess.run(["pkill", "-f", "trading_bot.py"], check=False)
-        pid_file = os.path.join(BOT_DIR, "bot.pid")
-        if os.path.exists(pid_file):
-            os.remove(pid_file)
-        return True
-    except Exception as e:
-        print(f"Stop error: {e}")
-        return False
+        with open(PID_FILE) as f:
+            pid = int(json.load(f).get("pid", 0))
+    except (OSError, ValueError):
+        pass
+    if not pid:
+        return {"stopped": False, "message": "No bot PID on file (not running here)"}
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    except PermissionError:
+        return {"stopped": False, "message": "Not permitted to signal PID %d" % pid}
+    finally:
+        try:
+            os.remove(PID_FILE)
+        except OSError:
+            pass
+    return {"stopped": True, "pid": pid}
 
 
-def toggle_mode():
-    """Toggle between LIVE and PAPER mode and signal running bot"""
-    cfg = get_config()
-    current = cfg.get("bot", {}).get("mode", "PAPER")
-    new_mode = "LIVE" if current == "PAPER" else "PAPER"
-    cfg["bot"] = cfg.get("bot", {})
-    cfg["bot"]["mode"] = new_mode
-    save_config(cfg)
+# ---------------------------------------------------------------------------
+# Programmatic API (used by trading_bot.py)
+# ---------------------------------------------------------------------------
 
-    # Signal running bot to reload config
-    signal_file = os.path.join(BOT_DIR, "config_reload.signal")
-    with open(signal_file, "w") as f:
-        f.write(str(int(time.time())))
+def update_dashboard(prices=None, trades=None, positions=None, stats=None):
+    """Store a live snapshot from the bot loop for the dashboard to display."""
+    if prices is not None:
+        LIVE["prices"] = prices
+    if trades is not None:
+        LIVE["trades"] = trades
+    if positions is not None:
+        LIVE["positions"] = positions
+    if stats is not None:
+        LIVE["stats"] = stats
+    LIVE["updated_ts"] = int(time.time())
 
-    return new_mode
+
+def run_dashboard(port=7777, host="0.0.0.0"):
+    """Run the dashboard server (blocking)."""
+    if not FLASK_AVAILABLE:
+        print("❌ Dashboard unavailable: flask is not installed (pip install flask)")
+        return
+    print("=" * 60)
+    print("🌐 Trading Dashboard v2")
+    print("   URL: http://localhost:%d" % port)
+    print("   Data: %s" % BASE_DIR)
+    print("=" * 60)
+    app.run(host=host, port=port, debug=False, threaded=True)
 
 
-# ============================================================================
-# ROUTES
-# ============================================================================
+# ---------------------------------------------------------------------------
+# Flask app + API
+# ---------------------------------------------------------------------------
+
+app = Flask(__name__)
+
+
+@app.route("/api/healthz")
+def api_healthz():
+    return jsonify({"status": "ok", "ts": int(time.time())})
+
+
+@app.route("/api/overview")
+def api_overview():
+    prices = fetch_prices()
+    live_stats = LIVE.get("stats")
+    return jsonify({
+        "bot": {
+            "running": is_bot_running(),
+            "live": bool(LIVE.get("updated_ts")),
+            "live_updated_ts": LIVE.get("updated_ts"),
+            "live_stats": live_stats,
+        },
+        "trade_stats": trade_stats(),
+        "paper": paper_state(),
+        "ctrader": ctrader_status(),
+        "polymarket": polymarket_status(),
+        "prices": {
+            "watch": prices["data"]["watch"] if prices["data"] else None,
+            "gainers": prices["data"]["gainers"] if prices["data"] else [],
+            "losers": prices["data"]["losers"] if prices["data"] else [],
+            "error": prices["error"],
+        },
+        "trades": all_trades(20),
+    })
+
+
+@app.route("/api/trades")
+def api_trades():
+    limit = min(int(request.args.get("limit", 50)), 500)
+    return jsonify({"trades": all_trades(limit), "stats": trade_stats()})
+
+
+@app.route("/api/paper")
+def api_paper():
+    return jsonify(paper_state() or {"slots": []})
+
+
+@app.route("/api/ctrader")
+def api_ctrader():
+    return jsonify(ctrader_status() or {})
+
+
+@app.route("/api/polymarket")
+def api_polymarket():
+    return jsonify(polymarket_status() or {})
+
+
+@app.route("/api/prices")
+def api_prices():
+    p = fetch_prices()
+    return jsonify({"data": p["data"], "error": p["error"], "ts": int(p["ts"])})
+
+
+@app.route("/api/bot/start", methods=["POST"])
+def api_bot_start():
+    return jsonify(start_bot(request.form.get("mode", "paper")))
+
+
+@app.route("/api/bot/stop", methods=["POST"])
+def api_bot_stop():
+    return jsonify(stop_bot())
+
+
+# ---------------------------------------------------------------------------
+# UI (single self-contained page — dark, responsive, no external assets)
+# ---------------------------------------------------------------------------
+
+PAGE = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b0f17">
+<title>Trading Bot</title>
+<style>
+:root{
+  --bg:#0b0f17;--panel:#111827;--panel2:#0f1522;--line:#1f2a3d;
+  --txt:#e5e9f0;--dim:#8b98ad;--green:#22c55e;--red:#ef4444;
+  --amber:#f59e0b;--blue:#38bdf8;--violet:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:16px}
+h1{font-size:18px;font-weight:650;letter-spacing:.2px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);
+  background:var(--panel);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--dim)}
+.pill b{color:var(--txt);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot.off{background:var(--red)}
+.dot.warn{background:var(--amber)}
+.grid{display:grid;gap:12px}
+.g3{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);margin-bottom:10px}
+.row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--panel2)}
+.row:last-child{border-bottom:none}
+.row .k{color:var(--dim)}
+.muted{color:var(--dim);font-size:12px}
+.pos{color:var(--green)} .neg{color:var(--red)} .amb{color:var(--amber)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--dim);font-weight:500;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:6px 8px;border-bottom:1px solid var(--panel2)}
+tr:hover td{background:var(--panel2)}
+.tag{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--txt);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px}
+.btn:hover{border-color:var(--dim)}
+.btn.danger{border-color:#7f1d1d;color:#fca5a5}
+.stats{display:flex;flex-wrap:wrap;gap:12px}
+.stat{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}
+.stat .v{font-size:18px;font-weight:650}
+.stat .l{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+footer{margin-top:14px;color:var(--dim);font-size:12px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.section{margin-bottom:12px}
+@media (max-width:600px){body{padding:10px}.stat{min-width:45%}}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ Trading Bot</h1>
+  <span class="pill" id="pill-bot"><span class="dot" id="dot-bot"></span><b>bot</b> <span id="bot-state">…</span></span>
+  <span class="pill" id="pill-ct"><span class="dot" id="dot-ct"></span>cTrader <span id="ct-state">…</span></span>
+  <span class="pill" id="pill-pm">Polymarket <span id="pm-state">…</span></span>
+  <span style="flex:1"></span>
+  <button class="btn" id="btn-start">Start bot</button>
+  <button class="btn danger" id="btn-stop">Stop</button>
+</header>
+
+<div class="section">
+  <div class="stats" id="stats-strip"></div>
+</div>
+
+<div class="grid g3 section">
+  <div class="card">
+    <h2>Paper lab (live bars, real signals)</h2>
+    <div id="paper">Loading…</div>
+  </div>
+  <div class="card">
+    <h2>cTrader / QCG</h2>
+    <div id="ctrader">Loading…</div>
+  </div>
+  <div class="card">
+    <h2>Polymarket — last scan</h2>
+    <div id="polymarket">Loading…</div>
+  </div>
+</div>
+
+<div class="grid g2 section">
+  <div class="card">
+    <h2>Watchlist</h2>
+    <div id="watch"><table><thead><tr><th>Symbol</th><th>Price</th><th>24h</th></tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="card">
+    <h2>Movers</h2>
+    <div id="movers"><table><thead><tr><th>Symbol</th><th>Price</th><th>24h</th><th></th></tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<div class="card section">
+  <h2>Recent trades <span class="muted" id="trades-meta"></span></h2>
+  <table>
+    <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Exit</th><th>PnL</th><th>State</th><th>Source</th></tr></thead>
+    <tbody id="trades"></tbody>
+  </table>
+</div>
+
+<footer>
+  <span id="updated">—</span>
+  <span>auto-refresh 15s · sources: trades.db · trades_legacy.db · data/*.json · Binance</span>
+</footer>
+
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function money(v,d){if(v==null||isNaN(v))return '—';v=Number(v);return '$'+v.toLocaleString(undefined,{minimumFractionDigits:d==null?2:d,maximumFractionDigits:d==null?2:d})}
+function num(v,d){if(v==null||isNaN(v))return '—';return Number(v).toLocaleString(undefined,{maximumFractionDigits:d==null?2:d})}
+function cls(v){return v>0?'pos':(v<0?'neg':'')}
+function pct(v){if(v==null||isNaN(v))return '—';return (v>0?'+':'')+v.toFixed(2)+'%'}
+function ago(ts){if(!ts)return '—';if(ts>1e12)ts=ts/1000;var s=Math.floor(Date.now()/1000-ts);if(s<0)return 'soon';if(s<90)return s+'s ago';if(s<5400)return Math.floor(s/60)+'m ago';if(s<129600)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago'}
+
+async function load(){
+  let d;
+  try{ d = await (await fetch('/api/overview')).json(); }catch(e){ document.getElementById('updated').textContent='offline: '+e.message; return }
+  render(d);
+}
+
+function render(d){
+  // bot pill
+  var b=d.bot||{};
+  document.getElementById('dot-bot').className='dot '+(b.running?'on':'off');
+  document.getElementById('bot-state').textContent=b.running?'running':'stopped';
+  // cTrader pill
+  var ct=d.ctrader||{};
+  document.getElementById('dot-ct').className='dot '+(ct.parked?'warn':(ct.configured?'on':'off'));
+  document.getElementById('ct-state').textContent=ct.parked?'parked':(ct.configured?'linked':'no creds');
+  // pm pill
+  var pm=d.polymarket||{};
+  document.getElementById('pm-state').textContent=pm.count!=null?('last scan '+ago(pm.ts)):'no scan yet';
+
+  // stats strip
+  var s=d.trade_stats||{}, paper=d.paper||{}, paperPnl=0, paperEq=0, paperInit=0;
+  (paper.slots||[]).forEach(function(x){paperPnl+=x.pnl;paperEq+=x.equity;paperInit+=x.initial});
+  document.getElementById('stats-strip').innerHTML=[
+    ['Trades',String(s.trades||0)],
+    ['Win rate',s.win_rate!=null?s.win_rate+'%':'—'],
+    ['Bot PnL',money(s.pnl)],
+    ['Paper equity',money(paperEq,0)],
+    ['Paper PnL',(paperPnl>0?'+':'')+money(paperPnl).slice(1)],
+    ['Paper return',paperInit?pct(100*(paperEq-paperInit)/paperInit):'—'],
+  ].map(function(x){return '<div class="stat"><div class="v">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>'}).join('');
+
+  // paper slots
+  var pp='';
+  (paper.slots||[]).forEach(function(x){
+    pp+='<div class="row"><span class="k">'+esc(x.name)+' <span class="tag">'+(x.open_position?(esc(x.side)+' '+esc(x.position_symbol)):'flat')+'</span></span>'
+      +'<span><b>'+money(x.equity)+'</b> <span class="'+cls(x.pnl)+'">'+(x.pnl>=0?'+':'')+num(x.pnl)+' ('+pct(x.pnl_pct)+')</span></span></div>'
+      +'<div class="row"><span class="muted">trades '+x.trades+' · fees '+money(x.fees)+' · runs '+x.runs+' · last bar '+ago(x.last_bar_ts)+'</span></div>';
+  });
+  document.getElementById('paper').innerHTML=pp||'<span class="muted">no paper state yet — run: python3 trading_bot.py --paper-run</span>';
+
+  // ctrader
+  var c='';
+  if(ct.configured){
+    c+='<div class="row"><span class="k">Live account</span><span><b>'+esc(ct.live_account||'—')+'</b> '+(ct.parked?'<span class="tag amb">PARKED</span>':'<span class="tag">active</span>')+'</span></div>';
+    c+='<div class="row"><span class="k">Demo account</span><span><b>'+esc(ct.demo_account||'—')+'</b></span></div>';
+    c+='<div class="row"><span class="k">Token</span><span>'+ (ct.token_days_left!=null?ct.token_days_left+' days left':'—') +'</span></div>';
+    if(ct.parked) c+='<div class="muted" style="margin-top:8px">🔒 Live order placement is refused until <code>--ctrader-unpark</code>. Parked '+ago(ct.parked_at)+'</div>';
+  } else c='<span class="muted">no cTrader credentials (data/ctrader_credentials.json)</span>';
+  document.getElementById('ctrader').innerHTML=c;
+
+  // polymarket
+  var m='';
+  if(pm.top&&pm.top.length){
+    m+='<div class="muted" style="margin-bottom:8px">scan '+ago(pm.ts)+' · '+(pm.scan_secs||'—')+'s · bankroll $'+(pm.bankroll||'—')+' · '+pm.count+' opps</div>';
+    pm.top.forEach(function(o){
+      m+='<div class="row"><span class="k">'+esc(o.type||'')+'</span><span class="'+cls(o.expected||0)+'">'+esc(o.market||'')+' → '+(o.expected>0?'+':'')+num(o.expected)+'</span></div>';
+    });
+  } else m='<span class="muted">no scan cached yet — run: python3 trading_bot.py --polymarket-scan</span>';
+  document.getElementById('polymarket').innerHTML=m;
+
+  // prices
+  var p=d.prices||{};
+  var wt='';
+  (p.watch||[]).forEach(function(x){
+    wt+='<tr><td><b>'+esc(x.symbol)+'</b></td><td>'+money(x.price, x.price<1?4:2)+'</td><td class="'+cls(x.change)+'">'+pct(x.change)+'</td></tr>';
+  });
+  document.querySelector('#watch tbody').innerHTML=wt||'<tr><td colspan="3" class="muted">prices unavailable: '+esc(p.error||'')+'</td></tr>';
+  var mv='';
+  (p.gainers||[]).forEach(function(x){mv+='<tr><td>'+esc(x.symbol)+'</td><td>'+money(x.price, x.price<1?4:2)+'</td><td class="pos">'+pct(x.change)+'</td><td class="tag">gain</td></tr>'});
+  (p.losers||[]).forEach(function(x){mv+='<tr><td>'+esc(x.symbol)+'</td><td>'+money(x.price, x.price<1?4:2)+'</td><td class="neg">'+pct(x.change)+'</td><td class="tag">loss</td></tr>'});
+  document.querySelector('#movers tbody').innerHTML=mv||'<tr><td colspan="4" class="muted">no data</td></tr>';
+
+  // trades
+  var tt='';
+  (d.trades||[]).forEach(function(t){
+    tt+='<tr><td class="muted">'+esc((t.time||'').slice(0,16))+'</td><td><b>'+esc(t.symbol)+'</b></td><td>'+esc(t.side||'—')+'</td><td>'+num(t.entry,4)+'</td><td>'+num(t.exit,4)+'</td><td class="'+cls(t.pnl)+'">'+(t.pnl!=null?((t.pnl>0?'+':'')+num(t.pnl)):'—')+'</td><td><span class="tag">'+esc(t.state)+'</span></td><td class="muted">'+esc(t.source)+'</td></tr>';
+  });
+  document.getElementById('trades').innerHTML=tt||'<tr><td colspan="8" class="muted">no trades recorded yet</td></tr>';
+  document.getElementById('trades-meta').textContent='';
+  document.getElementById('updated').textContent='updated '+new Date().toLocaleTimeString();
+}
+
+document.getElementById('btn-start').onclick=function(){fetch('/api/bot/start',{method:'POST'}).then(load)};
+document.getElementById('btn-stop').onclick=function(){if(confirm('Stop the bot process?'))fetch('/api/bot/stop',{method:'POST'}).then(load)};
+load();
+setInterval(load,15000);
+</script>
+</body>
+</html>
+"""
 
 
 @app.route("/")
 def index():
-    return redirect("/overview")
+    from flask import Response
+    return Response(PAGE, mimetype="text/html")
 
-
-@app.route("/overview")
-def overview():
-    bot_running = is_bot_running()
-    cfg = get_config()
-    mode = cfg.get("bot", {}).get("mode", "PAPER")
-    strategies = get_strategies()
-
-    # Get stats
-    stats = get_portfolio_stats()
-    prices = get_prices()
-    recent_trades = get_trades(10)
-
-    enabled_count = sum(1 for s in strategies.values() if s.get("enabled", False))
-
-    return render_template(
-        "overview.html",
-        bot_running=bot_running,
-        mode=mode,
-        pnl=stats["pnl"],
-        total_trades=stats["total_trades"],
-        active_positions=stats["active_positions"],
-        win_rate=stats["win_rate"],
-        strategies_enabled=enabled_count,
-        prices=prices[:10],
-        strategies=strategies,
-        recent_trades=recent_trades,
-    )
-
-
-@app.route("/prices")
-def prices():
-    all_prices = get_all_usdt_prices()
-    top_coins = [p["symbol"] for p in all_prices[:20]]
-    return render_template("prices.html", prices=all_prices, tracked=top_coins)
-
-    # Dynamic categories based on market data
-    top_coins = [p["symbol"] for p in all_prices[:20]]
-
-    categories = {
-        "All": "all",
-        "Top 20": top_coins[:20],
-        "Top Gainers": "gainers",
-        "Top Losers": "losers",
-        "High Volume": "volume",
-    }
-
-    category_filter = request.args.get("category", "All")
-    search = request.args.get("search", "").upper()
-
-    filtered = all_prices
-
-    # Apply category filter dynamically
-    if category_filter and category_filter != "All" and category_filter in categories:
-        cat = categories[category_filter]
-        if cat == "gainers":
-            filtered = sorted(
-                all_prices, key=lambda x: x.get("change", 0), reverse=True
-            )[:50]
-        elif cat == "losers":
-            filtered = sorted(all_prices, key=lambda x: x.get("change", 0))[:50]
-        elif cat == "volume":
-            filtered = sorted(
-                all_prices, key=lambda x: x.get("volume", 0), reverse=True
-            )[:50]
-        elif isinstance(cat, list):
-            wanted = set(cat)
-            filtered = [p for p in all_prices if p["symbol"] in wanted]
-
-    if search:
-        filtered = [p for p in filtered if search in p["symbol"]]
-
-    return render_template(
-        "prices.html",
-        prices=filtered,
-        all_prices=all_prices,
-        categories=categories.keys(),
-        current_category=category_filter,
-        search=search,
-    )
-
-
-@app.route("/coin/<symbol>")
-def coin_detail(symbol):
-    """Coin detail page with live chart and Clean Chart analysis"""
-    symbol = symbol.upper().replace("-", "").replace("_", "")
-
-    # Get price data from Binance
-    price_data = get_price(symbol) or {}
-
-    # Get coin data from CoinGecko
-    coin_data = get_coin_data().get(symbol.upper(), {})
-
-    return render_template(
-        "coin_detail.html", symbol=symbol, price_data=price_data, coin_data=coin_data
-    )
-
-
-@app.route("/portfolio")
-def portfolio():
-    stats = get_portfolio_stats()
-    positions = get_positions()
-    trades = get_trades(20)
-
-    # Get current prices for positions
-    for pos in positions:
-        price_data = get_price(pos["symbol"])
-        if price_data:
-            pos["current_price"] = price_data["price"]
-            # Calculate P&L
-            if pos["side"] == "BUY":
-                pos["pnl"] = (price_data["price"] - pos["price"]) * pos["quantity"]
-            else:
-                pos["pnl"] = (pos["price"] - price_data["price"]) * pos["quantity"]
-        else:
-            pos["current_price"] = pos["price"]
-            pos["pnl"] = 0
-
-    return render_template(
-        "portfolio.html", stats=stats, positions=positions, trades=trades
-    )
-
-
-@app.route("/trades")
-def trades():
-    page = int(request.args.get("page", 1))
-    per_page = 20
-
-    all_trades = get_trades(200)  # Get more for pagination
-    total = len(all_trades)
-
-    start = (page - 1) * per_page
-    end = start + per_page
-    trades_page = all_trades[start:end]
-
-    total_pages = (total + per_page - 1) // per_page
-
-    return render_template(
-        "trades.html",
-        trades=trades_page,
-        page=page,
-        total_pages=total_pages,
-        total_trades=total,
-    )
-
-
-@app.route("/positions")
-def positions():
-    positions = get_positions()
-
-    # Get current prices
-    for pos in positions:
-        price_data = get_price(pos["symbol"])
-        if price_data:
-            pos["current_price"] = price_data["price"]
-            pos["change"] = price_data["change"]
-            if pos["side"] == "BUY":
-                pos["pnl"] = (price_data["price"] - pos["price"]) * pos["quantity"]
-                pos["pnl_pct"] = (
-                    (price_data["price"] - pos["price"]) / pos["price"]
-                ) * 100
-            else:
-                pos["pnl"] = (pos["price"] - price_data["price"]) * pos["quantity"]
-                pos["pnl_pct"] = (
-                    (pos["price"] - price_data["price"]) / pos["price"]
-                ) * 100
-
-    return render_template("positions.html", positions=positions)
-
-
-@app.route("/strategies")
-def strategies():
-    all_strategies = get_strategies()
-    return render_template("strategies.html", strategies=all_strategies)
-
-
-@app.route("/multi-agent")
-def multi_agent():
-    """New skill-based agent system - Agents are collections of skills"""
-    cfg = get_config()
-
-    # Define available skills (these map to ~/.zeroclaw/skills/)
-    available_skills = {
-        # Basic Skills
-        "price-check": {
-            "name": "Price Check",
-            "type": "basic",
-            "description": "Get current market prices",
-            "icon": "fa-tag",
-        },
-        "portfolio-check": {
-            "name": "Portfolio Check",
-            "type": "basic",
-            "description": "View portfolio status",
-            "icon": "fa-wallet",
-        },
-        "trade-execute": {
-            "name": "Trade Execution",
-            "type": "basic",
-            "description": "Execute buy/sell orders",
-            "icon": "fa-exchange-alt",
-        },
-        # Analysis Skills
-        "arbitrage-scan": {
-            "name": "Arbitrage Scanner",
-            "type": "analysis",
-            "description": "Find cross-exchange opportunities",
-            "icon": "fa-search-dollar",
-        },
-        "ml-predict": {
-            "name": "ML Prediction",
-            "type": "analysis",
-            "description": "AI price predictions",
-            "icon": "fa-brain",
-        },
-        "trend-detect": {
-            "name": "Trend Detection",
-            "type": "analysis",
-            "description": "Identify market trends",
-            "icon": "fa-chart-line",
-        },
-        # Strategy Skills (subskills)
-        "strategy-mean-reversion": {
-            "name": "Mean Reversion",
-            "type": "strategy",
-            "description": "Buy dips, sell rallies",
-            "icon": "fa-undo",
-        },
-        "strategy-momentum": {
-            "name": "Momentum",
-            "type": "strategy",
-            "description": "Follow strong trends",
-            "icon": "fa-rocket",
-        },
-        "strategy-breakout": {
-            "name": "Breakout",
-            "type": "strategy",
-            "description": "Trade breakouts",
-            "icon": "fa-bolt",
-        },
-        "strategy-scalping": {
-            "name": "Scalping",
-            "type": "strategy",
-            "description": "Quick small trades",
-            "icon": "fa-tachometer-alt",
-        },
-        "strategy-arbitrage": {
-            "name": "Arbitrage",
-            "type": "strategy",
-            "description": "Cross-exchange trades",
-            "icon": "fa-random",
-        },
-        # Risk Management Skills
-        "risk-manager": {
-            "name": "Risk Manager",
-            "type": "risk",
-            "description": "Monitor risk limits",
-            "icon": "fa-shield-alt",
-        },
-        "stop-loss": {
-            "name": "Stop Loss",
-            "type": "risk",
-            "description": "Automatic stop losses",
-            "icon": "fa-hand-paper",
-        },
-        "position-sizing": {
-            "name": "Position Sizing",
-            "type": "risk",
-            "description": "Calculate position sizes",
-            "icon": "fa-calculator",
-        },
-    }
-
-    # Merge with custom skills from config
-    custom_skills = cfg.get("available_skills", {})
-    if custom_skills:
-        available_skills.update(custom_skills)
-
-    # Active agents with their skill collections
-    active_agents = cfg.get("agents", {})
-    if not active_agents:
-        # Default agent configurations
-        active_agents = {
-            "main_trader": {
-                "name": "Main Trading Agent",
-                "enabled": is_bot_running(),
-                "skills": [
-                    "price-check",
-                    "portfolio-check",
-                    "trade-execute",
-                    "ml-predict",
-                    "risk-manager",
-                ],
-                "strategies": ["strategy-mean-reversion", "strategy-momentum"],
-            },
-            "arbitrage_hunter": {
-                "name": "Arbitrage Hunter",
-                "enabled": False,
-                "skills": ["price-check", "arbitrage-scan", "trade-execute"],
-                "strategies": ["strategy-arbitrage"],
-            },
-            "risk_guardian": {
-                "name": "Risk Guardian",
-                "enabled": True,
-                "skills": [
-                    "portfolio-check",
-                    "risk-manager",
-                    "stop-loss",
-                    "position-sizing",
-                ],
-                "strategies": [],
-            },
-        }
-
-    # Get skill execution history
-    skill_history = cfg.get("skill_history", [])
-
-    return render_template(
-        "agents.html",
-        available_skills=available_skills,
-        active_agents=active_agents,
-        skill_history=skill_history[-20:],  # Last 20 executions
-    )
-
-
-@app.route("/config")
-def config():
-    cfg = get_config()
-    mode = cfg.get("bot", {}).get("mode", "PAPER")
-
-    # Mask API keys
-    binance_key = cfg.get("binance", {}).get("api_key", "")
-    telegram_token = cfg.get("telegram", {}).get("bot_token", "")
-
-    return render_template(
-        "config.html",
-        mode=mode,
-        bot_running=is_bot_running(),
-        binance_key_masked="*" * len(binance_key) if binance_key else "",
-        telegram_token_masked="*" * len(telegram_token) if telegram_token else "",
-    )
-
-
-@app.route("/analytics")
-def analytics():
-    # Get comprehensive analytics from database
-    conn = get_db()
-    cur = conn.cursor()
-
-    # Daily P&L (today)
-    cur.execute(
-        "SELECT COUNT(*) as c, SUM(net_pnl) as pnl FROM trades WHERE timestamp >= date('now')"
-    )
-    row = cur.fetchone()
-    daily_trades = row[0] or 0
-    daily_pnl = row[1] or 0
-
-    # Weekly P&L (last 7 days)
-    cur.execute(
-        "SELECT COUNT(*) as c, SUM(net_pnl) as pnl FROM trades WHERE timestamp >= date('now', '-7 days')"
-    )
-    row = cur.fetchone()
-    weekly_trades = row[0] or 0
-    weekly_pnl = row[1] or 0
-
-    # Monthly P&L (last 30 days)
-    cur.execute(
-        "SELECT COUNT(*) as c, SUM(net_pnl) as pnl FROM trades WHERE timestamp >= date('now', '-30 days')"
-    )
-    row = cur.fetchone()
-    monthly_trades = row[0] or 0
-    monthly_pnl = row[1] or 0
-
-    # Win rate and totals
-    cur.execute(
-        "SELECT COUNT(*) as total, SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) as wins, SUM(net_pnl) as total_pnl FROM trades WHERE net_pnl IS NOT NULL"
-    )
-    row = cur.fetchone()
-    total_trades = row[0] or 0
-    winning_trades = row[1] or 0
-    total_pnl = row[2] or 0
-    win_rate = (
-        round((winning_trades / total_trades * 100), 1) if total_trades > 0 else 0
-    )
-
-    # Best/Worst trades
-    cur.execute(
-        "SELECT MAX(net_pnl), MIN(net_pnl), AVG(net_pnl) FROM trades WHERE net_pnl IS NOT NULL"
-    )
-    row = cur.fetchone()
-    best_trade = row[0] or 0
-    worst_trade = row[1] or 0
-    avg_trade = row[2] or 0
-
-    # Profit factor (gross profit / gross loss)
-    cur.execute(
-        "SELECT SUM(CASE WHEN net_pnl > 0 THEN net_pnl ELSE 0 END) as gross_profit, SUM(CASE WHEN net_pnl < 0 THEN ABS(net_pnl) ELSE 0 END) as gross_loss FROM trades"
-    )
-    row = cur.fetchone()
-    gross_profit = row[0] or 0
-    gross_loss = row[1] or 1
-    profit_factor = round(gross_profit / gross_loss, 2) if gross_loss > 0 else 0
-
-    # Top performing pairs
-    cur.execute(
-        "SELECT strategy as symbol, SUM(net_pnl) as pnl FROM trades WHERE net_pnl IS NOT NULL GROUP BY strategy ORDER BY pnl DESC LIMIT 5"
-    )
-    top_pairs = [dict(symbol=row[0], pnl=row[1]) for row in cur.fetchall()]
-
-    # Daily P&L for chart (last 30 days)
-    cur.execute(
-        "SELECT date(timestamp) as day, SUM(net_pnl) as pnl FROM trades WHERE timestamp >= date('now', '-30 days') GROUP BY day ORDER BY day"
-    )
-    daily_pnl_chart = {row[0]: row[1] for row in cur.fetchall()}
-
-    conn.close()
-
-    # Get enhanced ML metrics
-    ml_metrics = get_ml_profit_metrics()
-    trade_recommendations = get_trade_recommendations()
-    ml_learning = get_ml_learning_log()
-
-    # Wallet-based recommendation (default $10k)
-    wallet_rec = get_wallet_recommendation(10000)
-
-    # Get risk config for SL/TP
-    cfg = get_config()
-    risk = cfg.get("risk", {})
-    sl_pct = risk.get("stop_loss_pct", 0.02) * 100  # Convert to percentage
-    tp_pct = risk.get("take_profit_pct", 0.06) * 100
-
-    return render_template(
-        "analytics.html",
-        daily_pnl=daily_pnl,
-        daily_trades=daily_trades,
-        weekly_pnl=weekly_pnl,
-        weekly_trades=weekly_trades,
-        monthly_pnl=monthly_pnl,
-        monthly_trades=monthly_trades,
-        win_rate=win_rate,
-        total_trades=total_trades,
-        winning_trades=winning_trades,
-        best_trade=best_trade,
-        worst_trade=worst_trade,
-        avg_trade=avg_trade,
-        profit_factor=profit_factor,
-        top_pairs=top_pairs,
-        daily_pnl_chart=daily_pnl_chart,
-        total_pnl=total_pnl,
-        # Enhanced ML data
-        ml_metrics=ml_metrics,
-        trade_recommendations=trade_recommendations,
-        ml_learning=ml_learning,
-        wallet_recommendation=wallet_rec,
-        # SL/TP
-        sl_pct=sl_pct,
-        tp_pct=tp_pct,
-    )
-
-
-# ============================================================================
-# API ENDPOINTS (Form-based, no JSON)
-# ============================================================================
-
-
-@app.route("/api/start", methods=["POST"])
-def api_start():
-    start_bot()
-    return redirect("/overview")
-
-
-@app.route("/healthz")
-def healthz():
-    return jsonify({"status": "ok"})
-
-
-@app.route("/api/health")
-def api_health():
-    """Health check endpoint for dashboard and bot status"""
-    from flask import jsonify
-
-    bot_running = is_bot_running()
-    cfg = get_config()
-    mode = cfg.get("bot", {}).get("mode", "PAPER")
-
-    # Check ZeroClaw
-    zeroclaw_status = {"running": False, "available": False}
-    try:
-        from zeroclaw_integration import get_zeroclaw
-
-        zc = get_zeroclaw(cfg.get("zeroclaw", {}))
-        zeroclaw_status["running"] = zc.is_running()
-        zeroclaw_status["available"] = True
-    except Exception as e:
-        zeroclaw_status["error"] = str(e)[:100]
-
-    return jsonify(
-        {
-            "status": "ok",
-            "timestamp": datetime.now().isoformat(),
-            "bot": {
-                "running": bot_running,
-                "mode": mode,
-                "pid_file_exists": os.path.exists(os.path.join(BOT_DIR, "bot.pid")),
-            },
-            "zeroclaw": zeroclaw_status,
-            "dashboard": "healthy",
-        }
-    )
-
-
-@app.route("/api/stop", methods=["POST"])
-def api_stop():
-    stop_bot()
-    return redirect("/overview")
-
-
-@app.route("/api/toggle_mode", methods=["POST"])
-def api_toggle_mode():
-    new_mode = toggle_mode()
-    return jsonify({"success": True, "mode": new_mode})
-
-
-@app.route("/api/strategies/<name>/toggle", methods=["POST"])
-def api_toggle_strategy(name):
-    cfg = get_config()
-    if "strategies" not in cfg:
-        cfg["strategies"] = {}
-    if name in cfg["strategies"]:
-        current = cfg["strategies"][name].get("enabled", False)
-        cfg["strategies"][name]["enabled"] = not current
-        save_config(cfg)
-        return jsonify({"success": True, "name": name, "enabled": not current})
-    return jsonify({"success": False, "error": "Strategy not found"})
-
-
-@app.route("/api/strategies/<name>")
-def api_get_strategy(name):
-    """Get strategy details"""
-    cfg = get_config()
-    strategies = cfg.get("strategies", {})
-    if name in strategies:
-        return jsonify({"id": name, **strategies[name]})
-    return jsonify({"error": "Strategy not found"}), 404
-
-
-# ============================================================================
-# MULTI-AGENT CONTROL (Phase 3)
-# ============================================================================
-
-
-@app.route("/api/multi-agent/agent/<name>/start", methods=["POST"])
-def api_agent_start(name):
-    """Start a specific agent"""
-    cfg = get_config()
-    if "multi_agent" not in cfg:
-        cfg["multi_agent"] = {"agents": []}
-
-    agents = cfg["multi_agent"].get("agents", [])
-    found = False
-    for agent in agents:
-        if agent.get("name") == name:
-            agent["status"] = "running"
-            found = True
-
-    if not found:
-        agents.append({"name": name, "status": "running", "type": "trading"})
-
-    cfg["multi_agent"]["agents"] = agents
-    save_config(cfg)
-    return jsonify({"success": True, "message": f"Agent {name} started"})
-
-
-@app.route("/api/multi-agent/agent/<name>/stop", methods=["POST"])
-def api_agent_stop(name):
-    """Stop a specific agent"""
-    cfg = get_config()
-    agents = cfg.get("multi_agent", {}).get("agents", [])
-    for agent in agents:
-        if agent.get("name") == name:
-            agent["status"] = "stopped"
-    cfg["multi_agent"]["agents"] = agents
-    save_config(cfg)
-    return jsonify({"success": True, "message": f"Agent {name} stopped"})
-
-
-@app.route("/api/multi-agent/agent/<name>/config", methods=["POST"])
-def api_agent_config(name):
-    """Configure an agent"""
-    cfg = get_config()
-    config_data = request.form.get("config", "{}")
-    try:
-        import json
-
-        config = json.loads(config_data)
-    except:
-        config = {}
-
-    if "multi_agent" not in cfg:
-        cfg["multi_agent"] = {"agents": []}
-
-    agents = cfg["multi_agent"].get("agents", [])
-    found = False
-    for agent in agents:
-        if agent.get("name") == name:
-            agent.update(config)
-            found = True
-
-    if not found:
-        agents.append({"name": name, "status": "stopped", **config})
-
-    cfg["multi_agent"]["agents"] = agents
-    save_config(cfg)
-    return jsonify({"success": True, "message": f"Agent {name} configured"})
-
-
-# ============================================================================
-# WALLET CONNECTION - Using existing endpoints (Phase 3 additions already exist)
-# ============================================================================
-
-
-# ============================================================================
-# ORDER EXECUTION (Phase 3)
-# ============================================================================
-
-
-@app.route("/api/orders", methods=["GET"])
-def api_get_orders():
-    """Get order history"""
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM trades ORDER BY timestamp DESC LIMIT 50")
-        columns = [desc[0] for desc in cur.description]
-        orders = []
-        for row in cur.fetchall():
-            orders.append(dict(zip(columns, row)))
-        return jsonify({"orders": orders, "count": len(orders)})
-    except:
-        return jsonify({"orders": [], "count": 0})
-
-
-@app.route("/api/orders", methods=["POST"])
-def api_place_order():
-    """Place a new order - supports both PAPER and LIVE trading"""
-    symbol = request.form.get("symbol", "").upper().replace("/", "")
-    side = request.form.get("side", "buy").lower()
-    amount = float(request.form.get("amount", 0))
-    price = float(request.form.get("price", 0))
-
-    if not symbol or amount <= 0:
-        return jsonify({"success": False, "error": "Invalid order parameters"})
-
-    cfg = get_config()
-    mode = cfg.get("bot", {}).get("mode", "PAPER")
-
-    order_result = None
-    live_error = None
-
-    # Execute LIVE trade if in LIVE mode
-    if mode == "LIVE":
-        binance_config = cfg.get("binance", {})
-        api_key = binance_config.get("api_key", "")
-        api_secret = binance_config.get("secret", "")
-
-        if not api_key or not api_secret:
-            live_error = "Binance API keys not configured"
-            mode = "PAPER"  # Fall back to paper
-        else:
-            try:
-                import hmac
-                import hashlib
-                import urllib.parse
-
-                # Create Binance order
-                timestamp = int(time.time() * 1000)
-                symbol_for_binance = (
-                    f"{symbol}USDT" if not symbol.endswith("USDT") else symbol
-                )
-
-                # Prepare order parameters
-                params = {
-                    "symbol": symbol_for_binance,
-                    "side": side.upper(),
-                    "type": "MARKET" if price == 0 else "LIMIT",
-                    "quantity": amount,
-                    "timestamp": timestamp,
-                }
-                if price > 0:
-                    params["price"] = price
-                    params["timeInForce"] = "GTC"
-
-                # Create signature
-                query_string = urllib.parse.urlencode(params)
-                signature = hmac.new(
-                    api_secret.encode("utf-8"),
-                    query_string.encode("utf-8"),
-                    hashlib.sha256,
-                ).hexdigest()
-
-                headers = {"X-MBX-APIKEY": api_key}
-                url = f"https://api.binance.com/api/v3/order?{query_string}&signature={signature}"
-
-                response = requests.post(url, headers=headers, timeout=10)
-
-                if response.status_code == 200:
-                    order_result = response.json()
-                    order = {
-                        "symbol": symbol,
-                        "side": side,
-                        "amount": amount,
-                        "price": price,
-                        "status": "filled",
-                        "mode": "LIVE",
-                        "order_id": order_result.get("orderId"),
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                else:
-                    live_error = f"Binance error: {response.status_code}"
-                    mode = "PAPER"
-
-            except Exception as e:
-                live_error = str(e)[:100]
-                mode = "PAPER"
-
-    # Create order record (paper mode or fallback)
-    if mode == "PAPER":
-        order = {
-            "symbol": symbol,
-            "side": side,
-            "amount": amount,
-            "price": price,
-            "status": "filled",
-            "mode": "PAPER",
-            "timestamp": datetime.now().isoformat(),
-        }
-
-    # Save to config
-    if "orders" not in cfg:
-        cfg["orders"] = []
-    cfg["orders"].insert(0, order)
-    cfg["orders"] = cfg["orders"][:100]
-    save_config(cfg)
-
-    return jsonify(
-        {
-            "success": True,
-            "order": order,
-            "mode": order.get("mode"),
-            "message": f"Order {'executed' if mode == 'LIVE' else 'placed'} in {mode} mode"
-            + (f" ({live_error})" if live_error else ""),
-        }
-    )
-
-
-@app.route("/api/config/strategy", methods=["POST"])
-def api_update_strategy():
-    """Update a strategy's configuration"""
-    strategy_name = request.form.get("name")
-    if not strategy_name:
-        return redirect("/strategies")
-
-    cfg = get_config()
-    if "strategies" not in cfg:
-        cfg["strategies"] = {}
-
-    if strategy_name not in cfg["strategies"]:
-        cfg["strategies"][strategy_name] = {}
-
-    strategy = cfg["strategies"][strategy_name]
-
-    strategy["enabled"] = request.form.get("enabled") == "on"
-    strategy["name"] = request.form.get("name", strategy_name)
-    strategy["description"] = request.form.get("description", "")
-
-    numeric_fields = [
-        "max_position_usd",
-        "stop_loss_pct",
-        "take_profit_pct",
-        "min_spread_pct",
-        "check_interval_seconds",
-        "momentum_threshold",
-        "entry_window_seconds",
-        "max_concurrent_trades",
-        "rsi_period",
-        "rsi_oversold",
-        "rsi_overbought",
-        "funding_threshold",
-        "sma_fast",
-        "sma_slow",
-        "volume_threshold",
-        "min_price_change_pct",
-        "lookback_period",
-        "entry_zscore",
-        "exit_zscore",
-        "stop_loss_zscore",
-        "grid_levels",
-        "grid_range_pct",
-        "order_size_usd",
-        "breakout_threshold_pct",
-        "max_hold_time_minutes",
-        "profit_target_pct",
-        "investment_amount_usd",
-        "interval_hours",
-        "leverage",
-        "max_consecutive_losses",
-        "max_concurrent_arbs",
-        "max_concurrent",
-        "risk_pct",
-        "take_profit_pct",
-        "volume_surge_ratio",
-        "trailing_stop_activation",
-        "vcp_min_contractions",
-        "min_rs_rating",
-        "risk_per_trade",
-        "account_size",
-    ]
-
-    for field in numeric_fields:
-        value = request.form.get(field)
-        if value:
-            try:
-                strategy[field] = float(value)
-            except ValueError:
-                pass
-
-    bool_fields = ["use_funding_rate", "volume_confirm", "enabled"]
-    for field in bool_fields:
-        strategy[field] = request.form.get(field) == "on"
-
-    symbols = request.form.get("symbols")
-    if symbols:
-        strategy["symbols"] = [s.strip() for s in symbols.split(",") if s.strip()]
-
-    allowed_tokens = request.form.get("allowed_tokens")
-    if allowed_tokens:
-        strategy["allowed_tokens"] = [
-            t.strip() for t in allowed_tokens.split(",") if t.strip()
-        ]
-
-    pair_1 = request.form.get("pair_1")
-    if pair_1:
-        strategy["pair_1"] = pair_1
-
-    pair_2 = request.form.get("pair_2")
-    if pair_2:
-        strategy["pair_2"] = pair_2
-
-    vwap_period = request.form.get("vwap_period")
-    if vwap_period:
-        strategy["vwap_period"] = vwap_period
-
-    timeframe = request.form.get("timeframe")
-    if timeframe:
-        strategy["timeframe"] = timeframe
-
-    prompt = request.form.get("prompt")
-    if prompt is not None:
-        strategy["prompt"] = prompt
-
-    save_config(cfg)
-
-    return redirect("/strategies")
-    return redirect("/strategies")
-
-
-@app.route("/api/config/save", methods=["POST"])
-def api_save_config():
-    cfg = get_config()
-
-    # Update bot mode
-    mode = request.form.get("mode", "PAPER")
-    cfg["bot"]["mode"] = mode
-
-    # Update API keys if provided
-    binance_key = request.form.get("binance_api_key", "").strip()
-    binance_secret = request.form.get("binance_secret", "").strip()
-    if binance_key and not binance_key.startswith("*"):
-        cfg["binance"]["api_key"] = binance_key
-    if binance_secret and not binance_secret.startswith("*"):
-        cfg["binance"]["secret"] = binance_secret
-
-    save_config(cfg)
-    return redirect("/config")
-
-
-@app.route("/api/agent/<name>/<action>", methods=["POST"])
-def api_agent_action(name, action):
-    """Handle agent actions in the skill-based system"""
-    cfg = get_config()
-
-    if "agents" not in cfg:
-        cfg["agents"] = {}
-
-    if action == "start":
-        if name in cfg["agents"]:
-            cfg["agents"][name]["enabled"] = True
-            # If it's the main trader, also start the bot
-            if name == "main_trader":
-                start_bot()
-        # Log skill execution
-        _log_skill_execution(name, "agent_start", f"Agent {name} started")
-
-    elif action == "stop":
-        if name in cfg["agents"]:
-            cfg["agents"][name]["enabled"] = False
-            if name == "main_trader":
-                stop_bot()
-        _log_skill_execution(name, "agent_stop", f"Agent {name} stopped")
-
-    elif action == "configure":
-        # Will redirect to skill configuration page
-        pass
-
-    save_config(cfg)
-    return redirect("/multi-agent")
-
-
-@app.route("/api/agent/create", methods=["POST"])
-def api_create_agent():
-    """Create a new agent from selected skills"""
-    cfg = get_config()
-
-    agent_name = request.form.get("agent_name", "New Agent")
-    skills = request.form.getlist("skills")
-
-    # Generate agent ID
-    agent_id = "agent_" + str(int(time.time()))
-
-    # Separate strategies from other skills
-    strategies = [s for s in skills if s.startswith("strategy-")]
-    other_skills = [s for s in skills if not s.startswith("strategy-")]
-
-    if "agents" not in cfg:
-        cfg["agents"] = {}
-
-    cfg["agents"][agent_id] = {
-        "name": agent_name,
-        "enabled": False,
-        "skills": other_skills,
-        "strategies": strategies,
-        "created_at": datetime.now().isoformat(),
-    }
-
-    _log_skill_execution(
-        agent_id,
-        "agent_create",
-        f"Created agent '{agent_name}' with {len(skills)} skills",
-    )
-    save_config(cfg)
-    return redirect("/multi-agent")
-
-
-@app.route("/api/agent/<name>/skill/add", methods=["POST"])
-def api_add_skill_to_agent(name):
-    """Add a skill to an existing agent"""
-    cfg = get_config()
-    skill_id = request.form.get("skill_id")
-
-    if "agents" in cfg and name in cfg["agents"]:
-        if skill_id.startswith("strategy-"):
-            if skill_id not in cfg["agents"][name].get("strategies", []):
-                cfg["agents"][name].setdefault("strategies", []).append(skill_id)
-        else:
-            if skill_id not in cfg["agents"][name].get("skills", []):
-                cfg["agents"][name].setdefault("skills", []).append(skill_id)
-
-    save_config(cfg)
-    return redirect("/multi-agent")
-
-
-@app.route("/api/agent/skill/create", methods=["POST"])
-def api_create_skill():
-    """Create a new skill in the skill registry"""
-    cfg = get_config()
-
-    skill_id = request.form.get("skill_id", "").strip()
-    skill_name = request.form.get("skill_name", "").strip()
-    skill_type = request.form.get("skill_type", "basic")
-    skill_description = request.form.get("skill_description", "").strip()
-    skill_icon = request.form.get("skill_icon", "fa-cog").strip()
-
-    if not skill_id or not skill_name:
-        return redirect("/multi-agent")
-
-    if "available_skills" not in cfg:
-        cfg["available_skills"] = {}
-
-    cfg["available_skills"][skill_id] = {
-        "name": skill_name,
-        "type": skill_type,
-        "description": skill_description,
-        "icon": skill_icon,
-        "created_at": datetime.now().isoformat(),
-    }
-
-    _log_skill_execution(
-        "skill_registry", "skill_create", f"Created skill '{skill_name}' ({skill_type})"
-    )
-    save_config(cfg)
-    return redirect("/multi-agent")
-
-
-@app.route("/api/agent/<name>/edit", methods=["POST"])
-def api_edit_agent(name):
-    """Edit an existing agent"""
-    return redirect("/multi-agent")
-
-
-@app.route("/api/agent/<name>/delete", methods=["POST"])
-def api_delete_agent(name):
-    """Delete an agent"""
-    cfg = get_config()
-
-    if "agents" in cfg and name in cfg["agents"]:
-        agent_name = cfg["agents"][name].get("name", name)
-        del cfg["agents"][name]
-        _log_skill_execution(name, "agent_delete", f"Deleted agent '{agent_name}'")
-        save_config(cfg)
-
-    return redirect("/multi-agent")
-
-
-def _log_skill_execution(agent_id, skill, message):
-    """Log skill execution for history"""
-    cfg = get_config()
-    if "skill_history" not in cfg:
-        cfg["skill_history"] = []
-
-    cfg["skill_history"].append(
-        {
-            "time": datetime.now().strftime("%H:%M:%S"),
-            "agent": agent_id,
-            "skill": skill,
-            "message": message,
-            "status": "success",
-        }
-    )
-
-    # Keep only last 100 entries
-    cfg["skill_history"] = cfg["skill_history"][-100:]
-    save_config(cfg)
-
-
-# ============================================================================
-# ENHANCED ML/AI API ENDPOINTS
-# ============================================================================
-
-
-@app.route("/api/ml/recommendation", methods=["POST"])
-def api_ml_recommendation():
-    """Get AI trade recommendation for a specific amount"""
-    amount = float(request.form.get("amount", 1000))
-    wallet_balance = float(request.form.get("wallet_balance", 10000))
-
-    recommendations = get_trade_recommendations()
-
-    # Find best match or calculate custom
-    rec = None
-    for r in recommendations:
-        if r["amount"] == amount:
-            rec = r
-            break
-
-    if not rec:
-        # Calculate custom recommendation
-        metrics = get_ml_profit_metrics()
-        win_rate = metrics.get("win_rate", 50) / 100
-        expectancy_pct = metrics.get("expectancy_pct", 1)
-        expected_profit = amount * (expectancy_pct / 100)
-
-        rec = {
-            "preset": f"${amount:,.0f} Custom",
-            "amount": amount,
-            "expected_profit": round(expected_profit, 2),
-            "expected_roi": round(expectancy_pct, 1),
-            "confidence": min(95, int(win_rate * 100 + (expectancy_pct * 2))),
-            "risk_level": "medium",
-            "suggested_position": "LONG" if win_rate > 0.5 else "SHORT",
-            "timeframe": "1-4 hours",
-        }
-
-    # Store recommendation in config for display
-    cfg = get_config()
-    if "ml" not in cfg:
-        cfg["ml"] = {}
-    cfg["ml"]["last_recommendation"] = rec
-    cfg["ml"]["last_recommendation_time"] = datetime.now().isoformat()
-    save_config(cfg)
-
-    return redirect("/analytics")
-
-
-@app.route("/api/ml/learn", methods=["POST"])
-def api_ml_learn():
-    """Submit feedback for ML learning"""
-    trade_id = request.form.get("trade_id")
-    was_correct = request.form.get("was_correct") == "true"
-    feedback = request.form.get("feedback", "")
-
-    cfg = get_config()
-    if "ml" not in cfg:
-        cfg["ml"] = {}
-    if "feedback" not in cfg["ml"]:
-        cfg["ml"]["feedback"] = []
-
-    cfg["ml"]["feedback"].append(
-        {
-            "trade_id": trade_id,
-            "was_correct": was_correct,
-            "feedback": feedback,
-            "timestamp": datetime.now().isoformat(),
-        }
-    )
-
-    # Keep only last 100 feedback entries
-    cfg["ml"]["feedback"] = cfg["ml"]["feedback"][-100:]
-    save_config(cfg)
-
-    return redirect("/analytics")
-
-
-@app.route("/api/ml/profit-metrics")
-def api_ml_profit_metrics():
-    """API endpoint for ML profit metrics (JSON for AJAX)"""
-    from flask import jsonify
-
-    metrics = get_ml_profit_metrics()
-    return jsonify(metrics)
-
-
-# ============================================================================
-# MAIN
-# ============================================================================
-
-# ============================================================================
-# ADDITIONAL PAGES
-# ============================================================================
-
-
-@app.route("/alerts")
-def alerts():
-    cfg = get_config()
-    alerts_list = cfg.get("alerts", {}).get("price_alerts", [])
-    telegram = cfg.get("telegram", {})
-    return render_template(
-        "alerts.html",
-        alerts=alerts_list,
-        telegram_token_masked="*" * len(telegram.get("bot_token", "")),
-        telegram_chat_id=telegram.get("chat_id", ""),
-        telegram_enabled=telegram.get("enabled", False),
-    )
-
-
-@app.route("/zeroclaw")
-def zeroclaw():
-    cfg = get_config()
-    chat_history = cfg.get("zeroclaw", {}).get("chat_history", [])
-    skills = [
-        {
-            "id": "price-check",
-            "name": "Price Check",
-            "description": "Get current crypto prices",
-        },
-        {
-            "id": "arbitrage-scan",
-            "name": "Arbitrage Scan",
-            "description": "Find price differences across exchanges",
-        },
-        {
-            "id": "portfolio-check",
-            "name": "Portfolio Check",
-            "description": "View your portfolio status",
-        },
-        {
-            "id": "trade-signal",
-            "name": "Trade Signal",
-            "description": "Get AI trading signals",
-        },
-        {
-            "id": "clean-chart",
-            "name": "Clean Chart",
-            "description": "Multi-timeframe analysis with liquidity mapping",
-        },
-    ]
-    predictions = cfg.get("zeroclaw", {}).get("predictions", [])
-    sessions = cfg.get("zeroclaw", {}).get("sessions", [])
-
-    return render_template(
-        "zeroclaw.html",
-        ai_connected=True,
-        ai_status="Connected",
-        chat_history=chat_history,
-        skills=skills,
-        predictions=predictions,
-        sessions=sessions,
-    )
-
-
-@app.route("/backtest")
-def backtest():
-    cfg = get_config()
-    strategies = get_strategies()
-    backtest_result = None
-    backtest_history = cfg.get("backtests", [])
-    from datetime import datetime, timedelta
-
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
-    return render_template(
-        "backtest.html",
-        strategies=strategies,
-        backtest_result=backtest_result,
-        backtest_history=backtest_history,
-        start_date=start_date,
-        end_date=end_date,
-    )
-
-
-@app.route("/risk")
-def risk():
-    cfg = get_config()
-    risk_config = cfg.get("risk", {})
-    stats = get_portfolio_stats()
-
-    # Calculate exposure
-    positions = get_positions()
-    exposure_pct = min(50, len(positions) * 5)  # Estimate
-
-    return render_template(
-        "risk.html",
-        risk=risk_config,
-        exposure_pct=exposure_pct,
-        daily_loss=stats.get("pnl", 0),
-        max_drawdown=0.0,
-        sharpe_ratio=1.5,
-        exposure_by_symbol=[],
-        risk_alerts=[],
-    )
-
-
-@app.route("/discovery")
-def discovery():
-    """Discovery page with expanded arbitrage for 50+ coins"""
-    cfg = get_config()
-
-    # Get arbitrage opportunities for all tracked coins
-    arbitrage_ops = get_arbitrage_opportunities()
-
-    return render_template(
-        "discovery.html",
-        scanner_active=cfg.get("discovery", {}).get("active", False),
-        arbitrage_ops=arbitrage_ops[:20],  # Top 20 opportunities
-        volume_spikes=[],
-        breakouts=[],
-        all_coins=TOP_50_COINS,
-    )
-
-
-@app.route("/dexscreener")
-def dexscreener_page():
-    """DexScreener token tracking page"""
-    trending = get_dexscreener_trending()
-    recent_pairs = get_dexscreener_recent_pairs()
-
-    return render_template(
-        "dexscreener.html", trending=trending, recent_pairs=recent_pairs
-    )
-
-
-def get_dexscreener_trending():
-    """Get trending tokens from DexScreener API"""
-    try:
-        resp = requests.get("https://api.dexscreener.com/latest/dex/tokens", timeout=15)
-        if resp.status_code == 200:
-            data = resp.json()
-            tokens = data.get("tokens", [])
-            formatted = []
-            for token in tokens[:20]:
-                pair = token.get("pairAddress", "")
-                price = token.get("priceUsd", "0")
-                if price and price != "0":
-                    try:
-                        price_val = float(price)
-                        if price_val < 1:
-                            price_str = f"${price_val:.6f}"
-                        else:
-                            price_str = f"${price_val:.2f}"
-                    except:
-                        price_str = price
-                else:
-                    price_str = "N/A"
-
-                liquidity = token.get("liquidity", {}).get("usd", 0)
-                volume = token.get("txns", {}).get("h24", {}).get("volume", 0)
-                price_change = token.get("priceChange", {}).get("h24", 0)
-
-                formatted.append(
-                    {
-                        "symbol": token.get("symbol", "UNKNOWN"),
-                        "name": token.get("name", ""),
-                        "address": token.get("address", ""),
-                        "price": price_str,
-                        "price_raw": price,
-                        "liquidity": liquidity,
-                        "volume_24h": volume,
-                        "price_change_24h": price_change,
-                        "pair_address": pair,
-                        "dex": token.get("dexId", "unknown"),
-                        "url": f"https://dexscreener.com/{token.get('chain', 'unknown')}/{pair}"
-                        if pair
-                        else "",
-                    }
-                )
-            return formatted
-    except Exception as e:
-        print(f"DexScreener trending error: {e}")
-    return []
-
-
-def get_dexscreener_recent_pairs():
-    """Get recent pairs from DexScreener"""
-    try:
-        resp = requests.get(
-            "https://api.dexscreener.com/latest/dex/pairs?sort=created&order=desc&limit=25",
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            pairs = data.get("pairs", [])
-            formatted = []
-            for pair in pairs[:25]:
-                base_token = pair.get("baseToken", {})
-                quote_token = pair.get("quoteToken", {})
-                liquidity = pair.get("liquidity", {}).get("usd", 0)
-                volume = pair.get("volume", {}).get("h24", 0)
-                price_change = pair.get("priceChange", {}).get("h24", 0)
-                price = pair.get("priceUsd", "0")
-
-                if price and price != "0":
-                    try:
-                        price_val = float(price)
-                        if price_val < 1:
-                            price_str = f"${price_val:.6f}"
-                        else:
-                            price_str = f"${price_val:.2f}"
-                    except:
-                        price_str = price
-                else:
-                    price_str = "N/A"
-
-                formatted.append(
-                    {
-                        "symbol": base_token.get("symbol", "UNKNOWN"),
-                        "name": base_token.get("name", ""),
-                        "address": base_token.get("address", ""),
-                        "pair_address": pair.get("pairAddress", ""),
-                        "quote_symbol": quote_token.get("symbol", "UNKNOWN"),
-                        "price": price_str,
-                        "price_raw": price,
-                        "liquidity": liquidity,
-                        "volume_24h": volume,
-                        "price_change_24h": price_change,
-                        "dex": pair.get("dexId", "unknown"),
-                        "chain": pair.get("chain", "unknown"),
-                        "url": f"https://dexscreener.com/{pair.get('chain', 'unknown')}/{pair.get('pairAddress', '')}",
-                    }
-                )
-            return formatted
-    except Exception as e:
-        print(f"DexScreener pairs error: {e}")
-    return []
-
-
-@app.route("/api/dexscreener/token/<address>")
-def api_dexscreener_token(address):
-    """Get token data from DexScreener"""
-    from flask import jsonify
-
-    try:
-        resp = requests.get(
-            f"https://api.dexscreener.com/latest/dex/tokens/{address}", timeout=15
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return jsonify({"success": True, "data": data})
-        return jsonify({"success": False, "error": "Token not found"}), 404
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/dexscreener/trending")
-def api_dexscreener_trending():
-    """Get trending tokens from DexScreener (JSON)"""
-    from flask import jsonify
-
-    trending = get_dexscreener_trending()
-    return jsonify({"success": True, "data": trending})
-
-
-@app.route("/api/dexscreener/pairs")
-def api_dexscreener_pairs():
-    """Get recent pairs from DexScreener (JSON)"""
-    from flask import jsonify
-
-    pairs = get_dexscreener_recent_pairs()
-    return jsonify({"success": True, "data": pairs})
-
-
-def get_arbitrage_opportunities():
-    """Scan for arbitrage opportunities across all 50+ coins"""
-    try:
-        # Fetch prices from Binance
-        resp = requests.get("https://api.binance.com/api/v3/ticker/24hr", timeout=10)
-        if resp.status_code != 200:
-            return []
-
-        all_tickers = resp.json()
-        prices = {}
-
-        for ticker in all_tickers:
-            symbol = ticker.get("symbol", "")
-            if symbol.endswith("USDT"):
-                base = symbol.replace("USDT", "")
-                if base in TOP_50_COINS:
-                    prices[base] = {
-                        "binance": float(ticker["lastPrice"]),
-                        "volume": float(ticker["volume"]),
-                        "change": float(ticker["priceChangePercent"]),
-                    }
-
-        # Simulate cross-exchange prices (in production, fetch from multiple exchanges)
-        opportunities = []
-        for coin, data in prices.items():
-            # Simulate price differences (1-3% typical arbitrage)
-            mock_kraken = data["binance"] * (1 + (hash(coin) % 6 - 3) / 100)
-            mock_coinbase = data["binance"] * (1 + (hash(coin + "1") % 6 - 3) / 100)
-
-            exchanges = [
-                ("Binance", data["binance"]),
-                ("Kraken", mock_kraken),
-                ("Coinbase", mock_coinbase),
-            ]
-
-            # Find best arbitrage
-            best_buy = min(exchanges, key=lambda x: x[1])
-            best_sell = max(exchanges, key=lambda x: x[1])
-
-            profit_pct = ((best_sell[1] - best_buy[1]) / best_buy[1]) * 100
-
-            # Account for fees (0.1% per trade = 0.2% total)
-            fees = 0.2
-            net_profit_pct = profit_pct - fees
-
-            if net_profit_pct > 0.3:  # Minimum 0.3% profit threshold
-                opportunities.append(
-                    {
-                        "symbol": coin,
-                        "buy_exchange": best_buy[0],
-                        "sell_exchange": best_sell[0],
-                        "buy_price": round(best_buy[1], 4),
-                        "sell_price": round(best_sell[1], 4),
-                        "profit_pct": round(net_profit_pct, 2),
-                        "gross_profit_pct": round(profit_pct, 2),
-                        "volume_24h": round(data["volume"], 2),
-                        "confidence": "high" if net_profit_pct > 1 else "medium",
-                        "icon": f"/static/icons/crypto/{coin.lower()}.svg"
-                        if os.path.exists(
-                            f"/sdcard/zeroclaw-workspace/trading-bot/static/icons/crypto/{coin.lower()}.svg"
-                        )
-                        else None,
-                    }
-                )
-
-        # Sort by profit percentage
-        opportunities.sort(key=lambda x: x["profit_pct"], reverse=True)
-        return opportunities
-
-    except Exception as e:
-        print(f"Arbitrage scan error: {e}")
-        return []
-
-
-@app.route("/ml")
-def ml():
-    cfg = get_config()
-    ml_config = cfg.get("ml", {})
-    return render_template(
-        "ml.html",
-        ml_enabled=ml_config.get("enabled", False),
-        model_accuracy=ml_config.get("accuracy", 65.0),
-        signals=[],
-        signal_history=[],
-        last_trained=ml_config.get("last_trained"),
-    )
-
-
-@app.route("/clean-chart")
-def clean_chart_page():
-    """Clean Chart strategy page"""
-    cfg = get_config()
-    cc_config = cfg.get("clean_chart", {})
-
-    # Get signals for top symbols
-    symbols = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "AVAX", "LINK", "DOT", "NEAR"]
-    signals = []
-
-    try:
-        from strategies.clean_chart_filter import scan_opportunities
-
-        signals = scan_opportunities(symbols)[:10]
-    except Exception as e:
-        print(f"Clean Chart scan error: {e}")
-
-    return render_template(
-        "clean_chart.html",
-        cc_enabled=cc_config.get("enabled", True),
-        min_confidence=cc_config.get("min_confidence", 40),
-        signals=signals,
-        symbols=symbols,
-    )
-
-
-@app.route("/api/clean-chart/scan", methods=["POST"])
-def api_clean_chart_scan():
-    """Scan for Clean Chart signals"""
-    symbols = request.form.get("symbols", "BTC,ETH,SOL,BNB,XRP").split(",")
-    symbols = [s.strip() for s in symbols if s.strip()]
-
-    try:
-        from strategies.clean_chart_filter import scan_opportunities
-
-        signals = scan_opportunities(symbols)
-        return jsonify({"success": True, "count": len(signals), "signals": signals})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/clean-chart/analyze/<symbol>")
-def api_clean_chart_analyze(symbol):
-    """Analyze a symbol with Clean Chart"""
-    try:
-        from strategies.clean_chart import get_clean_chart_signal
-
-        result = get_clean_chart_signal(symbol.upper())
-        return jsonify({"success": True, "analysis": result})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/clean-chart/config", methods=["POST"])
-def api_clean_chart_config():
-    """Update Clean Chart configuration"""
-    cfg = get_config()
-
-    if "clean_chart" not in cfg:
-        cfg["clean_chart"] = {}
-
-    cfg["clean_chart"]["enabled"] = request.form.get("enabled") == "on"
-    cfg["clean_chart"]["min_confidence"] = float(request.form.get("min_confidence", 40))
-    cfg["clean_chart"]["min_volume_ratio"] = float(
-        request.form.get("min_volume_ratio", 1.0)
-    )
-    cfg["clean_chart"]["avoid_liquidity_grabs"] = (
-        request.form.get("avoid_liquidity_grabs") == "on"
-    )
-
-    save_config(cfg)
-    return redirect("/clean-chart")
-
-
-@app.route("/news")
-def news():
-    """News page"""
-    return render_template("news.html")
-
-
-@app.route("/api/news/sentiment")
-def api_news_sentiment():
-    """Get market sentiment (Fear & Greed)"""
-    try:
-        resp = requests.get("https://api.alternative.me/fng/", timeout=5)
-        if resp.status_code == 200:
-            data = resp.json()
-            if data.get("data"):
-                fng = data["data"][0]
-                return jsonify(
-                    {
-                        "success": True,
-                        "value": fng.get("value"),
-                        "value_classification": fng.get("value_classification"),
-                        "timestamp": fng.get("timestamp"),
-                    }
-                )
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    return jsonify({"success": False, "error": "Failed to fetch"}), 500
-
-
-@app.route("/api/news/trending")
-def api_news_trending():
-    """Get trending coins"""
-    try:
-        resp = requests.get(
-            "https://api.coingecko.com/api/v3/search/trending", timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            coins = data.get("coins", [])[:20]
-            return jsonify({"success": True, "trending": coins})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    return jsonify({"success": False, "error": "Failed to fetch"}), 500
-
-
-@app.route("/api/news/latest")
-def api_news_latest():
-    """Get latest crypto news from multiple sources"""
-    all_news = []
-
-    # 1. CoinGecko Trending
-    try:
-        resp = requests.get(
-            "https://api.coingecko.com/api/v3/search/trending", timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            for coin in data.get("coins", [])[:10]:
-                item = coin.get("item", {})
-                all_news.append(
-                    {
-                        "title": f"Trending: {item.get('name', 'Crypto')}",
-                        "source": "CoinGecko",
-                        "url": f"https://www.coingecko.com/en/coins/{item.get('id')}",
-                        "published": "",
-                        "type": "trending",
-                    }
-                )
-    except:
-        pass
-
-    # 2. CryptoPanic News
-    try:
-        resp = requests.get(
-            "https://cryptopanic.com/api/v1/posts/",
-            params={"auth_token": "public", "filter": "hot", "limit": 15},
-            timeout=10,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            for item in data.get("results", [])[:10]:
-                all_news.append(
-                    {
-                        "title": item.get("title", ""),
-                        "source": item.get("source", {}).get("title", "CryptoPanic"),
-                        "url": item.get("url", ""),
-                        "published": item.get("published_at", ""),
-                        "type": "news",
-                    }
-                )
-    except:
-        pass
-
-    # 3. Polymarket News (using prediction markets)
-    try:
-        resp = requests.get(
-            "https://clankdeck.comfeeds.com/?source=polymarket&type=latest", timeout=5
-        )
-        if resp.status_code == 200:
-            # Try to parse RSS/Atom feed
-            import xml.etree.ElementTree as ET
-
-            try:
-                root = ET.fromstring(resp.text)
-                for item in root.findall(".//item")[:5]:
-                    title = item.findtext("title", "")
-                    if title:
-                        all_news.append(
-                            {
-                                "title": title,
-                                "source": "Polymarket",
-                                "url": item.findtext("link", ""),
-                                "published": item.findtext("pubDate", ""),
-                                "type": "prediction",
-                            }
-                        )
-            except:
-                pass
-    except:
-        pass
-
-    # 4. DexScreener (latest pairs/trades)
-    try:
-        # Get trending pairs
-        resp = requests.get(
-            "https://api.dexscreener.com/latest/dex/tokens/solana", timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            pairs = data.get("pairs", [])[:5]
-            for pair in pairs:
-                if pair.get("priceChange") and abs(pair.get("priceChange", 0)) > 10:
-                    all_news.append(
-                        {
-                            "title": f"{pair.get('baseToken', {}).get('symbol', 'Token')} up {pair.get('priceChange')}% on {pair.get('dexId', 'DEX')}",
-                            "source": "DexScreener",
-                            "url": f"https://dexscreener.com/{pair.get('chainId')}/{pair.get('pairAddress')}",
-                            "published": "",
-                            "type": "dex",
-                        }
-                    )
-    except:
-        pass
-
-    # 5. CoinDesk RSS (major market news)
-    try:
-        resp = requests.get(
-            "https://www.coindesk.com/feed/rss",
-            timeout=10,
-            headers={"User-Agent": "Mozilla/5.0"},
-        )
-        if resp.status_code == 200:
-            import xml.etree.ElementTree as ET
-
-            try:
-                root = ET.fromstring(resp.text.encode("utf-8"))
-                for item in root.findall(".//item")[:8]:
-                    title = item.findtext("title", "")
-                    if title:
-                        all_news.append(
-                            {
-                                "title": title,
-                                "source": "CoinDesk",
-                                "url": item.findtext("link", ""),
-                                "published": item.findtext("pubDate", ""),
-                                "type": "news",
-                            }
-                        )
-            except:
-                pass
-    except:
-        pass
-
-    # 6. CryptoSlate News
-    try:
-        resp = requests.get(
-            "https://cryptoslate.com/wp-json/cryptoslate/v1/news", timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            for item in data.get("data", [])[:8]:
-                all_news.append(
-                    {
-                        "title": item.get("title", ""),
-                        "source": "CryptoSlate",
-                        "url": item.get("url", ""),
-                        "published": item.get("published", ""),
-                        "type": "news",
-                    }
-                )
-    except:
-        pass
-
-    # 7. Bitcoin.com News
-    try:
-        resp = requests.get(
-            "https://news.bitcoin.com/feed",
-            timeout=10,
-            headers={"User-Agent": "Mozilla/5.0"},
-        )
-        if resp.status_code == 200:
-            import xml.etree.ElementTree as ET
-
-            try:
-                root = ET.fromstring(resp.text.encode("utf-8"))
-                for item in root.findall(".//item")[:6]:
-                    title = item.findtext("title", "")
-                    if title:
-                        all_news.append(
-                            {
-                                "title": title[:150] + "..."
-                                if len(title) > 150
-                                else title,
-                                "source": "Bitcoin.com",
-                                "url": item.findtext("link", ""),
-                                "published": item.findtext("pubDate", ""),
-                                "type": "news",
-                            }
-                        )
-            except:
-                pass
-    except:
-        pass
-
-    # Sort by type priority (news first, then others)
-    type_order = {"news": 0, "prediction": 1, "trending": 2, "dex": 3}
-    all_news.sort(key=lambda x: type_order.get(x.get("type"), 4))
-
-    return jsonify(
-        {
-            "success": True,
-            "news": all_news[:30],
-            "count": len(all_news),
-            "sources": [
-                "CoinGecko",
-                "CryptoPanic",
-                "Polymarket",
-                "DexScreener",
-                "CoinDesk",
-                "CryptoSlate",
-                "Bitcoin.com",
-            ],
-        }
-    )
-
-
-@app.route("/solana")
-def solana():
-    cfg = get_config()
-    wallet = cfg.get("solana", {})
-    return render_template(
-        "solana.html",
-        wallet_connected=wallet.get("connected", False),
-        wallet_address=wallet.get("address", "")[:20] + "..."
-        if wallet.get("address")
-        else None,
-        sol_balance=wallet.get("sol_balance", 0),
-        usdc_balance=wallet.get("usdc_balance", 0),
-        total_value=wallet.get("sol_balance", 0) * 100 + wallet.get("usdc_balance", 0),
-        token_balances=[],
-        transactions=[],
-    )
-
-
-@app.route("/live")
-def live():
-    """Live trading page"""
-    bot_running = is_bot_running()
-    cfg = get_config()
-    mode = cfg.get("bot", {}).get("mode", "PAPER")
-    prices = get_prices()
-    positions = get_positions()
-
-    return render_template(
-        "live.html",
-        bot_running=bot_running,
-        mode=mode,
-        prices=prices[:10],
-        positions=positions,
-    )
-
-
-@app.route("/paper")
-def paper():
-    """Paper trading page"""
-    bot_running = is_bot_running()
-    cfg = get_config()
-    mode = cfg.get("bot", {}).get("mode", "PAPER")
-    prices = get_prices()
-    trades = get_trades(20)
-
-    # Get virtual balance
-    virtual_balance = cfg.get("paper_trading", {}).get("balance", 10000)
-
-    return render_template(
-        "paper.html",
-        bot_running=bot_running,
-        mode=mode,
-        virtual_balance=virtual_balance,
-        prices=prices[:10],
-        trades=trades,
-    )
-
-
-# ============================================================================
-# ADDITIONAL API ENDPOINTS
-# ============================================================================
-
-
-@app.route("/api/alerts/create", methods=["POST"])
-def api_create_alert():
-    cfg = get_config()
-    if "alerts" not in cfg:
-        cfg["alerts"] = {}
-    if "price_alerts" not in cfg["alerts"]:
-        cfg["alerts"]["price_alerts"] = []
-
-    alert = {
-        "id": str(int(time.time())),
-        "symbol": request.form.get("symbol"),
-        "condition": request.form.get("condition"),
-        "price": float(request.form.get("price", 0)),
-        "status": "active",
-    }
-    cfg["alerts"]["price_alerts"].append(alert)
-    save_config(cfg)
-    return redirect("/alerts")
-
-
-@app.route("/api/alerts/<id>/delete", methods=["POST"])
-def api_delete_alert(id):
-    cfg = get_config()
-    alerts = cfg.get("alerts", {}).get("price_alerts", [])
-    cfg["alerts"]["price_alerts"] = [a for a in alerts if a.get("id") != id]
-    save_config(cfg)
-    return redirect("/alerts")
-
-
-@app.route("/api/zeroclaw/chat", methods=["POST"])
-def api_zeroclaw_chat():
-    """Chat with ZeroClaw AI agent"""
-    message = request.form.get("message", "")
-    cfg = get_config()
-    if "zeroclaw" not in cfg:
-        cfg["zeroclaw"] = {}
-    if "chat_history" not in cfg["zeroclaw"]:
-        cfg["zeroclaw"]["chat_history"] = []
-
-    cfg["zeroclaw"]["chat_history"].append({"role": "user", "content": message})
-
-    # Try to connect to ZeroClaw integration
-    response = None
-    try:
-        from zeroclaw_integration import get_zeroclaw
-
-        zc = get_zeroclaw(cfg.get("zeroclaw", {}))
-        if zc.is_running():
-            response = zc.ask_ai(message)
-        else:
-            response = f"ZeroClaw daemon not running. Message received: {message}"
-    except Exception as e:
-        response = f"ZeroClaw not available: {str(e)[:100]}"
-
-    if not response:
-        response = f"I received: {message}. (ZeroClaw offline - using fallback)"
-
-    cfg["zeroclaw"]["chat_history"].append({"role": "assistant", "content": response})
-    # Keep only last 50 messages
-    cfg["zeroclaw"]["chat_history"] = cfg["zeroclaw"]["chat_history"][-50:]
-    save_config(cfg)
-    return redirect("/zeroclaw")
-
-
-@app.route("/api/zeroclaw/skill", methods=["POST"])
-def api_zeroclaw_skill():
-    skill = request.form.get("skill", "")
-    # Execute skill logic here
-    return redirect("/zeroclaw")
-
-
-@app.route("/api/backtest/run", methods=["POST"])
-def api_backtest_run():
-    """Run backtest for a strategy"""
-    symbol = request.form.get("symbol", "BTCUSDT")
-    strategy_name = request.form.get("strategy", "momentum")
-    start_date = request.form.get("start_date", "2024-01-01")
-    end_date = request.form.get("end_date", "2024-12-31")
-    initial_capital = float(request.form.get("capital", 10000))
-
-    # Fetch historical data for backtesting
-    try:
-        resp = requests.get(
-            f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=1000",
-            timeout=30,
-        )
-        if resp.status_code == 200:
-            klines = resp.json()
-
-            # Calculate returns based on strategy
-            prices = [float(k[4]) for k in klines]  # Close prices
-
-            if strategy_name == "momentum":
-                signals = []
-                for i in range(20, len(prices)):
-                    if prices[i] > prices[i - 20]:
-                        signals.append("BUY")
-                    else:
-                        signals.append("SELL")
-            else:
-                signals = ["HOLD"] * len(prices)
-
-            # Calculate P&L
-            trades = 0
-            wins = 0
-            pnl = 0
-
-            for i in range(1, len(signals)):
-                if signals[i] != signals[i - 1] and signals[i] == "BUY":
-                    trade_pnl = (
-                        (prices[min(i + 10, len(prices) - 1)] - prices[i])
-                        / prices[i]
-                        * 100
-                    )
-                    pnl += trade_pnl
-                    trades += 1
-                    if trade_pnl > 0:
-                        wins += 1
-
-            return jsonify(
-                {
-                    "success": True,
-                    "strategy": strategy_name,
-                    "symbol": symbol,
-                    "period": f"{start_date} to {end_date}",
-                    "initial_capital": initial_capital,
-                    "final_capital": round(initial_capital * (1 + pnl / 100), 2),
-                    "return_pct": round(pnl, 2),
-                    "total_trades": trades,
-                    "winning_trades": wins,
-                    "win_rate": round(wins / trades * 100, 1) if trades > 0 else 0,
-                }
-            )
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)[:100]})
-
-
-@app.route("/api/config/risk", methods=["POST"])
-def api_save_risk():
-    cfg = get_config()
-    if "risk" not in cfg:
-        cfg["risk"] = {}
-    cfg["risk"]["max_position_pct"] = float(request.form.get("max_position_pct", 5))
-    cfg["risk"]["stop_loss_pct"] = float(request.form.get("stop_loss_pct", 2))
-    cfg["risk"]["daily_loss_limit_pct"] = float(
-        request.form.get("daily_loss_limit_pct", 5)
-    )
-    cfg["risk"]["max_exposure_pct"] = float(request.form.get("max_exposure_pct", 30))
-    cfg["risk"]["max_positions_per_symbol"] = int(
-        request.form.get("max_positions_per_symbol", 3)
-    )
-    cfg["risk"]["max_leverage"] = float(request.form.get("max_leverage", 1))
-    save_config(cfg)
-    return redirect("/risk")
-
-
-@app.route("/api/config/sl-tp", methods=["POST"])
-def api_update_sl_tp():
-    """Update stop-loss, take-profit, and position multiplier"""
-    from flask import jsonify
-
-    try:
-        sl = float(request.form.get("stop_loss", 2.0))
-        tp = float(request.form.get("take_profit", 6.0))
-        multiplier = float(request.form.get("multiplier", 1.0))
-
-        cfg = get_config()
-        if "risk" not in cfg:
-            cfg["risk"] = {}
-        cfg["risk"]["stop_loss_pct"] = sl / 100
-        cfg["risk"]["take_profit_pct"] = tp / 100
-        cfg["risk"]["position_multiplier"] = multiplier
-        save_config(cfg)
-
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-@app.route("/api/config/telegram", methods=["POST"])
-def api_save_telegram():
-    cfg = get_config()
-    if "telegram" not in cfg:
-        cfg["telegram"] = {}
-    token = request.form.get("telegram_token", "")
-    if token and not token.startswith("*"):
-        cfg["telegram"]["bot_token"] = token
-    cfg["telegram"]["chat_id"] = request.form.get("telegram_chat_id", "")
-    cfg["telegram"]["enabled"] = request.form.get("telegram_enabled") == "on"
-    save_config(cfg)
-    return redirect("/alerts")
-
-
-@app.route("/api/discovery/toggle", methods=["POST"])
-def api_discovery_toggle():
-    cfg = get_config()
-    if "discovery" not in cfg:
-        cfg["discovery"] = {}
-    cfg["discovery"]["active"] = not cfg["discovery"].get("active", False)
-    save_config(cfg)
-    return redirect("/discovery")
-
-
-@app.route("/api/arbitrage/scan", methods=["POST"])
-def api_arbitrage_scan():
-    """Trigger manual arbitrage scan"""
-    _log_skill_execution(
-        "discovery", "arbitrage_scan", "Manual arbitrage scan triggered"
-    )
-    return redirect("/discovery")
-
-
-@app.route("/api/arbitrage/execute", methods=["POST"])
-def api_arbitrage_execute():
-    """Execute arbitrage trade"""
-    symbol = request.form.get("symbol")
-    buy_exchange = request.form.get("buy_exchange")
-    sell_exchange = request.form.get("sell_exchange")
-
-    # Log the execution attempt
-    _log_skill_execution(
-        "arbitrage",
-        "arbitrage_execute",
-        f"Executing {symbol}: Buy on {buy_exchange}, Sell on {sell_exchange}",
-    )
-
-    cfg = get_config()
-    if "arbitrage_trades" not in cfg:
-        cfg["arbitrage_trades"] = []
-
-    cfg["arbitrage_trades"].append(
-        {
-            "symbol": symbol,
-            "buy_exchange": buy_exchange,
-            "sell_exchange": sell_exchange,
-            "timestamp": datetime.now().isoformat(),
-            "status": "pending",
-        }
-    )
-    save_config(cfg)
-
-    return redirect("/discovery")
-
-
-@app.route("/api/ml/toggle", methods=["POST"])
-def api_ml_toggle():
-    cfg = get_config()
-    if "ml" not in cfg:
-        cfg["ml"] = {}
-    cfg["ml"]["enabled"] = not cfg["ml"].get("enabled", False)
-    save_config(cfg)
-    return redirect("/ml")
-
-
-@app.route("/api/ml/retrain", methods=["POST"])
-def api_ml_retrain():
-    cfg = get_config()
-    if "ml" not in cfg:
-        cfg["ml"] = {}
-    cfg["ml"]["last_trained"] = datetime.now().isoformat()
-    save_config(cfg)
-    return redirect("/ml")
-
-
-@app.route("/api/wallet/disconnect", methods=["POST"])
-def api_wallet_disconnect():
-    cfg = get_config()
-    if "solana" in cfg:
-        cfg["solana"]["connected"] = False
-        save_config(cfg)
-    return redirect("/solana")
-
-
-@app.route("/api/paper/reset", methods=["POST"])
-def api_paper_reset():
-    cfg = get_config()
-    if "paper_trading" not in cfg:
-        cfg["paper_trading"] = {}
-    cfg["paper_trading"]["balance"] = 10000
-    save_config(cfg)
-    return redirect("/paper")
-
-
-@app.route("/terminal")
-def terminal():
-    """Advanced Trading Terminal with charts, indicators, AI trading"""
-    return render_template("terminal.html")
-
-
-@app.route("/api/terminal/order", methods=["POST"])
-def api_terminal_order():
-    """Execute a trade order - accepts both JSON and form data"""
-    from flask import jsonify
-
-    try:
-        # Accept JSON or form data
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = request.form.to_dict()
-
-        symbol = data.get("symbol", "BTC/USDT").replace("/", "")
-        side = data.get("side", "buy").lower()
-        order_type = data.get("order_type", "market")
-        quantity = float(data.get("quantity", 0.001))
-        price = float(data.get("price", 0)) if order_type == "limit" else 0
-
-        # Get mode (PAPER or LIVE)
-        cfg = get_config()
-        mode = cfg.get("bot", {}).get("mode", "PAPER")
-
-        # Execute via execution layer
-        result = {
-            "success": True,
-            "order_id": f"order_{int(time.time())}",
-            "symbol": symbol,
-            "side": side,
-            "type": order_type,
-            "quantity": quantity,
-            "mode": mode,
-            "status": "filled" if order_type == "market" else "pending",
-            "timestamp": datetime.now().isoformat(),
-        }
-
-        # If LIVE mode, would execute real order here
-        # For now, log and return
-
-        # Return JSON if requested, else redirect
-        if request.is_json:
-            return jsonify(result)
-        return redirect("/terminal")
-
-    except Exception as e:
-        error_result = {"success": False, "error": str(e)}
-        if request.is_json:
-            return jsonify(error_result), 400
-        return f"Error: {e}"
-
-
-@app.route("/api/terminal/order/json", methods=["POST"])
-def api_terminal_order_json():
-    """JSON-only endpoint for agent/programmatic execution"""
-    return api_terminal_order()
-
-
-@app.route("/api/terminal/ai-trade", methods=["POST"])
-def api_terminal_ai_trade():
-    """Execute AI-suggested trade"""
-    from flask import jsonify
-
-    try:
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = request.form.to_dict()
-
-        signal_id = data.get("signal_id", "current")
-
-        # This would integrate with ML predictions
-        result = {
-            "success": True,
-            "message": "AI trade executed",
-            "signal_id": signal_id,
-            "timestamp": datetime.now().isoformat(),
-        }
-
-        if request.is_json:
-            return jsonify(result)
-        return redirect("/terminal")
-    except Exception as e:
-        if request.is_json:
-            return jsonify({"success": False, "error": str(e)}), 400
-        return f"Error: {e}"
-
-
-@app.route("/api/terminal/calculate", methods=["POST"])
-def api_terminal_calculate():
-    """Calculate position size"""
-    return redirect("/terminal")
-
-
-@app.route("/api/terminal/pine", methods=["POST"])
-def api_terminal_pine():
-    """Run Pine Script"""
-    return redirect("/terminal")
-
-
-# ============================================================================
-# MAIN
-# ============================================================================
 
 if __name__ == "__main__":
-    import sys
-    import os
-
-    # Use PORT env var (Render provides this), default to 10000 for cloud, 7777 for local
-    port = int(os.environ.get("PORT", 10000))
-    print(f"=" * 60)
-    print(f"FINAL TRADING DASHBOARD v1.0")
-    print(f"=" * 60)
-    print(f"Working directory: {BOT_DIR}")
-    print(f"Database: trades.db")
-    print(f"Config: {BOT_DIR}/config.json")
-    print(f"URL: http://localhost:{port}")
-    print(f"=" * 60)
-    app.run(host="0.0.0.0", port=port, debug=False)
-
-
-# ============================================================================
-# ANALYTICS & TERMINAL API ROUTES
-# ============================================================================
-
-
-@app.route("/api/analytics/export", methods=["POST"])
-def api_export_data():
-    """Export trading data to CSV or JSON"""
-    format_type = request.form.get("format", "csv")
-
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM trades ORDER BY timestamp DESC")
-        rows = cur.fetchall()
-        conn.close()
-
-        if format_type == "csv":
-            import csv
-            import io
-            from flask import Response
-
-            output = io.StringIO()
-            writer = csv.writer(output)
-            writer.writerow([description[0] for description in cur.description])
-            writer.writerows(rows)
-
-            response = Response(output.getvalue(), mimetype="text/csv")
-            response.headers["Content-Disposition"] = (
-                "attachment; filename=trades_export.csv"
-            )
-            return response
-
-        elif format_type == "json":
-            trades = [dict(row) for row in rows]
-            return jsonify({"success": True, "data": trades, "count": len(trades)})
-
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-    return redirect("/analytics")
-
-
-@app.route("/api/ml/configure", methods=["POST"])
-def api_ml_configure():
-    """Configure ML model settings"""
-    cfg = get_config()
-    if "ml" not in cfg:
-        cfg["ml"] = {}
-
-    cfg["ml"]["model"] = request.form.get("model", "lstm")
-    cfg["ml"]["window"] = request.form.get("window", "1h")
-    cfg["ml"]["last_updated"] = datetime.now().isoformat()
-
-    save_config(cfg)
-    return redirect("/analytics")
-
-
-@app.route("/api/live/price/<symbol>")
-def api_live_price(symbol):
-    price = get_price(symbol.upper())
-    if price:
-        return jsonify(price)
-    return jsonify({"error": "Price not found"}), 404
-
-
-@app.route("/api/v1/all-prices")
-def api_all_prices():
-    """Get all USDT prices from Binance"""
-    from flask import jsonify
-
-    prices = get_all_usdt_prices()
-    return jsonify({"count": len(prices), "prices": prices})
-
-
-@app.route("/api/commodities")
-def api_commodities():
-    """Get commodity prices (gold, silver, oil, etc.)"""
-    commodities = []
-
-    # Gold (XAU) - using mock data since it's not on crypto exchanges
-    try:
-        resp = requests.get(
-            "https://api.exchangerate.host/latest?base=USD&symbols=XAU", timeout=5
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            gold_rate = data.get("rates", {}).get("XAU")
-            if gold_rate:
-                commodities.append(
-                    {
-                        "symbol": "XAU/USD",
-                        "name": "Gold",
-                        "price": gold_rate,
-                        "change_24h": 0.12,
-                        "icon": "https://cryptologos.cc/logos/gold-xau-logo.png",
-                    }
-                )
-    except:
-        pass
-
-    # Add common crypto commodities
-    commodities.extend(
-        [
-            {
-                "symbol": "BTC",
-                "name": "Bitcoin",
-                "price": 0,
-                "change_24h": 0,
-                "icon": "https://cryptologos.cc/logos/bitcoin-btc-logo.png",
-            },
-            {
-                "symbol": "ETH",
-                "name": "Ethereum",
-                "price": 0,
-                "change_24h": 0,
-                "icon": "https://cryptologos.cc/logos/ethereum-eth-logo.png",
-            },
-        ]
-    )
-
-    # Get real prices for BTC and ETH
-    try:
-        resp = requests.get(
-            "https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=5
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            commodities[1]["price"] = float(data.get("lastPrice", 0))
-            commodities[1]["change_24h"] = float(data.get("priceChangePercent", 0))
-    except:
-        pass
-
-    try:
-        resp = requests.get(
-            "https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT", timeout=5
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            commodities[2]["price"] = float(data.get("lastPrice", 0))
-            commodities[2]["change_24h"] = float(data.get("priceChangePercent", 0))
-    except:
-        pass
-
-    return jsonify(commodities)
-
-
-# ============================================================================
-# SOL SNIPER ENDPOINTS
-# ============================================================================
-
-
-@app.route("/api/sniper/status")
-def api_sniper_status():
-    """Get Sol Sniper status"""
-    cfg = get_config()
-    sniper = cfg.get("sniper", {})
-
-    return jsonify(
-        {
-            "enabled": sniper.get("enabled", False),
-            "mode": cfg.get("bot", {}).get("mode", "PAPER"),
-            "target_tokens": sniper.get(
-                "target_tokens", ["BONK", "WIF", "POPCAT", "MEW", "BOME"]
-            ),
-            "max_position_usd": sniper.get("max_position_usd", 100),
-            "min_liquidity": sniper.get("min_liquidity", 10000),
-            "recent_snipes": sniper.get("recent_snipes", []),
-            "total_pnl": sniper.get("total_pnl", 0),
-        }
-    )
-
-
-@app.route("/api/sniper/configure", methods=["POST"])
-def api_sniper_configure():
-    """Configure Sol Sniper"""
-    cfg = get_config()
-
-    target_tokens = request.form.get("target_tokens", "BONK,WIF,POPCAT,MEW,BOME")
-    max_position = float(request.form.get("max_position_usd", 100))
-    min_liquidity = float(request.form.get("min_liquidity", 10000))
-
-    cfg["sniper"] = {
-        "enabled": True,
-        "target_tokens": [t.strip() for t in target_tokens.split(",")],
-        "max_position_usd": max_position,
-        "min_liquidity": min_liquidity,
-        "recent_snipes": cfg.get("sniper", {}).get("recent_snipes", []),
-        "total_pnl": cfg.get("sniper", {}).get("total_pnl", 0),
-    }
-    save_config(cfg)
-
-    return jsonify({"success": True, "message": "Sniper configured"})
-
-
-@app.route("/api/sniper/toggle", methods=["POST"])
-def api_sniper_toggle():
-    """Toggle Sol Sniper on/off"""
-    cfg = get_config()
-
-    if "sniper" not in cfg:
-        cfg["sniper"] = {}
-
-    cfg["sniper"]["enabled"] = not cfg["sniper"].get("enabled", False)
-    save_config(cfg)
-
-    return jsonify({"success": True, "enabled": cfg["sniper"]["enabled"]})
-
-
-# ============================================================================
-# RISK MANAGEMENT ENDPOINTS
-# ============================================================================
-
-
-@app.route("/api/risk/status")
-def api_risk_status():
-    """Get risk management status"""
-    cfg = get_config()
-    risk = cfg.get("risk", {})
-
-    # Calculate current risk metrics
-    orders = cfg.get("orders", [])
-    open_positions = [o for o in orders if o.get("status") == "open"]
-
-    total_exposure = sum(o.get("amount", 0) * o.get("price", 0) for o in open_positions)
-    max_position = risk.get("max_position_usd", 1000)
-
-    return jsonify(
-        {
-            "max_position_usd": max_position,
-            "current_exposure": total_exposure,
-            "available_capital": max_position - total_exposure,
-            "max_daily_loss": risk.get("max_daily_loss_pct", 5),
-            "stop_loss_pct": risk.get("stop_loss_pct", 2),
-            "take_profit_pct": risk.get("take_profit_pct", 5),
-            "max_open_positions": risk.get("max_open_positions", 5),
-            "current_open_positions": len(open_positions),
-            "risk_level": "HIGH"
-            if total_exposure > max_position * 0.8
-            else "MEDIUM"
-            if total_exposure > max_position * 0.5
-            else "LOW",
-        }
-    )
-
-
-@app.route("/api/risk/configure", methods=["POST"])
-def api_risk_configure():
-    """Configure risk management parameters"""
-    cfg = get_config()
-
-    cfg["risk"] = {
-        "max_position_usd": float(request.form.get("max_position_usd", 1000)),
-        "max_daily_loss_pct": float(request.form.get("max_daily_loss_pct", 5)),
-        "stop_loss_pct": float(request.form.get("stop_loss_pct", 2)),
-        "take_profit_pct": float(request.form.get("take_profit_pct", 5)),
-        "max_open_positions": int(request.form.get("max_open_positions", 5)),
-    }
-    save_config(cfg)
-
-    return jsonify({"success": True, "message": "Risk parameters updated"})
-
-
-# ============================================================================
-# TRADE SIGNALS ENDPOINTS
-# ============================================================================
-
-
-@app.route("/api/signals")
-def api_signals():
-    """Get trading signals based on technical analysis"""
-    cfg = get_config()
-    mode = cfg.get("bot", {}).get("mode", "PAPER")
-
-    signals = []
-
-    # Get top coins and generate signals
-    prices = get_all_usdt_prices()[:20]
-
-    for p in prices:
-        symbol = p.get("symbol", "")
-        change = p.get("change", 0)
-        volume = p.get("volume", 0)
-
-        # Simple signal generation based on price action
-        if change > 5:
-            signal = "STRONG_BUY"
-            reason = f"+{change:.1f}% today with high volume"
-        elif change > 2:
-            signal = "BUY"
-            reason = f"Momentum positive +{change:.1f}%"
-        elif change < -5:
-            signal = "STRONG_SELL"
-            reason = f"{change:.1f}% drop - possible reversal"
-        elif change < -2:
-            signal = "SELL"
-            reason = f"Negative momentum {change:.1f}%"
-        else:
-            signal = "HOLD"
-            reason = "Neutral price action"
-
-        signals.append(
-            {
-                "symbol": symbol,
-                "signal": signal,
-                "confidence": min(abs(change) * 10, 100),
-                "reason": reason,
-                "price": p.get("price"),
-                "change_24h": change,
-                "volume": volume,
-            }
-        )
-
-    return jsonify(
-        {"signals": signals, "mode": mode, "timestamp": datetime.now().isoformat()}
-    )
-
-
-# ============================================================================
-# ADVANCED ANALYTICS
-# ============================================================================
-
-
-@app.route("/api/analytics/portfolio")
-def api_portfolio_analytics():
-    """Get advanced portfolio analytics"""
-    cfg = get_config()
-    orders = cfg.get("orders", [])
-
-    if not orders:
-        return jsonify(
-            {
-                "total_trades": 0,
-                "win_rate": 0,
-                "avg_profit": 0,
-                "avg_loss": 0,
-                "best_trade": 0,
-                "worst_trade": 0,
-                "profit_factor": 0,
-            }
-        )
-
-    closed_orders = [o for o in orders if o.get("status") == "filled"]
-
-    if not closed_orders:
-        return jsonify(
-            {
-                "total_trades": 0,
-                "win_rate": 0,
-                "avg_profit": 0,
-                "avg_loss": 0,
-                "best_trade": 0,
-                "worst_trade": 0,
-                "profit_factor": 0,
-            }
-        )
-
-    wins = [o for o in closed_orders if o.get("pnl", 0) > 0]
-    losses = [o for o in closed_orders if o.get("pnl", 0) < 0]
-
-    win_rate = len(wins) / len(closed_orders) * 100 if closed_orders else 0
-    avg_profit = sum(o.get("pnl", 0) for o in wins) / len(wins) if wins else 0
-    avg_loss = sum(o.get("pnl", 0) for o in losses) / len(losses) if losses else 0
-
-    total_profit = sum(o.get("pnl", 0) for o in wins)
-    total_loss = abs(sum(o.get("pnl", 0) for o in losses))
-    profit_factor = total_profit / total_loss if total_loss > 0 else 0
-
-    return jsonify(
-        {
-            "total_trades": len(closed_orders),
-            "winning_trades": len(wins),
-            "losing_trades": len(losses),
-            "win_rate": round(win_rate, 1),
-            "avg_profit": round(avg_profit, 2),
-            "avg_loss": round(avg_loss, 2),
-            "best_trade": round(max(o.get("pnl", 0) for o in closed_orders), 2)
-            if closed_orders
-            else 0,
-            "worst_trade": round(min(o.get("pnl", 0) for o in closed_orders), 2)
-            if closed_orders
-            else 0,
-            "profit_factor": round(profit_factor, 2),
-            "total_pnl": round(sum(o.get("pnl", 0) for o in closed_orders), 2),
-        }
-    )
-
-
-# ============================================================================
-# ADVANCED ARBITRAGE
-# ============================================================================
-
-
-@app.route("/api/arbitrage/advanced")
-def api_advanced_arbitrage():
-    """Get advanced arbitrage opportunities across exchanges"""
-    prices = get_all_usdt_prices()[:50]
-
-    opportunities = []
-
-    # Simulate cross-exchange arbitrage
-    exchanges = ["Binance", "Coinbase", "Kraken", "OKX", "Bybit"]
-
-    for p in prices[:10]:
-        symbol = p.get("symbol", "")
-        base_price = p.get("price", 0)
-
-        if base_price > 0:
-            # Generate mock prices from different exchanges
-            prices_by_exchange = {}
-            for exchange in exchanges:
-                # Add small random variation
-                variation = 1 + (hash(symbol + exchange) % 20 - 10) / 1000
-                prices_by_exchange[exchange] = base_price * variation
-
-            # Find best arbitrage
-            min_price = min(prices_by_exchange.values())
-            max_price = max(prices_by_exchange.values())
-            spread = (max_price - min_price) / min_price * 100
-
-            if spread > 0.3:  # Only show if > 0.3% spread
-                buy_ex = [k for k, v in prices_by_exchange.items() if v == min_price][0]
-                sell_ex = [k for k, v in prices_by_exchange.items() if v == max_price][
-                    0
-                ]
-
-                opportunities.append(
-                    {
-                        "symbol": symbol,
-                        "buy_exchange": buy_ex,
-                        "sell_exchange": sell_ex,
-                        "buy_price": round(min_price, 2),
-                        "sell_price": round(max_price, 2),
-                        "spread_pct": round(spread, 2),
-                        "potential_profit_usd": round(
-                            base_price * spread / 100 * 100, 2
-                        ),  # Assuming $100 position
-                        "risk": "LOW"
-                        if spread > 1
-                        else "MEDIUM"
-                        if spread > 0.5
-                        else "HIGH",
-                    }
-                )
-
-    return jsonify(
-        {
-            "opportunities": opportunities,
-            "scan_time": datetime.now().isoformat(),
-            "exchanges_checked": len(exchanges),
-        }
-    )
-
-
-# ============================================================================
-# MARKET DATA ENDPOINTS
-# ============================================================================
-
-
-@app.route("/api/market/movers")
-def api_market_movers():
-    """Get top gainers and losers"""
-    prices = get_all_usdt_prices()[:100]
-
-    # Sort by change
-    gainers = sorted(
-        [p for p in prices if p.get("change", 0) > 0],
-        key=lambda x: x.get("change", 0),
-        reverse=True,
-    )[:10]
-    losers = sorted(
-        [p for p in prices if p.get("change", 0) < 0], key=lambda x: x.get("change", 0)
-    )[:10]
-
-    return jsonify(
-        {
-            "gainers": [
-                {
-                    "symbol": p.get("symbol"),
-                    "price": p.get("price"),
-                    "change_24h": p.get("change"),
-                }
-                for p in gainers
-            ],
-            "losers": [
-                {
-                    "symbol": p.get("symbol"),
-                    "price": p.get("price"),
-                    "change_24h": p.get("change"),
-                }
-                for p in losers
-            ],
-        }
-    )
-
-
-@app.route("/api/market/volume")
-def api_market_volume():
-    """Get highest volume coins"""
-    prices = get_all_usdt_prices()[:100]
-
-    # Sort by volume
-    by_volume = sorted(prices, key=lambda x: x.get("volume", 0), reverse=True)[:20]
-
-    return jsonify(
-        {
-            "coins": [
-                {
-                    "symbol": p.get("symbol"),
-                    "price": p.get("price"),
-                    "volume_24h": p.get("volume"),
-                    "change_24h": p.get("change"),
-                }
-                for p in by_volume
-            ]
-        }
-    )
-
-
-@app.route("/api/market/categories")
-def api_market_categories():
-    """Get coins by category"""
-    categories = {
-        "Layer 1": ["BTC", "ETH", "SOL", "AVAX", "ATOM", "DOT", "ADA", "XLM"],
-        "DeFi": ["UNI", "AAVE", "MKR", "COMP", "SUSHI", "CRV"],
-        "AI/Crypto": ["FET", "AGIX", "RNDR", "OCEAN"],
-        "Meme": ["DOGE", "SHIB", "PEPE", "WIF", "BONK"],
-        "Stablecoins": ["USDC", "USDT", "DAI", "BUSD"],
-    }
-
-    prices = get_all_usdt_prices()
-    price_map = {p.get("symbol"): p for p in prices}
-
-    result = {}
-    for cat, symbols in categories.items():
-        result[cat] = []
-        for sym in symbols:
-            if sym in price_map:
-                p = price_map[sym]
-                result[cat].append(
-                    {
-                        "symbol": sym,
-                        "price": p.get("price"),
-                        "change_24h": p.get("change"),
-                    }
-                )
-
-    return jsonify(result)
-
-
-# ============================================================================
-# CONFIG EXPORT/IMPORT
-# ============================================================================
-
-
-@app.route("/api/config/export")
-def api_config_export():
-    """Export configuration (without sensitive data)"""
-    cfg = get_config()
-
-    # Mask sensitive data
-    export = cfg.copy()
-    if "binance" in export:
-        export["binance"]["api_key"] = (
-            "****" if export["binance"].get("api_key") else ""
-        )
-        export["binance"]["secret"] = "****" if export["binance"].get("secret") else ""
-    if "credentials" in export:
-        for k in export["credentials"]:
-            if export["credentials"][k]:
-                export["credentials"][k] = "****"
-
-    return jsonify(export)
-
-
-@app.route("/api/config/import", methods=["POST"])
-def api_config_import():
-    """Import configuration"""
-    try:
-        config_str = request.form.get("config", "{}")
-        import json
-
-        new_cfg = json.loads(config_str)
-
-        cfg = get_config()
-        cfg.update(new_cfg)
-        save_config(cfg)
-
-        return jsonify({"success": True, "message": "Configuration imported"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)[:100]})
-
-
-@app.route("/api/v1/tracked-prices")
-def api_tracked_prices():
-    """Get tracked coin prices from Binance"""
-    from flask import jsonify
-
-    prices = get_prices()
-    return jsonify({"count": len(prices), "prices": prices})
-
-
-def api_live_price(symbol):
-    """Get current price for a symbol (JSON) - for live chart updates without page reload"""
-    try:
-        # Ensure symbol has USDT suffix
-        if not symbol.endswith("USDT"):
-            symbol = symbol + "USDT"
-        resp = requests.get(
-            f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}", timeout=5
-        )
-        data = resp.json()
-        return jsonify(
-            {
-                "symbol": data["symbol"],
-                "price": float(data["lastPrice"]),
-                "change": float(data["priceChangePercent"]),
-                "high": float(data["highPrice"]),
-                "low": float(data["lowPrice"]),
-                "volume": float(data["volume"]),
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/live/candle/<symbol>")
-def api_live_candle(symbol):
-    """Get latest candle data for a symbol - for live chart updates"""
-    try:
-        interval = request.args.get("interval", "15m")
-        if not symbol.endswith("USDT"):
-            symbol = symbol + "USDT"
-
-        # Get last 2 candles
-        resp = requests.get(
-            f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=2",
-            timeout=5,
-        )
-        data = resp.json()
-
-        if len(data) >= 1:
-            latest = data[-1]
-            return jsonify(
-                {
-                    "symbol": symbol,
-                    "time": latest[0],
-                    "open": float(latest[1]),
-                    "high": float(latest[2]),
-                    "low": float(latest[3]),
-                    "close": float(latest[4]),
-                    "volume": float(latest[5]),
-                    "interval": interval,
-                }
-            )
-        return jsonify({"error": "No data"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/live/indicators/<symbol>")
-def api_live_indicators(symbol):
-    """Get technical indicators for a symbol"""
-    try:
-        # Fetch 1h candle data
-        resp = requests.get(
-            f"https://api.binance.com/api/v3/klines?symbol={symbol.upper()}USDT&interval=1h&limit=100",
-            timeout=10,
-        )
-        if resp.status_code != 200:
-            return jsonify({"success": False, "error": "Failed to fetch data"}), 400
-
-        candles = resp.json()
-        closes = [float(c[4]) for c in candles]
-
-        if len(closes) < 50:
-            return jsonify({"success": False, "error": "Insufficient data"}), 400
-
-        # Calculate indicators
-        # RSI
-        rsi = calculate_rsi(closes, 14)
-
-        # EMAs
-        ema9 = calculate_ema(closes, 9)
-        ema21 = calculate_ema(closes, 21)
-        sma50 = calculate_sma(closes, 50)
-        sma200 = calculate_sma(closes, 200)
-
-        # MACD
-        ema12 = calculate_ema(closes, 12)
-        ema26 = calculate_ema(closes, 26)
-        macd = ema12 - ema26
-
-        return jsonify(
-            {
-                "success": True,
-                "indicators": {
-                    "rsi": rsi,
-                    "ema9": ema9,
-                    "ema21": ema21,
-                    "sma50": sma50,
-                    "sma200": sma200,
-                    "macd": macd,
-                },
-            }
-        )
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-def calculate_rsi(prices, period=14):
-    """Calculate RSI"""
-    if len(prices) < period + 1:
-        return 50
-    deltas = [prices[i] - prices[i - 1] for i in range(1, len(prices))]
-    gains = [d if d > 0 else 0 for d in deltas]
-    losses = [-d if d < 0 else 0 for d in deltas]
-
-    avg_gain = sum(gains[-period:]) / period
-    avg_loss = sum(losses[-period:]) / period
-
-    if avg_loss == 0:
-        return 100
-    rs = avg_gain / avg_loss
-    return 100 - (100 / (1 + rs))
-
-
-def calculate_ema(prices, period):
-    """Calculate EMA"""
-    if len(prices) < period:
-        return prices[-1] if prices else 0
-    multiplier = 2 / (period + 1)
-    ema = prices[0]
-    for price in prices[1:]:
-        ema = (price - ema) * multiplier + ema
-    return ema
-
-
-def calculate_sma(prices, period):
-    """Calculate SMA"""
-    if len(prices) < period:
-        return prices[-1] if prices else 0
-    return sum(prices[-period:]) / period
+    if not FLASK_AVAILABLE:
+        print("❌ Dashboard unavailable: flask is not installed (pip install flask)")
+        sys.exit(1)
+    run_dashboard(port=int(os.environ.get("PORT", "7777")))

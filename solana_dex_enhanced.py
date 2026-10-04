@@ -11,6 +11,8 @@ Features:
 - Mempool monitoring for sandwich attack detection
 """
 
+from __future__ import annotations  # defer annotation evaluation (Keypair may be undefined)
+
 import os
 import json
 import time
@@ -23,7 +25,7 @@ import requests
 
 # Solathon for Solana interactions
 try:
-    from solathon import Client, Keypair, PublicKey
+    from solathon import Client, Keypair, PublicKey  # noqa: F401
     from solathon.utils import sol_to_lamports, lamports_to_sol
     SOLATHON_AVAILABLE = True
 except ImportError:

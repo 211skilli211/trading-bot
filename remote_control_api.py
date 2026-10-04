@@ -401,9 +401,9 @@ class BotAPIHandler(BaseHTTPRequestHandler):
         })
 
     def _handle_manual_trade(self, token, body):
-        pair = body.get("pair", "")
-        side = body.get("side", "buy")
-        amount = body.get("amount", 0.0)
+        pair = str(body.get("pair", "")).upper()
+        side = str(body.get("side", "buy")).lower()
+        amount = float(body.get("amount", 0.0) or 0.0)
         if not pair or amount <= 0:
             return self._send_error("Invalid trade params: pair and amount required")
         now = datetime.now(timezone.utc).isoformat()
@@ -412,16 +412,41 @@ class BotAPIHandler(BaseHTTPRequestHandler):
                 "pair": pair, "side": side, "amount": amount, "time": now
             }
         })
+        # Live entry price (best effort — Binance public ticker, 0 if unavailable)
+        open_rate = 0.0
+        if REQUESTS_AVAILABLE:
+            try:
+                sym = pair if pair.endswith("USDT") else pair + "USDT"
+                r = requests.get(
+                    "https://api.binance.com/api/v3/ticker/price?symbol=" + sym,
+                    timeout=5)
+                if r.status_code == 200:
+                    open_rate = float(r.json()["price"])
+            except Exception:
+                open_rate = 0.0
         try:
+            import uuid
             from trade_database import TradeDatabase
             db = TradeDatabase()
-            db.open_trade(pair=pair, side=side, entry_price=0, quantity=amount, strategy="manual")
+            trade_id = "manual-" + str(uuid.uuid4())[:8]
+            db.open_trade(
+                trade_id=trade_id,
+                pair=pair,
+                amount=amount,
+                open_rate=open_rate,
+                stake_amount=round(amount * open_rate, 6),
+                direction="long" if side == "buy" else "short",
+                strategy="manual",
+            )
         except ImportError:
             pass
+        except Exception as e:
+            return self._send_error(f"Manual trade record failed: {str(e)[:100]}")
         self._send_json({
             "status": "ok",
             "message": f"Manual {side} order placed: {amount} {pair}",
-            "trade": {"pair": pair, "side": side, "amount": amount, "time": now},
+            "trade": {"pair": pair, "side": side, "amount": amount,
+                      "entry_price": open_rate, "time": now},
         })
 
     def _handle_update_config(self, token, body):
