@@ -61,8 +61,31 @@ python trading_bot.py --mode paper --monitor 60
 
 ### 3. Run All Tests
 ```bash
-python trading_bot.py --test
+python3 trading_bot.py --test
 ```
+
+### 4. Live venues & Telegram
+
+Active tradeable venues (wired, tested, CLI-driven — see each SETUP doc):
+
+```bash
+python3 trading_bot.py --polymarket-balance     # Polymarket USDC + P&L
+python3 trading_bot.py --polymarket-quickwins   # opportunity scan
+python3 trading_bot.py --paper-run              # live paper lab (QCG-venue strategy)
+python3 trading_bot.py --ctrader-info           # cTrader/QCG account
+```
+
+**Telegram bot** (`@trenchistradingbot` — set `TELEGRAM_BOT_TOKEN` /
+`TELEGRAM_CHAT_ID` in `.env`):
+
+```bash
+python3 trading_bot.py --telegram-test     # one-off ping
+python3 trading_bot.py --telegram-listen   # answer /status /balance /paper /scan /test
+python3 trading_bot.py --watch 300         # resident loop incl. telegram replies
+```
+
+Messages sent to the bot from the configured chat get answers; fills,
+settlements (with P&L) and loss-cap halts are pushed automatically.
 
 ## Usage Examples
 

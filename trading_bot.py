@@ -2485,7 +2485,7 @@ def handle_watch(args):
     interval = args.watch if args.watch else 300
     print("👀 Watch mode — cycle every {}s (Ctrl-C to stop)".format(interval))
     print("   each cycle: paper-lab tick → PM settlement watch → "
-          "(every 4th cycle) scan-cache refresh")
+          "telegram replies → (every 4th cycle) scan-cache refresh")
     cycle = 0
     try:
         while True:
@@ -2516,6 +2516,16 @@ def handle_watch(args):
                 print("PM watch: auth problem — " + str(e)[:100])
             except Exception as e:
                 print("⚠️ PM watch failed: {}".format(str(e)[:100]))
+            try:
+                import telegram_responder
+                tn, terr = telegram_responder.respond_once()
+                if tn:
+                    print("   telegram: {} reply(ies) sent".format(tn),
+                          flush=True)
+                elif terr and "timeout" not in terr.lower():
+                    print("   ⚠️ telegram: {}".format(terr[:80]), flush=True)
+            except Exception as e:
+                print("   ⚠️ telegram poll failed: {}".format(str(e)[:80]))
             if cycle % 4 == 0:
                 try:
                     import polymarket_scanner as pms
@@ -3223,6 +3233,12 @@ Environment Variables for Live Trading:
              '/ TELEGRAM_CHAT_ID in .env)'
     )
     parser.add_argument(
+        '--telegram-listen',
+        action='store_true',
+        help='Answer commands sent to the Telegram bot '
+             '(/status, /balance, /paper, /scan, /test). Ctrl-C stops.'
+    )
+    parser.add_argument(
         '--watch',
         type=int,
         default=0,
@@ -3381,6 +3397,12 @@ Environment Variables for Live Trading:
     if args.telegram_test:
         import alerts
         print(alerts.test_telegram())
+        return
+
+    # Telegram interactive listener (answers /status /balance /paper /scan)
+    if args.telegram_listen:
+        import telegram_responder
+        telegram_responder.cmd_listen()
         return
 
     # Resident watch loop (paper-lab tick + Polymarket settlement watch)
