@@ -2727,6 +2727,49 @@ def handle_polymarket(args):
                   "refreshing (python3 polymarket_check.py)")
             sys.exit(1)
 
+    if args.polymarket_fund or args.polymarket_approve:
+        import pm_funding
+        try:
+            if args.polymarket_approve and not args.polymarket_fund:
+                # approvals only: drop the transfer from the plan
+                plan = pm_funding.plan()
+                plan["actions"] = [a for a in plan["actions"]
+                                   if a["kind"] == "pusd-approve"]
+                plan["transfer_wei"] = 0
+            else:
+                plan = pm_funding.plan(usd_amount=args.pm_fund_amount)
+            print(pm_funding.report(plan))
+            if plan["actions"] and not args.yes:
+                print("\n🔒 Dry run — add --yes to send the on-chain "
+                      "transactions (~$0.05 gas)")
+            elif plan["actions"]:
+                if plan["warnings"]:
+                    print("❌ blocked: " + "; ".join(plan["warnings"]))
+                    sys.exit(1)
+                print("\n⏳ sending on-chain (3 tx, ~30s)…")
+                out = pm_funding.execute_plan(plan)
+                for h in out["hashes"]:
+                    print("   ✔ {} {}".format(h["kind"], h["hash"]))
+                print("   pUSD now: ${:.2f}".format(out["pusd"]))
+                if out["bridge_txs"]:
+                    for bt in out["bridge_txs"]:
+                        print("   bridge: {} {} → pUSD {} [{}]".format(
+                            bt.get("sourceToken", "?"),
+                            bt.get("sourceAmount", "?"),
+                            bt.get("amount", bt.get("pUSDReceived", "?")),
+                            bt.get("status", "?")))
+                if out["pusd"] <= 0:
+                    print("   ℹ pUSD hasn't wrapped yet — the relayer may "
+                          "take a few minutes;\n     check later with "
+                          "--polymarket-balance")
+            else:
+                print("\nnothing to do")
+        except pm_funding.FundingError as e:
+            print("❌ funding: " + str(e))
+            sys.exit(1)
+        if args.polymarket_approve and not args.polymarket_fund:
+            sys.exit(0)
+
     if args.polymarket_balance:
         import polymarket_executor as px
         try:
@@ -3331,8 +3374,29 @@ Environment Variables for Live Trading:
     parser.add_argument(
         '--polymarket-balance',
         action='store_true',
-        help='Show Polymarket USDC cash, open orders, positions, and the '
+        help='Show Polymarket pUSD cash, open orders, positions, and the '
              'ledger (realized P&L) for our wallet'
+    )
+    parser.add_argument(
+        '--polymarket-fund',
+        action='store_true',
+        help='Fund Polymarket on-chain: transfer USDC to Polymarket\'s '
+             'bridge address (auto-wraps to pUSD) and approve pUSD for the '
+             'two CLOB exchanges. Needs ~0.05 POL gas in the wallet. '
+             'Without --yes it only shows the plan.'
+    )
+    parser.add_argument(
+        '--pm-fund-amount',
+        type=float,
+        default=None,
+        metavar='USD',
+        help='USDC amount to fund with (default: entire USDC balance)'
+    )
+    parser.add_argument(
+        '--polymarket-approve',
+        action='store_true',
+        help='Only (re)approve pUSD for the two CLOB exchange contracts '
+             '(needs POL gas). Without --yes it only shows the plan.'
     )
     parser.add_argument(
         '--polymarket-auto',
@@ -3488,6 +3552,7 @@ Environment Variables for Live Trading:
             args.polymarket_quickwins, args.polymarket_portfolio,
             args.polymarket_detail, args.polymarket_exec,
             args.polymarket_balance, args.polymarket_watch,
+            args.polymarket_fund, args.polymarket_approve,
             args.polymarket_auto is not None]):
         try:
             handle_polymarket(args)

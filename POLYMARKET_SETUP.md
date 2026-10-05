@@ -66,44 +66,58 @@ Repo code (`polymarket_trading.py`) is version-tolerant for all of the above.
 
 ## What You Need
 
-### 1. Polygon Wallet with USDC (step by step)
+### 1. Polymarket funding — pUSD era (verified on-chain 2026-10-05)
 
-PolyMarket trades with **USDC on Polygon** (native USDC —
-`0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174`, don't confuse it with other
-bridged variants some bridges mint). The trading wallet is
-`0xEd42785Bb96799b957cB39D987553A9E8b71c9E6` (derived from
-`POLYMARKET_PRIVATE_KEY` in `.env`).
+Since the pUSD migration Polymarket settles in **pUSD**
+(`0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB`), not raw USDC. USDC in the
+raw wallet is NOT tradable until wrapped to pUSD. Two layers:
 
-**Path A — fund the existing wallet (recommended, no new key):**
-1. Get USDC (or USDT) where you keep cash (exchange, card, etc.).
-2. Transfer it **to `0xEd42785Bb96799b957cB39D987553A9E8b71c9E6` on the
-   Polygon network**. Most exchanges have a direct Polygon withdrawal;
-   if you only get USDT on Polygon, swap USDT → USDC once (e.g. via a
-   DEX) — Polymarket settles in USDC.
-3. Verify from the phone:
-   ```bash
-   python3 trading_bot.py --polymarket-balance
-   # "USDC cash: $X" must be > 0 (L2 read, no gas)
-   ```
+**Layer 1 — get USDC into our wallet (you do this, no gas):**
+Send USDC (native `0x3c499c542cEF5E3811E1192ce70d8cC03d5c3359` or
+USDC.e `0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174` — both supported)
+on **Polygon** to our wallet `0xEd42785Bb96799b957cB39D987553A9E8b71c9E6`
+(derived from `POLYMARKET_PRIVATE_KEY`). Exchange / RedotPay / MetaMask
+all work. Trace the tx on-chain: `python3 research/probe_tx.py <txhash>`
+(traces any tx + dumps our wallet balances for all USDC variants + pUSD).
 
-**Path B — recycle the wallet of your old trading bot:**
-1. Extract its Polygon private key (the old bot's config/env/key file).
-2. Point Polymarket at it: set `POLYMARKET_PRIVATE_KEY=<old key>` in
-   `.env` (git-ignored, chmod 600). If that wallet already had Polymarket
-   API credentials, reuse them (Polymarket site → Settings → API).
-3. Verify: `python3 polymarket_check.py`, then
-   `python3 trading_bot.py --polymarket-balance`.
-4. Keep only the trade float in that wallet — anything extra is exposed
-   to the same risk.
+**Layer 2 — wrap to pUSD (the bot does this, ~$0.05 gas):**
+1. Send **~0.3 POL** to the same address (few cents; any exchange that
+   lists POL/MATIC on Polygon). The wallet needs gas for 3 tx.
+2. `python3 trading_bot.py --polymarket-fund` — dry-run plan
+   (shows USDC/pUSD/POL balances + the per-wallet bridge address).
+3. `python3 trading_bot.py --polymarket-fund --yes` — sends:
+   - USDC → Polymarket **bridge address** (per-wallet, from
+     `POST bridge.polymarket.com/deposit`; Polymarket's relayer
+     auto-wraps it to pUSD — *their* gas)
+   - pUSD approve → standard CTF Exchange v2
+   - pUSD approve → neg-risk CTF Exchange v2
+4. `python3 trading_bot.py --polymarket-balance` → "pUSD cash: $X".
 
-**Path C — brand-new wallet:** generate a key, fund it with ~$10–35, set
-the same env vars. Never reuse a wallet that holds your main savings.
+**Future top-ups:** send USDC *directly* to the bridge address (query it
+with `--polymarket-fund` dry-run) — zero gas, relayer wraps it.
 
-**Funding note:** $10 is enough to start (5-share minimum orders, ~$5
-typical endgame entries). The executor refuses to spend more than the
-declared bankroll (`--polymarket-bankroll` / `POLYMARKET_BANKROLL`) and
-halts new entries after a −$3 UTC-day realized loss (configurable
-`--pm-daily-loss-cap`).
+**Fallback if the bridge misbehaves:** `CollateralOnramp
+0x93070a847efEf7F70739046A929D47a521F5B8ee .wrap(USDC, wallet, amount)`
+(needs a prior USDC approve; 2 gas; docs list USDC.e as the asset —
+native-USDC acceptance not confirmed, so the bridge is the default).
+Unwrapping mirror: `CollateralOfframp
+0x2957922Eb93258b93368531d39fAcCA3B4dC5854 .unwrap(...)`.
+
+**Order signing (pUSD era):** CLOB moved to new exchange contracts with
+the EIP-712 domain version "2" and a new 11-field Order struct; the old
+SDK's `create_and_post_order` is rejected ("invalid order version").
+Orders are signed locally by `pm_signer.py` (eth-account) and posted with
+L2 HMAC — the executor (`polymarket_executor.py`) already uses this path.
+The installed SDK carries the pUSD contract config via
+`scripts/pusd_sdk_patch.py` (idempotent; re-run after any PRoot-overlay
+reinstall, must print "PATCH OK").
+
+**Safety notes:** dedicated wallet only, never main savings; the
+executor caps spending at the declared bankroll
+(`--polymarket-bankroll` / `POLYMARKET_BANKROLL`) and halts new entries
+after a −$3 UTC-day realized loss (`--pm-daily-loss-cap`).
+$10 is enough to start (5-share minimum orders, ~$5 typical endgame
+entries).
 
 ### 2. PolyMarket API Credentials
 
@@ -134,21 +148,23 @@ Add the following to your `.env` file:
 # POLYMARKET (Binary Prediction Markets)
 # ============================================
 
-# Your Polygon wallet private key (for signing transactions)
-# This wallet must have USDC on Polygon network for trading
+# Your Polygon wallet private key (for signing orders + pUSD funding)
+# This wallet must have USDC on Polygon (wrapped to pUSD) for trading
 POLYMARKET_PRIVATE_KEY=your_polymarket_polygon_private_key_here
 
-# CLOB API credentials (for order book access)
-# Get API key at: https://docs.polymarket.com/#authentication
+# CLOB API credentials (L2 auth; scheme unchanged by the pUSD migration)
+# Get at: polymarket.com -> Settings -> API
 POLYMARKET_API_KEY=your_polymarket_api_key_here
-POLYMARKET_API_SECRET=your_polymarket_api_secret_here
-POLYMARKET_PASSPHRASE=your_polymarket_passphrase_here
+POLYMARKET_API_SECRET=your_polymarket_api_secret_here   # base64
+POLYMARKET_API_PASSPHRASE=your_polymarket_passphrase_here
 
-# Polygon RPC endpoint
-POLYGON_RPC_URL=https://polygon-rpc.com
+# Polygon RPC fallbacks (pm_funding.py carries its own list; informational)
+POLYGON_RPC_URL=https://polygon-bor-rpc.publicnode.com
 
-# USDC token address on Polygon (don't change this)
-USDC_POLYGON_ADDRESS=0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+# pUSD = settlement collateral (raw USDC does NOT trade until wrapped)
+PUSD_POLYGON_ADDRESS=0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB
+USDC_POLYGON_NATIVE=0x3c499c542cEF5E3811E1192ce70d8cC03d5c3359
+USDC_POLYGON_BRIDGED=0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
 ```
 
 ## Trading Strategies (verified 2026-10-05)
@@ -224,7 +240,7 @@ group with its all-YES ask sum. Minimum order: 5 shares.
 Closed-loop trading on top of the scanner — `polymarket_executor.py`:
 
 ```bash
-# live USDC cash + open orders + positions + realized-PnL ledger
+# live pUSD cash + open orders + positions + realized-PnL ledger
 python3 trading_bot.py --polymarket-balance
 
 # DRY RUN first (no --yes): scan + show what WOULD be bought
@@ -242,7 +258,7 @@ Rules enforced by the executor (all in code; tested in
 `tests/test_polymarket_executor.py`):
 
 - **Single-leg only** — multi-leg arbs are never auto-executed (leg risk).
-- **Cash guard** — reads live L2 USDC cash; refuses entries the wallet can't
+- **Cash guard** — reads live L2 pUSD cash; refuses entries the wallet can't
   pay (dry runs annotate instead of skip).
 - **Bankroll cap** — cost ≤ `--polymarket-bankroll` / `POLYMARKET_BANKROLL`.
 - **Daily loss cap** — realized P&L ≤ −`--pm-daily-loss-cap` (default $3)
@@ -300,12 +316,13 @@ python3 trading_bot.py --polymarket-balance        # L2: cash, orders, ledger
 - Check that POLYMARKET_API_KEY is set correctly in .env
 - Ensure the key is not the placeholder "your_polymarket_api_key_here"
 
-### "Insufficient balance" / "USDC cash: $0.00"
-- No funds on the wallet yet: see §1 (transfer USDC **on Polygon** to
-  `0xEd42...c9E6`), then `python3 trading_bot.py --polymarket-balance`
-- USDC on the wrong network (Ethereum mainnet) is invisible to Polymarket
-- Dry-run `--polymarket-auto` annotations ("no USDC cash") are this guard,
-  not an error
+### "pUSD cash: $0.00" / "Insufficient balance"
+- USDC in the raw wallet is NOT tradable (pUSD era): run
+  `--polymarket-fund --yes` (needs ~0.3 POL gas) to wrap via the bridge
+- USDC on the wrong network (Ethereum mainnet) is invisible to Polymarket —
+  must be Polygon; trace any deposit with `python3 research/probe_tx.py <hash>`
+- "POL balance < 0.05" warning: send ~0.3 POL to the wallet first
+- Dry-run `--polymarket-auto` annotations ("no cash") are the guard, not an error
 
 ### Orders not filling
 - PolyMarket has low liquidity on some markets

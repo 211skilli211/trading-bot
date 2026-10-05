@@ -7,7 +7,7 @@ from the configured chat (TELEGRAM_CHAT_ID).
 Commands (case-insensitive, any of these words):
     /start /help help ?        -> command list
     status | "bot status"      -> all-systems status
-    balance                    -> Polymarket USDC cash + orders + ledger
+    balance                    -> Polymarket pUSD cash + orders + ledger
     paper                      -> paper-lab slots
     scan | signals             -> top quick-wins from the last cached scan
     test | ping                -> liveness check

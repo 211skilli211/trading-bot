@@ -399,10 +399,149 @@ def test_balance_report_renders(tmp_ledger, monkeypatch):
             raise px.ClobAuthError("l2 down")
 
     out = px.balance_report(Good())
-    assert "0xabc" in out and "USDC cash: $20.0000" in out and \
+    assert "0xabc" in out and "pUSD cash: $20.0000" in out and \
         "ledger:" in out
     out_bad = px.balance_report(Bad())
-    assert "USDC cash: ❌" in out_bad
+    assert "pUSD cash: ❌" in out_bad
+
+
+# ---------------------------------------------------------------------------
+# place_buy — pUSD-era v2 signing path
+# ---------------------------------------------------------------------------
+
+_TEST_KEY = "0x" + "11" * 31 + "22"
+_TEST_WALLET = "0x7d931fd3f5a12c18Cd77f9Cb90ff58E677dF9479"
+_TEST_SECRET_B64 = "c2VjcmV0c2VjcmV0c2VjcmV0"  # b"secretsecretsecret"
+
+
+def _mk_trader(monkeypatch):
+    """Real PmTrader on a throwaway key; no network (L2 calls are lazy)."""
+    monkeypatch.setenv("POLYMARKET_PRIVATE_KEY", _TEST_KEY)
+    monkeypatch.setenv("POLYMARKET_API_KEY", "k")
+    monkeypatch.setenv("POLYMARKET_API_SECRET", _TEST_SECRET_B64)
+    monkeypatch.setenv("POLYMARKET_API_PASSPHRASE", "p")
+    return px.PmTrader()
+
+
+def test_place_buy_uses_v2_signer(monkeypatch):
+    """place_buy must sign via pm_signer (EIP-712 v2) and POST /order with
+    L2 headers — not the dead v1 SDK path."""
+    calls = {}
+
+    def fake_fetch_book(token_id, host=None, timeout=20):
+        calls["book"] = token_id
+        return {"tick_size": "0.01", "min_order_size": "5",
+                "neg_risk": True, "bids": [], "asks": []}
+
+    def fake_sign(key, token_id, maker, taker, side, neg_risk=False,
+                  salt=None):
+        calls["sign"] = (token_id, maker, taker, side, neg_risk, key)
+        return "0xsig", {"tokenId": str(token_id), "makerAmount": str(maker),
+                         "takerAmount": str(taker)}
+
+    def fake_post(api_key, api_secret, api_passphrase, address, body,
+                  order_type="GTC", host=None, defer_exec=False,
+                  timeout=25):
+        calls["post"] = (api_key, address, order_type)
+        return {"success": True, "orderID": "0xord", "status": "live"}
+
+    monkeypatch.setattr(px.pm_signer, "fetch_book", fake_fetch_book)
+    monkeypatch.setattr(px.pm_signer, "sign_eoa_order", fake_sign)
+    monkeypatch.setattr(px.pm_signer, "post_order", fake_post)
+
+    t = _mk_trader(monkeypatch)
+    res = t.place_buy("TOK1", 0.52, 10)
+    assert res == {"success": True, "order_id": "0xord",
+                   "status": "live", "error": None}
+    # limit BUY @0.52 ×10 -> maker 5.20 USD, taker 10 shares; signed with
+    # our key against the NEG-RISK exchange (book says neg_risk)
+    assert calls["sign"] == ("TOK1", 5200000, 10000000, "BUY", True,
+                             _TEST_KEY)
+    assert calls["post"][2] == "GTC"
+    assert calls["post"][1] == _TEST_WALLET
+
+
+def test_place_buy_missing_l2_creds_raises(monkeypatch):
+    t = _mk_trader(monkeypatch)
+    t.api_key = ""
+    with pytest.raises(px.ClobAuthError):
+        t.place_buy("TOK1", 0.52, 10)
+
+
+def test_place_buy_min_size_guard(monkeypatch):
+    monkeypatch.setattr(
+        px.pm_signer, "fetch_book",
+        lambda *a, **k: {"tick_size": "0.01", "min_order_size": "5",
+                         "neg_risk": False, "bids": [], "asks": []})
+    t = _mk_trader(monkeypatch)
+    res = t.place_buy("TOK1", 0.52, 3)
+    assert res["success"] is False
+    assert "minimum" in res["error"]
+
+
+# ---------------------------------------------------------------------------
+# pm_signer unit tests (pure, no network)
+# ---------------------------------------------------------------------------
+
+def test_signer_amount_encoding_docs_examples():
+    import pm_signer as S
+    book = {"tick_size": "0.01", "min_order_size": "5"}
+    # docs: limit BUY 10 shares @ 0.52
+    assert S.encode_amounts(book, "BUY", 0.52, 10) == (5200000, 10000000)
+    # docs: limit SELL 10 shares @ 0.52
+    assert S.encode_amounts(book, "SELL", 0.52, 10) == (10000000, 5200000)
+    # docs: market BUY $10 @ max 0.52 -> 19.2308 shares
+    assert S.market_buy_amounts(book, 10.0, 0.52) == (10000000, 19230800)
+    # tick 0.1: price 1dp / size 2dp
+    book1 = {"tick_size": "0.1", "min_order_size": "5"}
+    assert S.encode_amounts(book1, "BUY", 0.9, 11) == (9900000, 11000000)
+
+
+def test_signer_eip712_v2_recovery():
+    """Signed digest must recover to the EOA, and the neg-risk domain must
+    differ from the standard one."""
+    import pm_signer as S
+    from eth_account import Account
+    from eth_account.messages import hash_eip712_message, hash_domain
+    from Crypto.Hash import keccak
+
+    sig, body = S.sign_eoa_order(_TEST_KEY, "123456789012345678901",
+                                 5200000, 10000000, "BUY", salt=479249096354)
+    domain = dict(S.DOMAIN_BASE, verifyingContract=S.EXCHANGE_STANDARD)
+    msg = {"salt": 479249096354, "maker": _TEST_WALLET,
+           "signer": _TEST_WALLET, "tokenId": 123456789012345678901,
+           "makerAmount": 5200000, "takerAmount": 10000000, "side": 0,
+           "signatureType": 0, "timestamp": int(body["timestamp"]),
+           "metadata": S.Z32, "builder": S.Z32}
+    k = keccak.new(digest_bits=256)
+    k.update(b"\x19\x01" + hash_domain(domain)
+             + bytes(hash_eip712_message(S.ORDER_TYPES, msg)))
+    b = bytes.fromhex(sig[2:])
+    assert Account._recover_hash(k.digest(), (b[64], b[:32], b[32:64])) \
+        .lower() == _TEST_WALLET.lower()
+    sig_n, _ = S.sign_eoa_order(_TEST_KEY, "123456789012345678901",
+                                5200000, 10000000, "BUY", neg_risk=True,
+                                salt=479249096354)
+    assert sig_n != sig
+    # domain must be v2 with the new standard exchange
+    assert S.DOMAIN_BASE["version"] == "2"
+    assert S.EXCHANGE_STANDARD.lower() == \
+        "0xe111180000d2663c0091e4f400237545b87b996b"
+
+
+def test_signer_l2_hmac():
+    import base64, hashlib, hmac as h
+    import pm_signer as S
+    body_s = '{"deferExec": false, "order": {}, "orderType": "GTC", "owner": "K"}'
+    hh = S.l2_headers("K", _TEST_SECRET_B64, "P", "0xabc", "POST",
+                      "/order", body_s)
+    ts = hh["POLY_TIMESTAMP"]
+    expect = base64.urlsafe_b64encode(
+        h.new(b"secretsecretsecret",
+              (ts + "POST" + "/order" + body_s).encode(),
+              hashlib.sha256).digest()).decode()
+    assert hh["POLY_SIGNATURE"] == expect
+    assert hh["POLY_API_KEY"] == "K" and hh["POLY_PASSPHRASE"] == "P"
 
 
 # ---------------------------------------------------------------------------

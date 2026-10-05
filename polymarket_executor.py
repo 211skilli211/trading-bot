@@ -3,8 +3,11 @@
 Polymarket live-execution loop.
 
 Closes the loop the scanner leaves open:
-  - PmTrader      — L2-authenticated CLOB wrapper (USDC balance, open orders,
-                    positions, order placement) on py-clob-client 0.34.6.
+  - PmTrader      — L2-authenticated CLOB wrapper (cash balance, open orders,
+                    positions, order placement). Reads still use
+                    py-clob-client 0.34.6; order placement signs the
+                    pUSD-era EIP-712 v2 struct locally (pm_signer) because
+                    the CLOB moved to new exchange contracts in Oct 2026.
   - Ledger        — data/pm_ledger.json: every executed bet, its cost/fees,
                     and its settlement outcome (realized P&L).
   - Guards        — actual-cash check (never order more USDC than we hold),
@@ -38,6 +41,8 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 import requests
+
+import pm_signer
 
 try:
     from py_clob_client.client import ClobClient
@@ -119,7 +124,12 @@ class PmTrader:
     # ---- read API ----
 
     def usdc_balance(self) -> float:
-        """USDC cash available on Polymarket, in USD."""
+        """Cash available on Polymarket, in USD.
+
+        pUSD era (Oct 2026+): the L2 balance-allowance endpoint reports
+        pUSD (the settlement collateral); before that it reported USDC.e.
+        Either way the value is the tradable cash balance.
+        """
         c = self._l2c()
         try:
             res = c.get_balance_allowance(
@@ -160,16 +170,40 @@ class PmTrader:
             pass
         return []
 
-    # ---- write API ----
+    # ---- write API (v2 / pUSD era) ----
 
     def place_buy(self, token_id: str, price: float,
                   size: float) -> Dict:
-        """Place a limit BUY. Returns {success, order_id, status, error}."""
-        c = self._l2c()
+        """Place a limit BUY. Returns {success, order_id, status, error}.
+
+        pUSD-era path (Oct 2026+): the CLOB settles on the new exchange
+        contracts and requires the EIP-712 v2 Order struct, so orders are
+        signed locally (pm_signer) and posted with L2 HMAC credentials —
+        the old SDK's v1 signatures are rejected.
+        """
+        if not (self.api_key and self.api_secret and self.api_passphrase):
+            raise ClobAuthError(
+                "POLYMARKET_API_KEY/SECRET/PASSPHRASE missing in .env")
+        book = pm_signer.fetch_book(token_id, host=self.host)
+        if not book:
+            return {"success": False, "order_id": None, "status": None,
+                    "error": "no order book for token {}".format(token_id)}
         try:
-            args = OrderArgs(price=price, size=size,
-                             side="BUY", token_id=token_id)
-            res = c.create_and_post_order(args)
+            maker_amount, taker_amount = pm_signer.encode_amounts(
+                book, "BUY", price, size)
+        except pm_signer.PmSignerError as e:
+            return {"success": False, "order_id": None, "status": None,
+                    "error": str(e)}
+        try:
+            _sig, order_body = pm_signer.sign_eoa_order(
+                self.key, token_id, maker_amount, taker_amount, "BUY",
+                neg_risk=bool(book.get("neg_risk")))
+            res = pm_signer.post_order(
+                self.api_key, self.api_secret, self.api_passphrase,
+                self.wallet, order_body, order_type="GTC", host=self.host)
+        except pm_signer.PmSignerError as e:
+            return {"success": False, "order_id": None, "status": None,
+                    "error": str(e)}
         except Exception as e:
             return {"success": False, "order_id": None, "status": None,
                     "error": "{}: {}".format(type(e).__name__,
@@ -603,9 +637,9 @@ def balance_report(trader: PmTrader) -> str:
     lines.append("💰 Polymarket — wallet " + trader.wallet)
     try:
         cash = trader.usdc_balance()
-        lines.append("   USDC cash: ${:.4f}".format(cash))
+        lines.append("   pUSD cash: ${:.4f}".format(cash))
     except ClobAuthError as e:
-        lines.append("   USDC cash: ❌ " + str(e))
+        lines.append("   pUSD cash: ❌ " + str(e))
         cash = 0.0
 
     try:
